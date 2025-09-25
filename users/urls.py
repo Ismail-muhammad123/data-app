@@ -1,14 +1,23 @@
 from django.urls import path
 from .views import (
-    SignupView, ResetPasswordView, ProfileView,
-    UpdateProfileView, ChangePasswordView, LogoutView
+    AdminUserViewSet, ChangePINView, CustomerManagementViewSet, PasswordResetConfirmView, PasswordResetRequestView, ResendActivationCodeView,ActivateAccountView, SignupView, ProfileView, LogoutView, 
 )
 
 urlpatterns = [
-    path("auth/signup/", SignupView.as_view(), name="signup"),
-    path("auth/reset-password/", ResetPasswordView.as_view(), name="reset-password"),
-    path("auth/profile/", ProfileView.as_view(), name="get-profile"),
-    path("auth/update-profile/", UpdateProfileView.as_view(), name="update-profile"),
-    path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
-    path("auth/logout/", LogoutView.as_view(), name="logout"),
+    path("signup/", SignupView.as_view(), name="signup"),
+    path("activate-account", ActivateAccountView.as_view(), name="activate-account"),
+    path("resend-activation-code/", ResendActivationCodeView.as_view(), name="resend-activation-code"),
+    
+
+    path("reset-password/", PasswordResetRequestView.as_view(), name="reset-password"),
+    path("confirm-reset-password/", PasswordResetConfirmView.as_view(), name="confirm-reset-password"),
+    
+    path("profile/", ProfileView.as_view(), name="profile"),
+
+    path("change-pin/", ChangePINView.as_view(), name="change-pin"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+
+    # ADMIN DASHBOARD (ADMINS CRUD)
+    path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update', 'delete': 'destroy'}), name="admins"),
+    path("customers/", CustomerManagementViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update', 'delete': 'destroy'}), name="customers"),   
 ]

@@ -198,3 +198,33 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.set_password(password)
         user.save()
         return Response({"message": "Password updated successfully"})
+
+
+class CustomerManagementViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing all users (CRUD).
+    Admins only.
+    """
+    queryset = User.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        return User.objects.filter(is_staff=False)
+
+    def perform_create(self, serializer):
+        serializer.save(is_active=True, is_staff=False)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def deactivate(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = False
+        user.save()
+        return Response({"message": "User deactivated successfully"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def activate(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = True
+        user.save()
+        return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
