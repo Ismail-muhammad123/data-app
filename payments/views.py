@@ -1,34 +1,19 @@
-from decimal import Decimal
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-import requests
-from django.conf import settings
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
-import uuid
 
 from wallet.utils import fund_wallet
 from .utils import MonnifyClient
-from django.utils import timezone
 
 
-# from accounts.models import BankInformation
-from payments.models import Deposit, Withdrawal
-from wallet.models import WalletTransaction
 
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from django.conf import settings
 
-from .models import Payment, Wallet
+from .models import Payment
 from .utils import MonnifyClient
 
 
@@ -138,7 +123,6 @@ from .utils import MonnifyClient
 #             deposit.status = "FAILED"
 #             deposit.save()
 #             return render(request, "payment_failed.html")
-
 
 
 

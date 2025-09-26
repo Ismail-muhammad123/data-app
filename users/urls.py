@@ -17,7 +17,9 @@ urlpatterns = [
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("logout/", LogoutView.as_view(), name="logout"),
 
-    # ADMIN DASHBOARD (ADMINS CRUD)
-    path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update', 'delete': 'destroy'}), name="admins"),
-    path("customers/", CustomerManagementViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update', 'delete': 'destroy'}), name="customers"),   
+    # ADMIN ENDPOINTS
+    path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="admins"),
+    path("customers/", CustomerManagementViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="customers"),   
 ]
+
+

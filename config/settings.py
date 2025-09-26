@@ -60,7 +60,7 @@ INSTALLED_APPS = [
 
     # custom apps
     'users',
-    # 'orders',
+    'orders',
     'wallet',
     'payments',
 ]
@@ -221,3 +221,7 @@ MONNIFY = {
     "CONTRACT_CODE": "...",
     "WEBHOOK_SECRET": "...",
 }
+
+VTPASS_BASE_URL = ""
+VTPASS_USERNAME = ""
+VTPASS_PASSWORD = ""

@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils import timezone
-
 User = get_user_model()
 
 
@@ -31,6 +30,7 @@ class WalletTransaction(models.Model):
     wallet = models.ForeignKey(Wallet, on_delete=models.SET_NULL, null=True, related_name='transactions')
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment =models.OneToOneField("payments.Payment", null=True, on_delete=models.SET_NULL, related_name="wallet_transaction")
     balance_before = models.DecimalField(max_digits=12, decimal_places=2)
     balance_after = models.DecimalField(max_digits=12, decimal_places=2)
     description = models.TextField(blank=True, null=True)
