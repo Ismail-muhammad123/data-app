@@ -61,7 +61,8 @@ INSTALLED_APPS = [
     # custom apps
     'users',
     # 'orders',
-    # 'payments',
+    'wallet',
+    'payments',
 ]
 
 

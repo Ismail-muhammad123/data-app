@@ -141,64 +141,6 @@ from .utils import MonnifyClient
 
 
 
-class InitFundWalletViaTransferView(APIView):
-    """
-    Initiate funding through Bank Transfer (Virtual Account).
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        try:
-            amount = request.data.get("amount")
-            if not amount:
-                return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-            if int(amount) < 100:
-                return Response({"error": "Amount has to bt NGN100 or more"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-            user = request.user
-            wallet = Wallet.objects.get(user=user)
-
-            ref = str(uuid.uuid4())
-
-            monify_client = MonnifyClient()
-
-            # init transaction
-            res = monify_client.init_bank_transfer_payment(
-                amount=amount, 
-                customer_name=user.full_name, 
-                customer_email=user.email, 
-                payment_reference=ref, 
-                payment_description="Wallet Top-up",
-                meta_data={
-                    "user_id": user.id,
-                    "phone_number": user.phone_number,
-                }
-            )
-
-            if res['requestSuccessful']:
-                Payment.objects.create(
-                    wallet=wallet,
-                    amount=amount,
-                    status="PENDING",
-                    timestamp=timezone.now(),
-                    reference=ref, 
-                    payment_type="CREDIT",
-                )
-
-                return Response({
-                    "message": "Transfer initiated successfully",
-                    "monnify_response": res
-                }, status=status.HTTP_200_OK)
-            else: 
-                return Response({
-                    "message": "Transfer failed to be initialized",
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        except Wallet.DoesNotExist:
-            return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
-
 
 # class FundWalletCardView(APIView):
 #     """
