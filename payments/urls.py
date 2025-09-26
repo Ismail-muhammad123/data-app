@@ -1,9 +1,8 @@
-# payments/urls.py
 from django.urls import path
-
-from .views import PaymentCallbackView, PaymentInitView
+from  .views import PaymentWebhookView,  InitFundWalletViaTransferView
 
 urlpatterns = [
-    path("init/<int:order_id>/", PaymentInitView.as_view(), name="payment-init"),
-    path("callback/", PaymentCallbackView.as_view(), name="payment-callback"),
+  
+    path('verify-deposit/', InitFundWalletViaTransferView.as_view(), name='verify-deposit'),
+    path('webhook/', PaymentWebhookView.as_view(), name='payment-webhook'),
 ]

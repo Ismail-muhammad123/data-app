@@ -1,235 +1,266 @@
-# payments/views.py
-from rest_framework import generics, permissions, status
-from rest_framework.response import Response
+from decimal import Decimal
+from django.shortcuts import get_object_or_404, render
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from payments.utils import get_encrypted_key
-from .models import Order, Payment
-from django.conf import settings
-import logging
-import uuid
-from seerbit.seerbitlib import SeerBit
+from rest_framework.response import Response
+from rest_framework import status, permissions
 import requests
-logger = logging.getLogger(__name__)
-SEERBIT_BASE_URL = "https://seerbitapi.com/api/v2"  # switch to sandbox if needed
-    
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.views import APIView
+import uuid
+
+from wallet.utils import fund_wallet
+from .utils import MonnifyClient
+from django.utils import timezone
+
+
+# from accounts.models import BankInformation
+from payments.models import Deposit, Withdrawal
+from wallet.models import WalletTransaction
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from django.conf import settings
+
+from .models import Payment, Wallet
+from .utils import MonnifyClient
+
+
+# PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
+# PAYSTACK_BASE_URL = "https://api.paystack.co"
+# CALLBACK_URL = "" #request.build_absolute_uri("/api/deposit/callback/")
+
+# WITHDRAWAL_CHARGE = 20
+
+# headers = {
+#     "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+#     "Content-Type": "application/json",
+# }
 
 
 
-# 1. Create a payment object and return Link
+# class PaymentWebhookView(APIView):
+#     def post(self, request):
+#         # Paystack will send events here
 
-class PaymentInitView(APIView):
+#         # TODO handle verification
+
+#         payload = request.data
+#         event = payload.get("event")
+
+#         if event == "transfer.success":
+#             reference = payload["data"]["reference"]
+#             withdrawal = Withdrawal.objects.get(reference=reference)
+#             withdrawal.status = "SUCCESS"
+#             withdrawal.save()
+
+#             trx = WalletTransaction.objects.get(reference=reference)
+#             trx.status="SUCCESS"
+#             trx.save()
+
+
+
+#         elif event == "transfer.failed":
+#             reference = payload["data"]["reference"]
+#             withdrawal = Withdrawal.objects.get(reference=reference)
+#             withdrawal.status = "FAILED"
+#             withdrawal.save()
+
+#             trx = WalletTransaction.objects.get(reference=reference)
+#             trx.status="FAILED"
+#             trx.save()
+
+#             # REVRSAL
+#             wallet = trx.wallet
+#             wallet.amount += withdrawal.amount
+#             wallet.save()
+
+#             WalletTransaction.objects.create(
+#                 user=withdrawal.user,
+#                 wallet=withdrawal.user.wallet,
+#                 transaction_type="reversal",
+#                 status="SUCCESS",
+#                 amount= withdrawal.amount,
+#                 balance_before=(withdrawal.user.wallet.balance + withdrawal.amount),
+#                 balance_after= withdrawal.user.wallet.balance,
+#                 description= "withdrawal",
+#                 reference= withdrawal.reference,
+#             )
+
+#         return Response({"message": "Webhook processed"}, status=status.HTTP_200_OK)
+
+
+# class DepositCallbackView(APIView):
+#     def get(self, request):
+#         # Paystack will redirect to callback_url with reference in GET params
+#         reference = request.GET.get("reference")
+#         if not reference:
+#             return render(request, "payments/payment_failed.html", status=400)
+
+#         response = requests.get(f"{PAYSTACK_BASE_URL}/transaction/verify/{reference}", headers=headers)
+
+#         if response.status_code != 200:
+#             return render(request, "payments/payment_failed.html", status=400)
+
+#         res_data = response.json()
+#         status_val = res_data["data"]["status"]
+
+#         if status_val == "success":
+#             deposit = Deposit.objects.get(reference=reference)
+#             if deposit.status == "SUCCESS":
+#                 return render(request, "payments/payment_success.html")
+#             deposit = Deposit.objects.get(reference=reference)
+#             deposit.status = "SUCCESS"
+#             deposit.save()
+#             deposit.wallet.balance += deposit.amount
+#             deposit.wallet.save()
+
+#             WalletTransaction.objects.create(
+#                 user=deposit.wallet.user,
+#                 wallet=deposit.wallet,
+#                 transaction_type="deposit",
+#                 amount= deposit.amount,
+#                 balance_before=(deposit.wallet.balance - deposit.amount),
+#                 balance_after= deposit.wallet.balance,
+#                 description= "DEPOSIT",
+#                 reference= deposit.reference,
+#             )
+#             return render(request, "payments/payment_success.html")
+        
+#         else:
+#             deposit = Deposit.objects.get(reference=reference)
+#             deposit.status = "FAILED"
+#             deposit.save()
+#             return render(request, "payment_failed.html")
+
+
+
+class InitFundWalletViaTransferView(APIView):
+    """
+    Initiate funding through Bank Transfer (Virtual Account).
+    """
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, order_id):
-        order = get_object_or_404(Order, id=order_id, customer=request.user)
-        reference = str(uuid.uuid4()) #f"{order.id}-{request.user.id}"
+    def post(self, request):
+        try:
+            amount = request.data.get("amount")
+            if not amount:
+                return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        encrypted_key = get_encrypted_key()
+            if int(amount) < 100:
+                return Response({"error": "Amount has to bt NGN100 or more"}, status=status.HTTP_400_BAD_REQUEST)
 
-        payload = {
-            "publicKey": settings.SEERBIT_PUBLIC_KEY,
-            "amount": str(order.total_amount),
-            "currency": "NGN",
-            "country": "NG",
-            "paymentReference": reference,
-            "email": request.user.email,
-            "fullName": request.user.full_name,
-            "callbackUrl": settings.SEERBIT_CALLBACK_URL,
-        }
 
-        headers = {
-            "Authorization": f"Bearer {encrypted_key}",
-            "Content-Type": "application/json",
-        }
+            user = request.user
+            wallet = Wallet.objects.get(user=user)
 
-        response = requests.post(f"{SEERBIT_BASE_URL}/payments", json=payload, headers=headers)
-        print(response.text)
-        data = response.json()
+            ref = str(uuid.uuid4())
 
-        if response.status_code == 200 and data.get("status") == "SUCCESS":
-            link = data["data"]["payments"]["redirectLink"]
+            monify_client = MonnifyClient()
 
-            payment, _ = Payment.objects.update_or_create(
-                order=order,
-                defaults={
-                    "user": request.user,
-                    "transaction_ref": reference,
-                    "amount": order.total_amount,
-                    # "payment_url": link,
+            # init transaction
+            res = monify_client.init_bank_transfer_payment(
+                amount=amount, 
+                customer_name=user.full_name, 
+                customer_email=user.email, 
+                payment_reference=ref, 
+                payment_description="Wallet Top-up",
+                meta_data={
+                    "user_id": user.id,
+                    "phone_number": user.phone_number,
                 }
             )
 
-            return Response({"payment_url": link}, status=status.HTTP_200_OK)
-
-        return Response(data, status=status.HTTP_400_BAD_REQUEST)
-    
-
-
-
-
-    
-# 2. Verify payment with the ref in get param
-class PaymentCallbackView(APIView):
-    """
-    Handles SeerBit callback and verifies payment
-    """
-
-    def post(self, request):
-        reference = request.data.get("paymentReference")
-        if not reference:
-            return Response({"error": "paymentReference is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        payment = get_object_or_404(Payment, transaction_ref=reference)
-
-        # Fetch encrypted key
-        try:
-            encrypted_key = get_encrypted_key()
-        except Exception as e:
-            return Response({"error": f"Failed to get encrypted key: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Verify payment with SeerBit
-        headers = {
-            "Authorization": f"Bearer {encrypted_key}",
-            "Content-Type": "application/json",
-        }
-        verify_url = f"{SEERBIT_BASE_URL}/payments/query/{reference}"
-
-        response = requests.get(verify_url, headers=headers)
-        data = response.json()
-
-        if response.status_code == 200 and data.get("status") == "SUCCESS":
-            payments_data = data["data"]["payments"]
-
-            if payments_data.get("gatewayCode") == "00" and payments_data.get("reason") == "Successful":
-                # ✅ Mark as successful
-                payment.status = "success"
-                payment.amount = payments_data.get("amount", payment.amount)
-                payment.save()
-
-                # Update related order
-                payment.order.status = "paid"
-                payment.order.save()
+            if res['requestSuccessful']:
+                Payment.objects.create(
+                    wallet=wallet,
+                    amount=amount,
+                    status="PENDING",
+                    timestamp=timezone.now(),
+                    reference=ref, 
+                    payment_type="CREDIT",
+                )
 
                 return Response({
-                    "message": "Payment successful",
-                    "reference": reference,
-                    "amount": payments_data.get("amount"),
-                    "gatewayref": payments_data.get("gatewayref"),
-                    "maskedPan": payments_data.get("maskedPan"),
-                    "channelType": payments_data.get("channelType"),
-                    "transactionTime": payments_data.get("transactionProcessedTime"),
+                    "message": "Transfer initiated successfully",
+                    "monnify_response": res
                 }, status=status.HTTP_200_OK)
+            else: 
+                return Response({
+                    "message": "Transfer failed to be initialized",
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # ❌ If not successful
-        payment.status = "FAILED"
-        payment.save()
-        return Response({"message": "Payment failed or not verified", "data": data}, status=status.HTTP_400_BAD_REQUEST)
-    
+        except Wallet.DoesNotExist:
+            return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-# --- Payment endpoints (SeerBit flows) ---
-
-# class MakePaymentAPIView(APIView):
+# class FundWalletCardView(APIView):
 #     """
-#     Single endpoint to:
-#     - Tokenize card & authorise (when card fields provided): returns authorizationCode or token
+#     Initiate funding through ATM Card.
 #     """
 #     permission_classes = [permissions.IsAuthenticated]
 
 #     def post(self, request):
-#         ser = PaymentCreateSerializer(data=request.data)
-#         ser.is_valid(raise_exception=True)
-#         data = ser.validated_data
-#         order = get_object_or_404(Order, pk=data["order_id"], customer=request.user)
+#         try:
+#             amount = request.data.get("amount")
+#             if not amount:
+#                 return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-#         # client = SeerbitClient()
-#         if data.get("cardNumber") and data.get("expiryMonth") and data.get("expiryYear") and data.get("cvv") and data.get("pin"):
-#             # First tokenize (amount can be 0.00 per docs if just creating token)
-#             payment_reference = str(uuid.uuid4())
-#             # tk_payload = {
-#             #     "fullName": request.user.full_name,
-#             #     "email": request.user.email,
-#             #     "mobileNumber": request.user.phone,
-#             #     "currency": "NGN",
-#             #     "country": "NG",
-#             #     "paymentType": "CARD",
-#             #     "paymentReference": payment_reference,
-#             #     "amount": float(order.total_amount),  # you may set "0.00" to only tokenize
-#             #     # "productId": "",
-#             #     # "productDescription": data["productDescription"],
-#             #     "redirectUrl":"https://z9trade.com",
-#             #     "cardNumber": data["cardNumber"],
-#             #     "expiryMonth": data["expiryMonth"],
-#             #     "expiryYear": data["expiryYear"],
-#             #     "cvv": data.get("cvv", ""),
-#             #     "pin": data.get("pin", "")
-#             # }
-#             try:
-#                 # token_resp = client.tokenize_card(tk_payload)
-#                 auth_token = authenticate()
-#                 # print(auth_token)
-                
-#                 token_resp= card_authorize(auth_token, payment_reference,
-#                     float(order.total_amount),
-#                     request.user.full_name,
-#                     request.user.email,
-#                     request.user.phone,
-#                     data["cardNumber"],
-#                     data["expiryMonth"],     
-#                     data["expiryYear"],
-#                     data.get("cvv", ""),
-#                     data.get("pin", "")
-#                 )
-#                 print(token_resp)
-#                 # extract token path depends on SeerBit response; example:
-#                 token = None
-#                 try:
-#                     token = token_resp["data"]["payments"]["card"]["token"]
-#                 except Exception:
-#                     token = token_resp.get("data", {}).get("token")  # fallback
+#             wallet = Wallet.objects.get(user=request.user)
 
-#                 # If token exists and you want to immediately authorise (hold funds), call authorise:
-#                 if token:
-#                     # create Payment record with token
-#                     p = Payment.objects.create(
-#                         order=order,
-#                         user=request.user,
-#                         amount=order.total_amount,
-#                         status="authorized" if token else "pending",
-#                         token=token,
-#                         transaction_ref=payment_reference,
-#                         provider_response=token_resp
-#                     )
+#             # Call Monnify util
+#             response = initiate_card_payment(
+#                 customer_name=request.user.get_full_name(),
+#                 customer_email=request.user.email,
+#                 customer_phone=request.user.phone,
+#                 amount=amount,
+#                 payment_reference=f"wallet_{wallet.id}",
+#                 redirect_url=settings.MONNIFY_CARD_REDIRECT_URL,  # e.g. frontend success/failure page
+#             )
 
-#                     auth_payload = {
-#                         "publicKey": settings.SEERBIT_PUBLIC_KEY,
-#                         "amount": order.total_amount,
-#                         "token": token,
-#                         "paymentReference": payment_reference,
-#                         "currency": "NGN",
-#                         "country": "NG",
-#                         "email": request.user.email,
-#                         "fullName": request.user.full_name,
-#                         # "productDescription": data["productDescription"],
-#                     }
-#                     # auth_resp = client.authorise_with_token(auth_payload)
-#                     # parse auth_resp for authorizationCode (example structure)
-#                     auth_code = None
-#                     # auth_code = auth_resp.get("data", {}).get("authorizationCode") or auth_resp.get("data", {}).get("authorization_code")
-#                     # p.provider_response = {"tokenize": token_resp, "authorise": auth_resp}
-#                     if auth_code:
-#                         p.authorization_code = auth_code
-#                         p.status = "authorized"
-#                     # you may inspect auth_resp to set success/failed appropriately
-#                     p.save()
-#                     return Response({"tokenize": token_resp, "authorise": auth_resp}, status=status.HTTP_200_OK)
-#                 return Response({"detail": "Failed to verify card"}, status=400)
-#             except Exception:
-#                 logger.exception("seerbit tokenize/authorise failed")
-#                 return Response({"detail": "Payment tokenization/authorisation failed"}, status=502)
+#             return Response({
+#                 "message": "Card payment initiated successfully",
+#                 "monnify_response": response
+#             }, status=status.HTTP_200_OK)
 
-#         return Response({"detail": "Invalid payment payload"}, status=400)
+#         except Wallet.DoesNotExist:
+#             return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+class PaymentWebhookView(APIView):
+    """
+    Endpoint to receive Monnify transaction / disbursement callbacks.
+    """
+    @method_decorator(csrf_exempt)  # since external POST
+    def post(self, request, *args, **kwargs):
+        client = MonnifyClient()
+        try:
+            event_type, data = client.handle_webhook_event(request.body, request.headers)
+        except ValueError as e:
+            return HttpResponseBadRequest("Invalid signature")
 
+        # handle the different event types
+        if event_type == "SUCCESSFUL_COLLECTION":
+            ref = request['paymentReference']
+            payment = get_object_or_404(Payment, reference=ref)
+            if (payment.status is not "SUCCESSFUL"):
+                payment.status= "SUCCESSFUL"
+                wallet = payment.wallet
+                fund_wallet(wallet.user.id, payment.amount, "Wallet Top-Up")
+            pass
+        elif event_type == "SETTLEMENT_COMPLETION":
+            # funds moved to your bank / wallet
+            pass
+        elif event_type == "FAILED_DISBURSEMENT":
+            pass
+        elif event_type == "SUCCESSFUL_DISBURSEMENT":
+            pass
+        # ... handle other events you care about
+
+        return HttpResponse(status=200)

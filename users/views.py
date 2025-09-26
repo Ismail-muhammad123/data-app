@@ -109,6 +109,7 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # TODO add wallet info, and purchase info
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
 

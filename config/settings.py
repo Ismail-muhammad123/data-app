@@ -211,3 +211,12 @@ DEFAULT_FROM_EMAIL = "noreply@yourdomain.com"
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = "your_email@gmail.com"
 # EMAIL_HOST_PASSWORD = "your_app_password"
+
+
+MONNIFY = {
+    "BASE_URL": "https://sandbox.monnify.com",
+    "API_KEY": "...",
+    "API_SECRET": "...",
+    "CONTRACT_CODE": "...",
+    "WEBHOOK_SECRET": "...",
+}
