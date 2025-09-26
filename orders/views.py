@@ -8,6 +8,8 @@ from orders.utils import purchase_service
 from wallet.utils import debit_wallet
 from .serializers import PlanSerializer, PlanTransactionSerializer, PurchaseRequestSerializer
 import logging
+from django.utils.dateparse import parse_date
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,47 @@ class PlanDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 
+class AllPlanTransactionsView(generics.ListAPIView):
+    queryset = PlanTransaction.objects.all().order_by("-created_at")
+    serializer_class = PlanTransactionSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        queryset = PlanTransaction.objects.all().order_by("-created_at")
+
+        # Filter by date range
+        start_date = self.request.query_params.get("start")
+        end_date = self.request.query_params.get("end")
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=parse_date(start_date))
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=parse_date(end_date))
+
+        # Filter by service_type (network: airtime/data/smile)
+        network = self.request.query_params.get("network")
+        if network:
+            queryset = queryset.filter(plan__service_type=network)
+
+        return queryset
+
+
+class PlanTransactionsByPlanView(generics.ListAPIView):
+    serializer_class = PlanTransactionSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        plan_id = self.kwargs.get("plan_id")
+        queryset = PlanTransaction.objects.filter(plan_id=plan_id).order_by("-created_at")
+
+        # 🔹 Date range filters
+        start_date = self.request.query_params.get("start")
+        end_date = self.request.query_params.get("end")
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=parse_date(start_date))
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=parse_date(end_date))
+
+        return queryset
 
 
 # ---------- CUSTOMER ----------
