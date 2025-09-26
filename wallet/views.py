@@ -10,19 +10,69 @@ import uuid
 from payments.utils import MonnifyClient
 from django.utils import timezone
 
-# PAYSTACK_SECRET_KEY =  settings.PAYSTACK_SECRET_KEY 
-# PAYSTACK_PUBLIC_KEY = settings.PAYSTACK_PUBLIC_KEY 
-PAYSTACK_BASE_URL = "https://api.paystack.co"
-# CALLBACK_URL = settings.CALLBACK_URL
-
-# WITHDRAWAL_CHARGE = 20
-
-# headers = {
-#     "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-#     "Content-Type": "application/json",
-# }
 
 
+
+# ADMIN VIEWS
+class WalletListView(generics.ListAPIView):
+    serializer_class = WalletSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        return Wallet.objects.all()
+
+class WalletDetailWithTransactionsView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, wallet_id):
+        try:
+            wallet = Wallet.objects.get(pk=wallet_id)
+            wallet_data = WalletSerializer(wallet).data
+            transactions = wallet.transactions.all().order_by('-timestamp')
+            transactions_data = WalletTransactionSerializer(transactions, many=True).data
+            return Response({
+                "wallet": wallet_data,
+                "transactions": transactions_data
+            }, status=status.HTTP_200_OK)
+        except Wallet.DoesNotExist:
+            return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class ManualCreditWalletView(APIView):
+    """
+    Admin manually credits a user's wallet.
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        wallet_id = request.data.get("wallet_id")
+        amount = request.data.get("amount")
+        description = request.data.get("description", "Manual credit")
+
+        if not wallet_id or not amount:
+            return Response({"error": "wallet_id and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            wallet = Wallet.objects.get(pk=wallet_id)
+            wallet.balance += float(amount)
+            wallet.save()
+
+            # Log transaction
+            wallet.transactions.create(   
+                user=wallet.user,
+                wallet=wallet,
+                transaction_type="deposit",
+                amount=amount,
+                balance_before=wallet.balance - float(amount),
+                balance_after=wallet.balance,
+                description=description,
+                initiator='admin',
+                initiated_by=request.user,
+                timestamp=timezone.now()
+            )
+
+            return Response({"message": "Wallet credited successfully"}, status=status.HTTP_200_OK)
+        except Wallet.DoesNotExist:
+            return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 # Wallet View

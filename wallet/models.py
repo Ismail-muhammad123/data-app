@@ -35,6 +35,7 @@ class WalletTransaction(models.Model):
     balance_after = models.DecimalField(max_digits=12, decimal_places=2)
     description = models.TextField(blank=True, null=True)
     initiator = models.CharField(max_length=6, choices=INITIATOR_CHOICES, default="self")
+    initiated_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="deposits")
     reference = models.CharField(max_length=100, unique=True)
     timestamp = models.DateTimeField(default=timezone.now)
 
