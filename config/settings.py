@@ -74,8 +74,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Z9 Trade Api DOcs',
-    'DESCRIPTION': 'A full API Documentation of the z9trade procurement fullfilemet webapp',
+    'TITLE': 'Data App Api DOcs',
+    'DESCRIPTION': 'A full API Documentation of the Data App',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False, # Set to True if you want to serve the schema at /schema/
     # ... other Spectacular settings

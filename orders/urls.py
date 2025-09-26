@@ -5,10 +5,10 @@ from .views import AllPlanTransactionsView, PlanDetailView, PlanListCreateView, 
 
 urlpatterns = [
     # Admin
-    path("plans/", PlanListCreateView.as_view(), name="plan-list-create"),
-    path("plans/<int:pk>/", PlanDetailView.as_view(), name="plan-detail"),
-    path("transactions/all/", AllPlanTransactionsView.as_view(), name="all-plan-transactions"),
-    path("transactions/plan/<int:plan_id>/", PlanTransactionsByPlanView.as_view(), name="plan-transactions-by-plan"),
+    path("admin/plans/", PlanListCreateView.as_view(), name="plan-list-create"),
+    path("admin/plans/<int:pk>/", PlanDetailView.as_view(), name="plan-detail"),
+    path("admin/transactions/all/", AllPlanTransactionsView.as_view(), name="all-plan-transactions"),
+    path("admin/transactions/plan/<int:plan_id>/", PlanTransactionsByPlanView.as_view(), name="plan-transactions-by-plan"),
 
 
     # Customer
