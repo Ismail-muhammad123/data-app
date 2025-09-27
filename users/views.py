@@ -90,7 +90,7 @@ class ActivateAccountView(APIView):
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            otp = OTP.objects.get(user=user, code=otp_code, purpose="signup", is_used=False)
+            otp = OTP.objects.get(user=user, code=otp_code, purpose="activation", is_used=False)
         except OTP.DoesNotExist:
             return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 

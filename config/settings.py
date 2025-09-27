@@ -1,7 +1,10 @@
 from pathlib import Path
 import os
 from datetime import timedelta
+import os
+from dotenv import load_dotenv
 
+load_dotenv() # This loads the variables from .env
 
 
 
@@ -214,14 +217,21 @@ DEFAULT_FROM_EMAIL = "noreply@yourdomain.com"
 # EMAIL_HOST_PASSWORD = "your_app_password"
 
 
-MONNIFY = {
-    "BASE_URL": "https://sandbox.monnify.com",
-    "API_KEY": "...",
-    "API_SECRET": "...",
-    "CONTRACT_CODE": "...",
-    "WEBHOOK_SECRET": "...",
-}
+
+MONNIFY_BASE_URL=os.getenv("MONNIFY_BASE_URL")
+MONNIFY_API_KEY=os.getenv("MONNIFY_API_KEY")
+MONNIFY_API_SECRET=os.getenv("MONNIFY_API_SECRET")
+MONNIFY_CONTRACT_CODE=os.getenv("MONNIFY_CONTRACT_CODE")
+MONNIFY_WEBHOOK_SECRET=os.getenv("MONNIFY_WEBHOOK_SECRET")
+
 
 VTPASS_BASE_URL = ""
 VTPASS_USERNAME = ""
 VTPASS_PASSWORD = ""
+
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_SMS_NUMBER = os.getenv("TWILIO_SMS_NUMBER")         # e.g., +1234567890
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER") # e.g., whatsapp:+1234567890
+TWILIO_EMAIL = os.getenv("TWILIO_EMAIL")                   # Twilio SendGrid or Mail API

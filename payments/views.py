@@ -58,13 +58,14 @@ class PaymentWebhookView(APIView):
             return HttpResponseBadRequest("Invalid signature")
 
         # handle the different event types
-        if event_type == "SUCCESSFUL_COLLECTION":
-            ref = request['paymentReference']
+        if event_type == "SUCCESSFUL_TRANSACTION":
+            print("PAYMENT SUCCESS")
+            ref = data['paymentReference']
             payment = get_object_or_404(Payment, reference=ref)
             if (payment.status is not "SUCCESSFUL"):
                 payment.status= "SUCCESSFUL"
                 wallet = payment.wallet
-                fund_wallet(wallet.user.id, payment.amount, "Wallet Top-Up")
+                fund_wallet(wallet.user.id, payment.amount, "Wallet Top-Up", ref)
             pass
         elif event_type == "SETTLEMENT_COMPLETION":
             # funds moved to your bank / wallet

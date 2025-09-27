@@ -22,7 +22,7 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         pin = validated_data.pop("pin")
-        user = User.objects.create_user(**validated_data, pin=pin)
+        user = User.objects.create_user(**validated_data, password=pin)
         return user
 
 

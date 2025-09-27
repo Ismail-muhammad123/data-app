@@ -126,7 +126,6 @@ class InitFundWalletViaTransferView(APIView):
                 payment_reference=ref, 
                 payment_description="Wallet Top-up",
                 meta_data={
-                    "user_id": user.id,
                     "phone_number": user.phone_number,
                 }
             )

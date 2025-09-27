@@ -1,16 +1,18 @@
-# from django.contrib import admin
-# from django import forms
-# from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-# from django.contrib.auth.models import Permission
-# from users.models import User
-# from django.contrib.auth.forms import ReadOnlyPasswordHashField
-# from django.contrib.auth.models import Group
-# from rest_framework.authtoken.models import Token
+from django.contrib import admin
+from django import forms
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Permission
+from users.models import OTP, User
+from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.contrib.auth.models import Group
+from rest_framework.authtoken.models import Token
 
-# # update labes for dashboard
-# admin.site.site_title = "Z9Trades Dashboard"
-# admin.site.site_header = "Z9Trades Admin" 
-# admin.site.index_title = "Dashboard"
+# update labes for dashboard
+admin.site.site_title = "Data App - Dashboard"
+admin.site.site_header = "Data App - Admin" 
+admin.site.index_title = "Dashboard"
+
+
 
 # # Unregister Group if already registered
 # try:
@@ -68,38 +70,42 @@
 #         )
 
 
-# class UserAdmin(BaseUserAdmin):
-#     form = UserChangeForm
-#     add_form = UserCreationForm
-#     list_display = (
-#         "full_name",
-#         "phone_country_code",
-#         "phone_number",
-#         "email",
-#         "is_active",
-#         "is_staff",
-#         "created_at",
-#         )
-     
-#     list_filter = ('is_active', 'is_staff' )
-#     fieldsets = (
-#         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
-#         ("Personal Information", {
-#             'classes': ('wide',),
-#             'fields': ('full_name', 'email', 'country', ),
-#         }),
-#         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
-#     )
-#     add_fieldsets = (
-#         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password1', 'password2')}),
-#         ("Personal Information", {
-#             'classes': ('wide',),
-#             'fields': ('full_name', 'country', ),
-#         }),
-#         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
-#     )
-#     search_fields = ('full_name', 'email')
-#     ordering = ('date_joined', 'is_active')
-#     filter_horizontal = ()
+class UserAdmin(BaseUserAdmin):
+    # form = UserChangeForm
+    # add_form = UserCreationForm
+    list_display = [
+        "full_name", "phone_country_code", "phone_number", "email", "is_active", "is_staff", "created_at", ]
+    ordering = ['created_at']
+    # list_filter = ('is_active', 'is_staff' )
+    # fieldsets = (
+    #     ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
+    #     ("Personal Information", {
+    #         'classes': ('wide',),
+    #         'fields': ('full_name', 'email', 'country', ),
+    #     }),
+    #     ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
+    # )
+    # add_fieldsets = (
+    #     ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password1', 'password2')}),
+    #     ("Personal Information", {
+    #         'classes': ('wide',),
+    #         'fields': ('full_name', 'country', ),
+    #     }),
+    #     ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
+    # )
+    # search_fields = ('full_name', 'email')
+    # ordering = ('date_joined', 'is_active')
+    # filter_horizontal = ()
 
-# admin.site.register(User, UserAdmin)
+class OTPAdmin(admin.ModelAdmin):
+    list_display= [
+        "user",
+        "code",
+        "purpose",
+        "created_at",
+        "expires_at",
+        "is_used",
+    ]
+
+admin.site.register(User, UserAdmin)
+admin.site.register(OTP, OTPAdmin)

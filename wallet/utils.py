@@ -19,12 +19,16 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
         wallet.balance += amount
         wallet.save()
         WalletTransaction.objects.create(
+            user=wallet.user,
             wallet=wallet,
-            type='credit',
+            transaction_type='credit',
             amount=amount,
             payment=payment_obj,
-            timestamp=datetime.now(),
-            description=description
+            balance_before=wallet.balance-amount,
+            balance_after=wallet.balance,
+            description=description,
+            initiator='self',
+            reference=reference,
         )
     return wallet.balance
 

@@ -3,19 +3,20 @@ from django.db import models
 import uuid
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone_number, pin=None, **extra_fields):
+    def create_user(self, phone_number, password=None, **extra_fields):
         if not phone_number:
             raise ValueError("Phone number is required")
         user = self.model(phone_number=phone_number, **extra_fields)
-        if pin:
-            user.set_password(pin)  # using pin as password field
+        if password:
+            user.set_password(password)  # using pin as password field
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, phone_number, pin, **extra_fields):
+    def create_superuser(self, phone_number, password, **extra_fields):
         extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_superuser", True)
-        return self.create_user(phone_number, pin, **extra_fields)
+        return self.create_user(phone_number, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

@@ -36,12 +36,11 @@ def record_withdrawal(amount, description, timestamp):
 
 class MonnifyClient:
     def __init__(self):
-        cfg = settings.MONNIFY
-        self.base_url = cfg["BASE_URL"].rstrip("/")
-        self.api_key = cfg["API_KEY"]
-        self.api_secret = cfg["API_SECRET"]
-        self.contract_code = cfg["CONTRACT_CODE"]
-        self.webhook_secret = cfg.get("WEBHOOK_SECRET")
+        self.base_url = settings.MONNIFY_BASE_URL
+        self.api_key = settings.MONNIFY_API_KEY
+        self.api_secret = settings.MONNIFY_API_SECRET
+        self.contract_code = settings.MONNIFY_CONTRACT_CODE
+        self.webhook_secret = settings.MONNIFY_WEBHOOK_SECRET
 
         # token and expiry
         self._access_token = None
@@ -53,6 +52,7 @@ class MonnifyClient:
         """
         creds = f"{self.api_key}:{self.api_secret}"
         b64 = base64.b64encode(creds.encode()).decode()
+        # print(b64)
         return {"Authorization": f"Basic {b64}"}
 
     def get_access_token(self):
@@ -68,6 +68,8 @@ class MonnifyClient:
         resp = requests.post(url, headers=headers)
         resp.raise_for_status()
         data = resp.json()
+        # print("RESPONSE: ")
+        # print(data)
         body = data["responseBody"]
         token = body["accessToken"]
         expires_in = body["expiresIn"]  # seconds
@@ -77,6 +79,7 @@ class MonnifyClient:
 
     def _bearer_headers(self):
         token = self.get_access_token()
+        # print(token)
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -110,6 +113,8 @@ class MonnifyClient:
             payload["paymentMethods"] = payment_methods
         if meta_data:
             payload["metaData"] = meta_data
+
+        print(payload)
 
         resp = requests.post(url, json=payload, headers=self._bearer_headers())
         resp.raise_for_status()
@@ -246,23 +251,33 @@ class MonnifyClient:
 
     def verify_webhook_signature(self, request_body: bytes, headers: dict) -> bool:
         """
-        Monnify sends a hashed signature header to verify the webhook is genuine.
-        They compute HMAC SHA-512 of the requestBody using WEBHOOK_SECRET.
-        The header name is “monnify-signature” (lowercase or case-insensitive).  
-        See Monnify docs on Webhook Hash.  
+        Verify Monnify webhook signature.
+        - request_body: raw request body in bytes
+        - headers: request headers (dict-like, case insensitive ideally)
+
+        Monnify sends an HMAC SHA-512 signature of the raw request body,
+        using your client secret as the key.
+        The header name is 'Monnify-Signature'.
         """
+
+        # Try both lowercase and proper-case header keys
         signature_header = headers.get("monnify-signature") or headers.get("Monnify-Signature")
         if not signature_header:
             return False
+
+        # Compute hash with your client secret as key
         computed = hmac.new(
-            key=self.webhook_secret.encode(),
+            key=self.api_secret.encode("utf-8"),
             msg=request_body,
             digestmod=hashlib.sha512
         ).hexdigest()
-        # signature header might include “sha512=” prefix
+
+        # Strip "sha512=" prefix if present
         sig = signature_header
         if sig.startswith("sha512="):
             sig = sig.split("=", 1)[1]
+
+        # Compare safely to avoid timing attacks
         return hmac.compare_digest(computed, sig)
 
     def handle_webhook_event(self, request_body: bytes, headers: dict):
