@@ -64,7 +64,7 @@ class PaymentWebhookView(APIView):
             payment = get_object_or_404(Payment, reference=ref)
             if (payment.status != "SUCCESS"):
                 payment.status = "SUCCESS"
-                wallet = payment.wallet
+                wallet = payment.user.wallet
                 fund_wallet(wallet.user.id, payment.amount, "Wallet Top-Up", ref)
             pass
         elif event_type == "SETTLEMENT_COMPLETION":

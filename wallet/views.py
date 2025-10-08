@@ -143,7 +143,6 @@ class InitFundWalletViaTransferView(APIView):
 
             if res['requestSuccessful']:
                 Payment.objects.create(
-                    wallet=wallet,
                     amount=amount,
                     status="PENDING",
                     timestamp=timezone.now(),
