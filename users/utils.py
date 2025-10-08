@@ -73,3 +73,4 @@ def send_otp_code(user, purpose, prefered_channel=None):
             send_whatsapp_otp(phone, message)
         elif channel == 'email' and hasattr(user, 'email') and user.email:
             send_email_otp(user.email, message, "OTP Code")
+
