@@ -24,6 +24,7 @@ packaging==25.0
 pillow==11.3.0
 propcache==0.3.2
 psycopg==3.2.10
+psycopg-binary==3.2.10
 PyJWT==2.10.1
 python-dotenv==1.1.1
 PyYAML==6.0.2
