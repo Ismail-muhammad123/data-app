@@ -1,11 +1,7 @@
 from django.db import models
 from django.conf import settings
 
-STATUS_CHOICES = (
-    ("pending", "Pending"),
-    ("success", "Success"),
-    ("failed", "Failed"),
-)
+
 
 class DataNetwork(models.Model):
     name=models.CharField(max_length=100)
@@ -14,6 +10,17 @@ class DataNetwork(models.Model):
 
     def __str__(self):
         return self.name
+
+class AirtimeNetwork(models.Model):
+    name = models.CharField(max_length=200)
+    service_id = models.CharField(max_length=100)
+    minimum_amount = models.PositiveIntegerField()
+    maximum_amount= models.PositiveIntegerField()
+    image_url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 
 
 class DataPlan(models.Model):
@@ -38,41 +45,31 @@ class DataPlan(models.Model):
     def __str__(self):
         return self.name
     
-class DataSale(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    plan = models.ForeignKey(DataPlan, on_delete=models.CASCADE)
+
+class Purchase(models.Model):
+    PURCHASE_TYPES = (
+        ('data', 'Data'),
+        ('airtime', 'Airtime'),
+    )
+
+    STATUS_CHOICES = (
+    ("pending", "Pending"),
+    ("success", "Success"),
+    ("failed", "Failed"),
+)
+
+    purchase_type = models.CharField(max_length=50)  # 'data' or 'airtime'
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases")
+    airtime_type = models.ForeignKey(AirtimeNetwork, null=True, on_delete=models.SET_NULL, related_name="airtime_sales")
+    data_plan = models.ForeignKey(DataPlan, on_delete=models.SET_NULL, null=True, related_name="data_sales")
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     beneficiary = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     time = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.user} - {self.plan} - {self.status}"
-
-    
-class AirtimeNetwork(models.Model):
-    name = models.CharField(max_length=200)
-    service_id = models.CharField(max_length=100)
-    minimum_amount = models.PositiveIntegerField()
-    maximum_amount= models.PositiveIntegerField()
-    image_url = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return self.name
-
-
-class AirtimeSale(models.Model):
-    airtime_type = models.ForeignKey(AirtimeNetwork, null=True, on_delete=models.SET_NULL, related_name="airtime_sales")
-    reference = models.CharField(max_length=100, unique=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="airtime_purchases")
-    amount = models.PositiveBigIntegerField()
-    beneficiary = models.CharField(max_length=20)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    time = models.DateTimeField(auto_now=True)
-
-
-    def __str__(self):
-        return f"{self.amount} {self.airtime_type.name} to {self.beneficiary}"
+        return f"{self.purchase_type} purchase to {self.beneficiary}"
 
 

@@ -60,6 +60,8 @@ INSTALLED_APPS = [
 
     # 3ed party apps
     'drf_spectacular',
+    'corsheaders',
+
 
     # custom apps
     'users',
@@ -95,9 +97,12 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = "users.User"
 
+CORS_ALLOW_ALL_ORIGINS = True
+
+
 
 MIDDLEWARE = [
-    # "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -228,6 +233,9 @@ MONNIFY_WEBHOOK_SECRET=os.getenv("MONNIFY_WEBHOOK_SECRET")
 VTPASS_BASE_URL = ""
 VTPASS_USERNAME = ""
 VTPASS_PASSWORD = ""
+VTPASS_API_KEY = "ae5684ac031d85b5623f3142aa9d91f2"
+VTPASS_API_SECRET = "SK_25456c2eca33a8fed160ba2b31d3731cf9cf48245f3"
+VTPASS_API_PUBLIC_KEY = "PK_7597f7c1a0ab13c2efa91521ae8614969f4b98b6751"
 
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")

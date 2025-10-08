@@ -2,6 +2,7 @@
 import requests
 from django.conf import settings
 
+import os
 #  = "https://seerbitapi.com/api/v2"  # or sandbox URL
 
 # def get_encrypted_key():
@@ -113,10 +114,8 @@ class MonnifyClient:
             payload["paymentMethods"] = payment_methods
         if meta_data:
             payload["metaData"] = meta_data
-
-        print(payload)
-
         resp = requests.post(url, json=payload, headers=self._bearer_headers())
+        print(resp.json())
         resp.raise_for_status()
         return resp.json()
 
@@ -130,13 +129,14 @@ class MonnifyClient:
         init_resp = self.init_transaction(
             amount=amount,
             customer_name=customer_name,
-            customer_email=customer_email,
+            customer_email=customer_email if (customer_email) else os.getenv("DEFAULT_TRANSACTION_EMAIL"),
             payment_reference=payment_reference,
             payment_description=payment_description,
             redirect_url=redirect_url,
             payment_methods=payment_methods,
             meta_data=meta_data
         )
+
         transaction_reference = init_resp["responseBody"]["transactionReference"]
 
         # Step 2: Initialize bank transfer payment

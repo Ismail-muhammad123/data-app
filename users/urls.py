@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    AdminUserViewSet, ChangePINView, CustomerManagementViewSet, LoginView, PasswordResetConfirmView, PasswordResetRequestView, ResendActivationCodeView,ActivateAccountView, SignupView, ProfileView, LogoutView, 
+    ChangePINView, LoginView, PasswordResetConfirmView, PasswordResetRequestView, RefreshTokenView, ResendActivationCodeView,ActivateAccountView, SignupView, ProfileView, LogoutView, 
 )
 
 urlpatterns = [
@@ -8,7 +8,7 @@ urlpatterns = [
     path("activate-account/", ActivateAccountView.as_view(), name="activate-account"),
     path("resend-activation-code/", ResendActivationCodeView.as_view(), name="resend-activation-code"),
     path("login/",LoginView.as_view(), name='login'),
-    
+    path("refresh-token/", RefreshTokenView.as_view(), name="refresh-token"),
 
     path("reset-password/", PasswordResetRequestView.as_view(), name="reset-password"),
     path("confirm-reset-password/", PasswordResetConfirmView.as_view(), name="confirm-reset-password"),
@@ -18,9 +18,9 @@ urlpatterns = [
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("logout/", LogoutView.as_view(), name="logout"),
 
-    # ADMIN ENDPOINTS
-    path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="admins"),
-    path("customers/", CustomerManagementViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="customers"),   
+    # # ADMIN ENDPOINTS
+    # path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="admins"),
+    # path("customers/", CustomerManagementViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="customers"),   
 ]
 
 

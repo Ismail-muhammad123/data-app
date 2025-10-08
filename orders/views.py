@@ -3,143 +3,186 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
 
-from orders.models import DataNetwork, DataPlan, DataSale, AirtimeNetwork, AirtimeSale
-from orders.utils import purchase_service
-from wallet.utils import debit_wallet
-from .serializers import DataNetworkSerializer, DataPlanSerializer, DataSaleSerializer, AirtimeNetworkSerializer, AirtimeSaleSerializer
+from orders.models import DataNetwork, DataPlan, Purchase, AirtimeNetwork
+from orders.utils import buy_airtime, buy_data_plan
+from wallet.models import Wallet
+from wallet.utils import debit_wallet, fund_wallet
+from .serializers import (
+    AirtimePurchaseRequestSerializer, 
+    DataNetworkSerializer, 
+    DataPlanSerializer, 
+    DataPurchaseRequestSerializer, 
+    PurchaseSerializer, 
+    AirtimeNetworkSerializer
+)
+
 import logging
-from django.utils.dateparse import parse_date
 
 logger = logging.getLogger(__name__)
 
 
-
-# # ---------- ADMIN CRUD ----------
-# class PlanListCreateView(generics.ListCreateAPIView):
-#     queryset = Plan.objects.all()
-#     serializer_class = PlanSerializer
-#     permission_classes = [permissions.IsAdminUser]
-
-
-# class PlanDetailView(generics.RetrieveUpdateDestroyAPIView):
-#     queryset = Plan.objects.all()
-#     serializer_class = PlanSerializer
-#     permission_classes = [permissions.IsAdminUser]
-
-
-
-# class AllPlanTransactionsView(generics.ListAPIView):
-#     queryset = PlanTransaction.objects.all().order_by("-created_at")
-#     serializer_class = PlanTransactionSerializer
-#     permission_classes = [permissions.IsAdminUser]
-
-#     def get_queryset(self):
-#         queryset = PlanTransaction.objects.all().order_by("-created_at")
-
-#         # Filter by date range
-#         start_date = self.request.query_params.get("start")
-#         end_date = self.request.query_params.get("end")
-#         if start_date:
-#             queryset = queryset.filter(created_at__date__gte=parse_date(start_date))
-#         if end_date:
-#             queryset = queryset.filter(created_at__date__lte=parse_date(end_date))
-
-#         # Filter by service_type (network: airtime/data/smile)
-#         network = self.request.query_params.get("network")
-#         if network:
-#             queryset = queryset.filter(plan__service_type=network)
-
-#         return queryset
-
-
-# class PlanTransactionsByPlanView(generics.ListAPIView):
-#     serializer_class = PlanTransactionSerializer
-#     permission_classes = [permissions.IsAdminUser]
-
-#     def get_queryset(self):
-#         plan_id = self.kwargs.get("plan_id")
-#         queryset = PlanTransaction.objects.filter(plan_id=plan_id).order_by("-created_at")
-
-#         # 🔹 Date range filters
-#         start_date = self.request.query_params.get("start")
-#         end_date = self.request.query_params.get("end")
-#         if start_date:
-#             queryset = queryset.filter(created_at__date__gte=parse_date(start_date))
-#         if end_date:
-#             queryset = queryset.filter(created_at__date__lte=parse_date(end_date))
-
-#         return queryset
-
-
 # ---------- CUSTOMER ----------
-# class PlansListView(generics.ListAPIView):
-#     queryset = Plan.objects.all()
-#     serializer_class = PlanSerializer
-#     permission_classes = [permissions.IsAuthenticated]
+class DataNetworksListView(generics.ListAPIView):
+    queryset = DataNetwork.objects.all()
+    serializer_class = DataNetworkSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class DataPlansListView(generics.ListAPIView):
+    queryset = DataPlan.objects.all()
+    serializer_class = DataPlanSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
-# class PurchasePlanView(APIView):
-#     permission_classes = [permissions.IsAuthenticated]
+    def get_queryset(self):
+        queryset = DataPlan.objects.filter(is_active=True)
 
-#     def post(self, request):
-#         serializer = PurchaseRequestSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
+        network_id = self.request.query_params.get("network_id")
+        if network_id:
+            queryset = queryset.filter(service_type=network_id)
 
-#         plan_id = serializer.validated_data["plan_id"]
-#         phone_number = serializer.validated_data["phone_number"]
+        return queryset
 
-#         try:
-#             plan = Plan.objects.get(id=plan_id, is_active=True)
-#         except Plan.DoesNotExist:
-#             return Response({"error": "Invalid or inactive plan."}, status=status.HTTP_400_BAD_REQUEST)
+class AirtimeNetworkListView(generics.ListAPIView):
+    queryset = AirtimeNetwork.objects.all()
+    serializer_class = AirtimeNetworkSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-#         user = request.user
-#         amount = plan.selling_price
-#         reference = str(uuid.uuid4())
+class PurchaseDataPlanView(APIView):
+    permission_classes=  [permissions.IsAuthenticated]
+    serializer_class = DataPurchaseRequestSerializer
 
-#         # Step 1: Debit wallet
-#         wallet_debit = debit_wallet(user.id, amount, f"{plan.service_type} purchase - {reference}")
-#         if not wallet_debit:
-#             return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        serializer = DataPurchaseRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-#         # Step 2: Create transaction record
-#         transaction = PlanTransaction.objects.create(
-#             user=user,
-#             plan=plan,
-#             phone_number=phone_number,
-#             reference=reference,
-#             amount=amount,
-#             status="pending"
-#         )
+        plan_id = serializer.validated_data["plan_id"]
+        phone_number = serializer.validated_data["phone_number"]
 
-#         # Step 3: Call VTPass
-#         vtpass_response = purchase_service(
-#             service_id=plan.service_id,
-#             phone_number=phone_number,
-#             amount=amount,
-#             request_id=reference,
-#         )
+        try:
+            plan = DataPlan.objects.get(id=plan_id, is_active=True)
+        except DataPlan.DoesNotExist:
+            return Response({"error": "Invalid or inactive plan."}, status=status.HTTP_400_BAD_REQUEST)
 
-#         transaction.response_data = vtpass_response
+        user = request.user
+        amount = plan.selling_price
 
-#         if vtpass_response.get("code") == "000":  # success
-#             transaction.status = "success"
-#         else:
-#             transaction.status = "failed"
+        wallet, _ = Wallet.objects.get_or_create(user=user)
 
-#         transaction.save()
+        if wallet.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
 
-#         return Response(PlanTransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        # Step 1: Debit wallet
+        reference = str(uuid.uuid4())
+        debit_wallet(user.id, amount, f"{plan.service_type} purchase - {reference}")
+        
+        # Step 2: Create transaction record
+        transaction = Purchase.objects.create(
+            purchase_type="data",
+            user=user,
+            data_plan=plan,
+            beneficiary=phone_number,
+            reference=reference,
+            amount=amount,
+            status="pending"
+        )
 
+        # Step 3: Call VTPass
+        vtpass_response = buy_data_plan(
+            service_id=plan.service_type.service_id,
+            phone_number=phone_number,
+            amount=amount,
+            request_id=reference,
+            variation_code=plan.variation_code,
+        )
 
-# class PlanTransactionsView(generics.ListAPIView):
-#     serializer_class = PlanTransactionSerializer
-#     permission_classes = [permissions.IsAuthenticated]
+        print("VTPASS RESPONSE: ",vtpass_response)
 
-#     def get_queryset(self):
-#         return PlanTransaction.objects.filter(user=self.request.user).order_by("-created_at")
+        if vtpass_response.get("code") == "000":  # success
+            transaction.status = "success"
+        else:
+            transaction.status = "failed"
+            fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
+            
+        transaction.save()
+        return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+    
+class PurchaseAirtimeView(APIView):
+    permission_classes=  [permissions.IsAuthenticated]
+    serializer_class = DataPurchaseRequestSerializer
 
+    def post(self, request):
+        serializer = AirtimePurchaseRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        amount = serializer.validated_data["amount"]
+        phone_number = serializer.validated_data["phone_number"]
+        network_id = serializer.validated_data["network_id"]
+
+        try:
+            network = AirtimeNetwork.objects.get(id=network_id)
+        except DataPlan.DoesNotExist:
+            return Response({"error": "Invalid Network."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+
+        if wallet.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+        reference = str(uuid.uuid4())
+        
+
+        # Step 3: Call VTPass
+        vtpass_response = buy_airtime(
+            request_id=reference,
+            service_id=network.service_id,
+            amount=amount,
+            beneficiary=phone_number,
+        )
+
+        print("VTPASS RESPONSE: ",vtpass_response)
+
+        if vtpass_response.get("code") == "000":  # success
+            
+            # Step 1: Debit wallet
+            debit_wallet(user.id, amount, f"{network} Airtime purchase - {reference}")
+            
+            # Step 2: Create transaction record
+            transaction = Purchase.objects.create(
+                purchase_type="airtime",
+                airtime_type=network,
+                user=user,
+                beneficiary=phone_number,
+                reference=reference,
+                amount=amount,
+                status="success"
+            )
+        # else:
+        #     transaction.status = "failed"
+        #     fund_wallet(user.id, amount, f"Refund for failed {network} airtime purchase - {reference}")
+        # transaction.save()
+            return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        else:
+            return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+        
+class PurchaseHistoryView(generics.ListAPIView):
+    serializer_class = PurchaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Purchase.objects.filter(user=self.request.user).order_by("-time")
+
+class PurchaseDetailsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            purchase = Purchase.objects.get(pk=pk, user=request.user)
+        except Purchase.DoesNotExist:
+            return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = PurchaseSerializer(purchase)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # class VTpassWebhookView(APIView):
@@ -189,3 +232,42 @@ logger = logging.getLogger(__name__)
 #         except Exception as e:
 #             logger.error(f"Error handling VTpass webhook: {str(e)}")
 #             return Response({"error": "Webhook processing failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# data = {
+#     'code': '000', 
+#     'content': {
+#         'transactions': {
+#             'status': 'delivered', 
+#             'product_name': 'MTN Airtime VTU', 
+#             'unique_element': '08011111111', 
+#             'unit_price': '50', 
+#             'quantity': 1, 
+#             'service_verification': None, 
+#             'channel': 'api', 
+#             'commission': 1.7500000000000002, 
+#             'total_amount': 48.25, 
+#             'discount': None, 
+#             'type': 'Airtime Recharge', 
+#             'email': 'ismaeelmuhammad123@gmail.com', 
+#             'phone': '08163351109', 
+#             'name': None, 
+#             'convinience_fee': 0, 
+#             'amount': '50', 
+#             'platform': 'api', 
+#             'method': 'api', 
+#             'transactionId': '17596192814965745110120424', 
+#             'commission_details': {
+#                 'amount': 1.7500000000000002, 
+#                 'rate': '3.50', 
+#                 'rate_type': 'percent', 
+#                 'computation_type': 'default'
+#             }
+#         }
+#     }, 
+#     'response_description': 'TRANSACTION SUCCESSFUL', 
+#     'requestId': '689b739f-676c-488a-8246-238d0c957816', 
+#     'amount': 50, 
+#     'transaction_date': '2025-10-04T23:08:01.000000Z', 
+#     'purchased_code': ''
+# }

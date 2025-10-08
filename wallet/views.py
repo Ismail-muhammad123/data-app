@@ -37,42 +37,42 @@ class WalletDetailWithTransactionsView(APIView):
         except Wallet.DoesNotExist:
             return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
-class ManualCreditWalletView(APIView):
-    """
-    Admin manually credits a user's wallet.
-    """
-    permission_classes = [permissions.IsAdminUser]
+# class ManualCreditWalletView(APIView):
+#     """
+#     Admin manually credits a user's wallet.
+#     """
+#     permission_classes = [permissions.IsAdminUser]
 
-    def post(self, request):
-        wallet_id = request.data.get("wallet_id")
-        amount = request.data.get("amount")
-        description = request.data.get("description", "Manual credit")
+#     def post(self, request):
+#         wallet_id = request.data.get("wallet_id")
+#         amount = request.data.get("amount")
+#         description = request.data.get("description", "Manual credit")
 
-        if not wallet_id or not amount:
-            return Response({"error": "wallet_id and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
+#         if not wallet_id or not amount:
+#             return Response({"error": "wallet_id and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            wallet = Wallet.objects.get(pk=wallet_id)
-            wallet.balance += float(amount)
-            wallet.save()
+#         try:
+#             wallet = Wallet.objects.get(pk=wallet_id)
+#             wallet.balance += float(amount)
+#             wallet.save()
 
-            # Log transaction
-            wallet.transactions.create(   
-                user=wallet.user,
-                wallet=wallet,
-                transaction_type="deposit",
-                amount=amount,
-                balance_before=wallet.balance - float(amount),
-                balance_after=wallet.balance,
-                description=description,
-                initiator='admin',
-                initiated_by=request.user,
-                timestamp=timezone.now()
-            )
+#             # Log transaction
+#             wallet.transactions.create(   
+#                 user=wallet.user,
+#                 wallet=wallet,
+#                 transaction_type="deposit",
+#                 amount=amount,
+#                 balance_before=wallet.balance - float(amount),
+#                 balance_after=wallet.balance,
+#                 description=description,
+#                 initiator='admin',
+#                 initiated_by=request.user,
+#                 timestamp=timezone.now()
+#             )
 
-            return Response({"message": "Wallet credited successfully"}, status=status.HTTP_200_OK)
-        except Wallet.DoesNotExist:
-            return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
+#             return Response({"message": "Wallet credited successfully"}, status=status.HTTP_200_OK)
+#         except Wallet.DoesNotExist:
+#             return Response({"error": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 # Wallet View
@@ -93,6 +93,17 @@ class WalletTransactionListView(generics.ListAPIView):
         wallet, _ = Wallet.objects.get_or_create(user=self.request.user)
         return wallet.transactions.all().order_by('-timestamp')
 
+class WalletTransactionDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        try:
+            transaction = wallet.transactions.get(pk=pk)
+            data = WalletTransactionSerializer(transaction).data
+            return Response(data, status=status.HTTP_200_OK)
+        except wallet.transactions.model.DoesNotExist:
+            return Response({"error": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # FUND Wallet via transfer
 class InitFundWalletViaTransferView(APIView):

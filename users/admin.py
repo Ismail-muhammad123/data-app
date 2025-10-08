@@ -8,8 +8,8 @@ from django.contrib.auth.models import Group
 from rest_framework.authtoken.models import Token
 
 # update labes for dashboard
-admin.site.site_title = "Data App - Dashboard"
-admin.site.site_header = "Data App - Admin" 
+admin.site.site_title = "A-Star Data App - Dashboard"
+admin.site.site_header = "A-Star Data App - Admin" 
 admin.site.index_title = "Dashboard"
 
 

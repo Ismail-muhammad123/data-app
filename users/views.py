@@ -47,6 +47,22 @@ class LoginView(APIView):
             "user": ProfileSerializer(user).data
         })
 
+class RefreshTokenView(APIView):
+    """
+    Obtain a new access token using a refresh token.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response({"error": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+            return Response({"access": access_token}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"error": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
 # ---------------------------
 # Signup (Phone + PIN auth)
 # ---------------------------
@@ -179,29 +195,29 @@ class LogoutView(APIView):
 # Admin Views
 # ----------------------------------
 
-class AdminUserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.filter(is_staff=True)
-    serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAdminUser]
+# class AdminUserViewSet(viewsets.ModelViewSet):
+#     queryset = User.objects.filter(is_staff=True)
+#     serializer_class = ProfileSerializer
+#     permission_classes = [permissions.IsAdminUser]
 
-    def get_queryset(self):
-        return User.objects.filter(is_staff=True)
+#     def get_queryset(self):
+#         return User.objects.filter(is_staff=True)
 
-    def perform_create(self, serializer):
-        serializer.save(is_staff=True, is_superuser=False, is_active=True)
+#     def perform_create(self, serializer):
+#         serializer.save(is_staff=True, is_superuser=False, is_active=True)
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
-    def set_password(self, request, pk=None):
-        user = self.get_object()
-        password = request.data.get("password")
-        if not password:
-            return Response({"error": "Password required"}, status=status.HTTP_400_BAD_REQUEST)
-        user.set_password(password)
-        user.save()
-        return Response({"message": "Password updated successfully"})
+#     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+#     def set_password(self, request, pk=None):
+#         user = self.get_object()
+#         password = request.data.get("password")
+#         if not password:
+#             return Response({"error": "Password required"}, status=status.HTTP_400_BAD_REQUEST)
+#         user.set_password(password)
+#         user.save()
+#         return Response({"message": "Password updated successfully"})
 
 
-class CustomerManagementViewSet(viewsets.ModelViewSet):
+# class CustomerManagementViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing all users (CRUD).
     Admins only.

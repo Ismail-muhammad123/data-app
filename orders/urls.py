@@ -1,21 +1,18 @@
 # vtpass_integration/urls.py
 from django.urls import path
+
+from orders.views import AirtimeNetworkListView, DataNetworksListView, DataPlansListView, PurchaseAirtimeView, PurchaseDataPlanView, PurchaseDetailsView, PurchaseHistoryView
 # from .views import AllPlanTransactionsView, PlanDetailView, PlanListCreateView, PlanTransactionsByPlanView, PlanTransactionsView, PlansListView, PurchasePlanView
 
 
 urlpatterns = [
-    # Admin
-    # path("admin/plans/", PlanListCreateView.as_view(), name="plan-list-create"),
-    # path("admin/plans/<int:pk>/", PlanDetailView.as_view(), name="plan-detail"),
-    # path("admin/transactions/all/", AllPlanTransactionsView.as_view(), name="all-plan-transactions"),
-    # path("admin/transactions/plan/<int:plan_id>/", PlanTransactionsByPlanView.as_view(), name="plan-transactions-by-plan"),
-
-
     # # Customer
-    # path("list-plans/", PlansListView.as_view(), name="list-plans"),
-    # path("purchase/", PurchasePlanView.as_view(), name="purchase-plan"),
-    # path("transactions/", PlanTransactionsView.as_view(), name="user-transactions"),
+    path("data-networks/", DataNetworksListView.as_view(), name="list-data-networks"),
+    path("data-plans/", DataPlansListView.as_view(), name="list-plans"),
+    path("airtime-networks/", AirtimeNetworkListView.as_view(), name="list-plans"),
 
-    # Webhook
-    # path("webhook/vtpass/", vtpass_webhook, name="vtpass-webhook"),
+    path("buy-data/", PurchaseDataPlanView.as_view(), name="purchase-data"),
+    path("buy-airtime/", PurchaseAirtimeView.as_view(), name="purchase-airtime"),
+    path("purchase-history/", PurchaseHistoryView.as_view(), name="user-transactions"),
+    path("purchase-history/<int:pk>", PurchaseDetailsView.as_view(), name="user-transactions"),
 ]
