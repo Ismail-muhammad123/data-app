@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
+import dj_database_url 
 
 load_dotenv() # This loads the variables from .env
 
@@ -136,7 +137,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+     'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600
+    ) if not DEBUG else {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
@@ -233,9 +237,9 @@ MONNIFY_WEBHOOK_SECRET=os.getenv("MONNIFY_WEBHOOK_SECRET")
 VTPASS_BASE_URL = ""
 VTPASS_USERNAME = ""
 VTPASS_PASSWORD = ""
-VTPASS_API_KEY = "ae5684ac031d85b5623f3142aa9d91f2"
-VTPASS_API_SECRET = "SK_25456c2eca33a8fed160ba2b31d3731cf9cf48245f3"
-VTPASS_API_PUBLIC_KEY = "PK_7597f7c1a0ab13c2efa91521ae8614969f4b98b6751"
+VTPASS_API_KEY = os.getenv("VTPASS_API_KEY") or ""
+VTPASS_API_SECRET = os.getenv("VTPASS_API_SECRET") or ""
+VTPASS_API_PUBLIC_KEY = os.getenv("VTPASS_API_PUBLIC_KEY") or ""
 
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")

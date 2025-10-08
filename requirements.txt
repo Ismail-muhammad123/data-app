@@ -7,6 +7,7 @@ async-timeout==5.0.1
 attrs==25.3.0
 certifi==2025.8.3
 charset-normalizer==3.4.3
+dj-database-url==3.0.1
 Django==5.2.6
 django-cors-headers==4.9.0
 djangorestframework==3.16.1
