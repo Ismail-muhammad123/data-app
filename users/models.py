@@ -19,7 +19,6 @@ class UserManager(BaseUserManager):
         return self.create_user(phone_number, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     full_name=models.CharField(max_length=225, blank=True, null=True)
     phone_country_code = models.CharField(max_length=5, default="+234")
     phone_number = models.CharField(max_length=15, unique=True)

@@ -62,8 +62,8 @@ class PaymentWebhookView(APIView):
             print("PAYMENT SUCCESS")
             ref = data['paymentReference']
             payment = get_object_or_404(Payment, reference=ref)
-            if (payment.status is not "SUCCESSFUL"):
-                payment.status= "SUCCESSFUL"
+            if (payment.status != "SUCCESS"):
+                payment.status = "SUCCESS"
                 wallet = payment.wallet
                 fund_wallet(wallet.user.id, payment.amount, "Wallet Top-Up", ref)
             pass

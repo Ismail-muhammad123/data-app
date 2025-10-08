@@ -1,5 +1,9 @@
 from django.db import models
 from wallet.models import Wallet
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 STATUS_OPTIONS = [
     ("PENDING", "Pending"),
@@ -19,7 +23,7 @@ APPROVAL_STATUS_OPTIONS = [
 ]
 
 class Payment(models.Model):
-    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='payments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default="PENDING")
     timestamp = models.DateTimeField(auto_now_add=True)
