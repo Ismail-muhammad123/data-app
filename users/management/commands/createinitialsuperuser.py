@@ -15,7 +15,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("email, password and full name must all be provided."))            
 
         User = get_user_model()
-        if not User.objects.filter(email=username).exists():
+        if not User.objects.filter(phone_number=username).exists():
             User.objects.create_superuser(
                 phone_number=username,
                 password=password,
