@@ -61,9 +61,14 @@ class PaymentWebhookView(APIView):
         if event_type == "SUCCESSFUL_TRANSACTION":
             print("PAYMENT SUCCESS")
             ref = data['paymentReference']
+            # print("ref")
+            # print(ref)
+            amount = data['paymentSourceInformation']['amountPaid']
             payment = get_object_or_404(Payment, reference=ref)
             if (payment.status != "SUCCESS"):
                 payment.status = "SUCCESS"
+                payment.amount = amount
+                payment.save()
                 fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
             pass
         elif event_type == "SETTLEMENT_COMPLETION":
