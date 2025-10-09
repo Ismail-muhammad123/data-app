@@ -98,12 +98,11 @@ class PurchaseDataPlanView(APIView):
                 amount=amount,
                 status="success"
             )
+            return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
         else:
-            transaction.status = "failed"
-            fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
-            
-        transaction.save()
-        return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+            # transaction.status = "failed"
+            # fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
+            return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
     
 class PurchaseAirtimeView(APIView):
     permission_classes=  [permissions.IsAuthenticated]

@@ -40,6 +40,9 @@ class DataPlanAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+    
+
+
 @admin.register(Purchase)
 class DataPlanSaleAdmin(admin.ModelAdmin):
     list_display = [
