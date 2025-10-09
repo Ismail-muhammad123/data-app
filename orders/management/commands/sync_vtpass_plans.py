@@ -65,11 +65,11 @@ class Command(BaseCommand):
                         "name": variation['name'],
                         "description": "",
                         "cost_price": round(float(variation['variation_amount'])),
-                        "selling_price": round(float(variation['variation_amount']) + 10),
+                        "selling_price": round(float(variation['variation_amount'])),
                     }    
                 )
                 # if not created:
-                plan.is_active = False
+                plan.is_active = True
                 plan.save()
                 synced += 1
 
