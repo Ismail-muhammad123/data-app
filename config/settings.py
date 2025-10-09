@@ -22,6 +22,8 @@ SECRET_KEY = 'django-insecure-^pu^2d0rud-1_y+_bab)mm+d!nw$u9)k0z1w!!ml(s18$pd#(8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
+PRODUCTION = os.environ.get("PRODUCTION", "True").lower() == "true"
+
 ALLOWED_HOSTS = []
 
 allowed_host_addresses = os.environ.get("DJANGO_ALLOWED_HOSTS",None)
@@ -144,7 +146,7 @@ DATABASES = {
     }
 }
 
-if not DEBUG:
+if PRODUCTION:
     DATABASES = {
      'default':  dj_database_url.config(
         default=os.getenv('DATABASE_URL'),

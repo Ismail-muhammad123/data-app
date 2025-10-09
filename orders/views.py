@@ -71,21 +71,8 @@ class PurchaseDataPlanView(APIView):
         if wallet.balance < amount:
             return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Step 1: Debit wallet
-        reference = str(uuid.uuid4())
-        debit_wallet(user.id, amount, f"{plan.service_type} purchase - {reference}")
         
-        # Step 2: Create transaction record
-        transaction = Purchase.objects.create(
-            purchase_type="data",
-            user=user,
-            data_plan=plan,
-            beneficiary=phone_number,
-            reference=reference,
-            amount=amount,
-            status="pending"
-        )
-
+        reference = str(uuid.uuid4())
         # Step 3: Call VTPass
         vtpass_response = buy_data_plan(
             service_id=plan.service_type.service_id,
@@ -95,10 +82,22 @@ class PurchaseDataPlanView(APIView):
             variation_code=plan.variation_code,
         )
 
-        print("VTPASS RESPONSE: ",vtpass_response)
 
         if vtpass_response.get("code") == "000":  # success
-            transaction.status = "success"
+            
+            # Step 1: Debit wallet
+            debit_wallet(user.id, amount, f"{plan.service_type} purchase - {reference}")
+
+            # Step 2: Create transaction record
+            transaction = Purchase.objects.create(
+                purchase_type="data",
+                user=user,
+                data_plan=plan,
+                beneficiary=phone_number,
+                reference=reference,
+                amount=amount,
+                status="success"
+            )
         else:
             transaction.status = "failed"
             fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
