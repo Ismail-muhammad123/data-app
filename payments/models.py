@@ -35,5 +35,5 @@ class Payment(models.Model):
     # recieving_bank_name = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.payment_type} {self.amount} from {self.wallet}"
+        return f"{self.payment_type} {self.amount} from {self.user}"
    
