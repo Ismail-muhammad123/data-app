@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import InitFundWalletViaTransferView, WalletDetailView, WalletTransactionDetailView, WalletTransactionListView
+from .views import InitFundWallet, WalletDetailView, WalletTransactionDetailView, WalletTransactionListView
 
 
 urlpatterns = [
@@ -12,6 +12,6 @@ urlpatterns = [
     path('', WalletDetailView.as_view(), name='wallet-detail'),
     path('transactions/', WalletTransactionListView.as_view(), name='wallet-transactions'),
     path('transactions/<int:pk>/', WalletTransactionDetailView.as_view(), name='wallet-transaction-detail'),
-    path('deposit/', InitFundWalletViaTransferView.as_view(), name='initiate-deposit'),
+    path('deposit/', InitFundWallet.as_view(), name='initiate-deposit'),
     # path('withdraw/', InitiateWithdrawalView.as_view(), name='intiate-withdrawal'),
 ]

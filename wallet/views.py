@@ -106,13 +106,15 @@ class WalletTransactionDetailView(APIView):
             return Response({"error": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # FUND Wallet via transfer
-class InitFundWalletViaTransferView(APIView):
+class InitFundWallet(APIView):
     """
     Initiate funding through Bank Transfer (Virtual Account).
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        
+        method = request.data.get("method", "transfer")
         try:
             amount = request.data.get("amount")
             if not amount:
@@ -129,18 +131,32 @@ class InitFundWalletViaTransferView(APIView):
 
             monify_client = MonnifyClient()
 
-            # init transaction
-            res = monify_client.init_bank_transfer_payment(
-                amount=amount, 
-                customer_name=user.full_name, 
-                customer_email=user.email, 
-                payment_reference=ref, 
-                payment_description="Wallet Top-up",
-                meta_data={
-                    "phone_number": user.phone_number,
-                }
-            )
 
+            if method == "transfer":
+                # init transaction
+                res = monify_client.init_bank_transfer_payment(
+                    amount=amount, 
+                    customer_name=user.full_name, 
+                    customer_email=user.email, 
+                    payment_reference=ref, 
+                    payment_description="Wallet Top-up",
+                    meta_data={
+                        "phone_number": user.phone_number,
+                    }
+                )
+            else:
+                res = monify_client.init_card_payment(
+                    amount=amount, 
+                    customer_name=user.full_name, 
+                    customer_email=user.email, 
+                    payment_reference=ref, 
+                    payment_description="Wallet Top-up",
+                    meta_data={
+                        "phone_number": user.phone_number,
+                    }
+                )
+
+                
             if res['requestSuccessful']:
                 Payment.objects.create(
                     user=request.user,
@@ -152,12 +168,12 @@ class InitFundWalletViaTransferView(APIView):
                 )
 
                 return Response({
-                    "message": "Transfer initiated successfully",
+                    "message": "Wallet funding initiated successfully",
                     "monnify_response": res
                 }, status=status.HTTP_200_OK)
             else: 
                 return Response({
-                    "message": "Transfer failed to be initialized",
+                    "message": "Wallet funding failed to be initialized",
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Wallet.DoesNotExist:
