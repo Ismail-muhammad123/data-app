@@ -63,7 +63,7 @@ class PaymentWebhookView(APIView):
             ref = data['paymentReference']
             # print("ref")
             # print(ref)
-            amount = data['paymentSourceInformation']['amountPaid']
+            amount = data['amountPaid']
             payment = get_object_or_404(Payment, reference=ref)
             if (payment.status != "SUCCESS"):
                 payment.status = "SUCCESS"
