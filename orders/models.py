@@ -22,7 +22,6 @@ class AirtimeNetwork(models.Model):
         return self.name
 
 
-
 class DataPlan(models.Model):
     name = models.CharField(max_length=255)   
     service_type = models.ForeignKey(DataNetwork, on_delete=models.SET_NULL, null=True, related_name="data_plans")
@@ -58,7 +57,7 @@ class Purchase(models.Model):
     ("failed", "Failed"),
 )
 
-    purchase_type = models.CharField(max_length=50)  # 'data' or 'airtime'
+    purchase_type = models.CharField(max_length=50, choices=PURCHASE_TYPES)  # 'data' or 'airtime'
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases")
     airtime_type = models.ForeignKey(AirtimeNetwork, null=True, on_delete=models.SET_NULL, related_name="airtime_sales")
     data_plan = models.ForeignKey(DataPlan, on_delete=models.SET_NULL, null=True, related_name="data_sales")

@@ -41,10 +41,18 @@ class DataPlanAdmin(admin.ModelAdmin):
 
 
     
+    actions = ["make_as_active"]
+
+    def make_as_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} plan(s) marked as active.")
+    make_as_active.short_description = "Mark selected plans as active"
+
+    
 
 
 @admin.register(Purchase)
-class DataPlanSaleAdmin(admin.ModelAdmin):
+class PurchaseAdmin(admin.ModelAdmin):
     list_display = [
         "purchase_type",
         "user",
