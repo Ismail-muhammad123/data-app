@@ -56,9 +56,8 @@ class PurchaseAdmin(admin.ModelAdmin):
     list_display = [
         "title",
         "purchase_type",
+        "service_type",
         "user",
-        # "airtime_type",
-        # "data_plan",
         "reference",
         "amount",
         "beneficiary",
@@ -75,7 +74,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         if obj.purchase_type == "airtime":
             return obj.airtime_type
         else: 
-            return obj.data_plan.service_type
+            return obj.data_plan
         
 
     def service_type(self, obj):
