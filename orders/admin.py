@@ -75,7 +75,14 @@ class PurchaseAdmin(admin.ModelAdmin):
         if obj.purchase_type == "airtime":
             return obj.airtime_type
         else: 
-            return obj.data_plan
+            return obj.data_plan.service_type
+        
+
+    def service_type(self, obj):
+        if obj.purchase_type == "airtime":
+            return obj.airtime_type
+        else: 
+            return obj.data_plan.service_type
 
 
 @admin.register(AirtimeNetwork)
