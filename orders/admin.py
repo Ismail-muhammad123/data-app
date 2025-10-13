@@ -54,10 +54,11 @@ class DataPlanAdmin(admin.ModelAdmin):
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):
     list_display = [
+        "title",
         "purchase_type",
         "user",
-        "airtime_type",
-        "data_plan",
+        # "airtime_type",
+        # "data_plan",
         "reference",
         "amount",
         "beneficiary",
@@ -69,6 +70,12 @@ class PurchaseAdmin(admin.ModelAdmin):
     list_filter = ["purchase_type", "data_plan__service_type", "airtime_type", "status"]
     list_per_page = 50
 
+
+    def title(self, obj):
+        if obj.purchase_type == "airtime":
+            return obj.airtime_type
+        else: 
+            return obj.data_plan
 
 
 @admin.register(AirtimeNetwork)

@@ -156,10 +156,7 @@ class PurchaseAirtimeView(APIView):
                 amount=amount,
                 status="success"
             )
-        # else:
-        #     transaction.status = "failed"
-        #     fund_wallet(user.id, amount, f"Refund for failed {network} airtime purchase - {reference}")
-        # transaction.save()
+
             return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
         else:
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)

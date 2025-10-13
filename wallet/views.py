@@ -156,7 +156,6 @@ class InitFundWallet(APIView):
                     }
                 )
 
-                
             if res['requestSuccessful']:
                 Payment.objects.create(
                     user=request.user,
