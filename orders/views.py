@@ -21,6 +21,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from datetime import datetime
+import pytz
+import random
+import string
+
+def generate_request_id():
+    # Set timezone to Africa/Lagos (GMT+1)
+    lagos_tz = pytz.timezone("Africa/Lagos")
+    now = datetime.now(lagos_tz)
+    
+    # Generate first 12 numeric characters from date and time
+    # Format: YYYYMMDDHHMM (YearMonthDayHourMinute)
+    numeric_part = now.strftime("%Y%m%d%H%M")
+    
+    # Optionally add 3–5 random alphanumeric characters for uniqueness
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    
+    # Combine them
+    request_id = f"{numeric_part}-{random_part}"
+    
+    return request_id
+
+
+
 # ---------- CUSTOMER ----------
 class DataNetworksListView(generics.ListAPIView):
     queryset = DataNetwork.objects.all()
@@ -72,7 +96,7 @@ class PurchaseDataPlanView(APIView):
             return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
 
         
-        reference = str(uuid.uuid4())
+        reference = generate_request_id()
         # Step 3: Call VTPass
         vtpass_response = buy_data_plan(
             service_id=plan.service_type.service_id,
@@ -128,7 +152,7 @@ class PurchaseAirtimeView(APIView):
         if wallet.balance < amount:
             return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
 
-        reference = str(uuid.uuid4())
+        reference = generate_request_id()
         
 
         # Step 3: Call VTPass

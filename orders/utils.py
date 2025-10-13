@@ -17,15 +17,15 @@ VTPASS_API_SECRET = getattr(settings, "VTPASS_API_SECRET", "")
 VTPASS_API_PUBLIC_KEY = getattr(settings, "VTPASS_API_PUBLIC_KEY", "")
 
 
-def get_auth_header():
-    """
-    VTPass uses Basic Auth (username:password).
-    """
-    from base64 import b64encode
+# def get_auth_header():
+#     """
+#     VTPass uses Basic Auth (username:password).
+#     """
+#     from base64 import b64encode
 
-    token = f"{VTPASS_USERNAME}:{VTPASS_PASSWORD}"
-    encoded = b64encode(token.encode()).decode()
-    return {"Authorization": f"Basic {encoded}"}
+#     # token = f"{VTPASS_USERNAME}:{VTPASS_PASSWORD}"
+#     encoded = b64encode(token.encode()).decode()
+#     return {"Authorization": f"Basic {encoded}"}
 
 
 def get_api_auth_header(methosd="POST"):
