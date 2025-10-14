@@ -23,6 +23,10 @@ class SignupSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         pin = validated_data.pop("pin")
         user = User.objects.create_user(**validated_data, password=pin)
+        # ============ TODO: remove the following two lines after testing =============
+        user.is_active = True
+        user.save()
+        # =============================================================================
         return user
 
 

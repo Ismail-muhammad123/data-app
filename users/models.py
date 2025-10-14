@@ -227,7 +227,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone_country_code = models.CharField(max_length=10, choices=country_code_choices, default="+234")
     phone_number = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)  # activated after OTP verification
+    is_active = models.BooleanField(default=True)  # TODO: change to false by default, and activated after OTP verification
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
