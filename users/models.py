@@ -1,8 +1,5 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-import uuid
-
-
 
 
 country_phone_codes = {
@@ -223,10 +220,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     country_code_choices =  [
         (i[1], f"{i[0]} ({i[1]})") for i in country_phone_codes.items()
     ]
+
+    TIER_CHOICES = [
+        (1, "Tier One"),
+        (2, "Tier Two"),
+    ]
+
     full_name=models.CharField(max_length=225, blank=True, null=True)
     phone_country_code = models.CharField(max_length=10, choices=country_code_choices, default="+234")
     phone_number = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
+
+    nin = models.CharField(max_length=200, blank=True, null=True)
+    bvn = models.CharField(max_length=200, blank=True, null=True)
+
+    tier = models.PositiveIntegerField(default=1, choices=TIER_CHOICES)
+
     is_active = models.BooleanField(default=True)  # TODO: change to false by default, and activated after OTP verification
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -238,7 +247,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.phone_number
-
 
 class OTP(models.Model):
     PURPOSE_CHOICES = [

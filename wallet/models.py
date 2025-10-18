@@ -5,6 +5,20 @@ from django.utils import timezone
 User = get_user_model()
 
 
+class VirtualAccount(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    account_number = models.CharField(max_length=20)
+    bank_name = models.CharField(max_length=100)
+    account_reference = models.CharField(max_length=100)
+    customer_email = models.EmailField()
+    customer_name = models.CharField(max_length=200)
+    status = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.customer_name} - {self.account_number}"
+
+
 class Wallet(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=20, decimal_places=2, default=0)
@@ -13,7 +27,6 @@ class Wallet(models.Model):
 
     def __str__(self):
         return f"{self.user.full_name}'s wallet"
-
 
 
 class WalletTransaction(models.Model):

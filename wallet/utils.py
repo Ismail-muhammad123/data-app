@@ -4,7 +4,6 @@ from payments.models import Payment
 from wallet.models import Wallet, WalletTransaction  
 import uuid
 
-
 def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
     if amount <= 0:
         raise ValueError("Amount must be positive")

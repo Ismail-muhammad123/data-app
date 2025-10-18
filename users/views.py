@@ -119,7 +119,7 @@ class ActivateAccountView(APIView):
 
 
 # ----------------------
-# Profilex
+# Profile
 # ----------------------
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -136,9 +136,9 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
-# ----------------------
+# --------------------------
 # Password Reset (via OTP)
-# ----------------------
+# --------------------------
 class PasswordResetRequestView(APIView):
     def post(self, request):
         identifier = request.data.get("identifier")  # phone/email

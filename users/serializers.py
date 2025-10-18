@@ -33,13 +33,24 @@ class SignupSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id","phone_country_code", "full_name", "phone_number", "email", "is_active", "created_at"]
+        fields = [
+            "id",
+            "phone_country_code", 
+            "phone_number", 
+            "full_name", 
+            "email", 
+            "nin",
+            "bvn",
+            "tier",
+            "is_active", 
+            "created_at"
+        ]
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "full_name"] 
+        fields = ["email", "full_name", "nin", "bvn", "tier"] 
 
 
 

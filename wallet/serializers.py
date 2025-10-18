@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import Wallet, WalletTransaction
+from .models import Wallet, WalletTransaction, VirtualAccount
+
+
+
+class VirtualAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VirtualAccount
+        fields = "__all__"
+        read_only_fields = ["user", "created_at"]
+
 
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:

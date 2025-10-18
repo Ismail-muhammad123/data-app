@@ -168,9 +168,9 @@ class MonnifyClient:
             meta_data=meta_data
         )
     
-    # ----------------------------
+    # ---------------------------------------
     # DISBURSEMENTS / TRANSFERS (Settlement)
-    # ----------------------------
+    # ---------------------------------------
 
     def initiate_single_transfer(self, beneficiary_account_name, beneficiary_bank_code,
                                  beneficiary_account_number, amount, narration,
@@ -245,9 +245,9 @@ class MonnifyClient:
         resp.raise_for_status()
         return resp.json()
 
-    # ----------------------------
+    # ----------------------------------
     # WEBHOOK / CALLBACK VERIFICATION
-    # ----------------------------
+    # ----------------------------------
 
     def verify_webhook_signature(self, request_body: bytes, headers: dict) -> bool:
         """
@@ -292,3 +292,38 @@ class MonnifyClient:
         event_type = payload.get("eventType")
         event_data = payload.get("eventData")
         return event_type, event_data
+
+
+
+    def create_reserved_account(self, user):
+        """
+        Creates a Monnify reserved account for a verified user.
+        """
+        headers = self._bearer_headers()
+
+        customer_email = user.email
+        customer_name = user.full_name
+        account_reference = f"USR-{user.id}"
+
+        payload = {
+            "accountReference": account_reference,
+            "accountName": customer_name,
+            "currencyCode": "NGN",
+            "contractCode": self.contract_code,
+            "customerEmail": customer_email,
+            "customerName": customer_name,
+            "getAllAvailableBanks": True,
+        }
+
+        response = requests.post(
+            f"{self.base_url}/bank-transfer/reserved-accounts",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+
+        data = response.json()
+        if not data.get("requestSuccessful"):
+            raise Exception(data.get("responseMessage", "Failed to create account"))
+
+        return data["responseBody"]
