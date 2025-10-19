@@ -77,6 +77,7 @@ class UserAdmin(BaseUserAdmin):
         "phone_country_code", 
         "phone_number", 
         "email", 
+        "tier",
         "is_active", 
         "is_staff", 
         "created_at", 
@@ -91,6 +92,7 @@ class UserAdmin(BaseUserAdmin):
             'classes': ('wide',),
             'fields': ('full_name', 'email', ),
         }),
+        ("Account Level", {"fields": ("tier",)}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
     )
     add_fieldsets = (
@@ -99,6 +101,7 @@ class UserAdmin(BaseUserAdmin):
             'classes': ('wide',),
             'fields': ('full_name', ),
         }),
+        # ("Account Level", {"fields": ("tier",)}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
     )
     

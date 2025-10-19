@@ -1,6 +1,16 @@
 from django.urls import path
 from .views import (
-    ChangePINView, LoginView, PasswordResetConfirmView, PasswordResetRequestView, RefreshTokenView, ResendActivationCodeView,ActivateAccountView, SignupView, ProfileView, LogoutView, 
+    ChangePINView, 
+    LoginView, 
+    PasswordResetConfirmView, 
+    PasswordResetRequestView, 
+    RefreshTokenView, 
+    ResendActivationCodeView,
+    ActivateAccountView, 
+    SignupView, 
+    ProfileView, 
+    LogoutView, 
+    upgrade_account 
 )
 
 urlpatterns = [
@@ -17,6 +27,7 @@ urlpatterns = [
 
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("upgrade-account/", upgrade_account, name="upgrade-account"),
 
     # # ADMIN ENDPOINTS
     # path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="admins"),

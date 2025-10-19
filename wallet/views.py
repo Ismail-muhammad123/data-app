@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 
 from payments.models import Payment
 from .models import Wallet 
-from .serializers import WalletSerializer, WalletTransactionSerializer
+from .serializers import VirtualAccountSerializer, WalletSerializer, WalletTransactionSerializer
 from django.conf import settings
 import uuid
 from payments.utils import MonnifyClient
@@ -12,51 +12,7 @@ from django.utils import timezone
 
 
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from .models import VirtualAccount
-from .serializers import VirtualAccountSerializer
-from payments.utils import MonnifyClient
 
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-def create_virtual_account(request):
-    user = request.user
-
-    # Check if KYC and profile are complete
-    if user.tier == 2:
-        return Response({"error": "Account is already a tier two account"})
-
-
-    if not user.full_name != "" and (user.email or '') != "" and (user.nin or '') != "" and (user.bvn or '') != "":
-        return Response({"error": "User profile information is incomplete."}, status=400)
-
-    # Prevent duplicate accounts
-    if VirtualAccount.objects.filter(user=user).exists():
-        return Response({"error": "Virtual account already exists."}, status=400)
-
-    try:
-        client = MonnifyClient()
-        monnify_data = client.create_reserved_account(user)
-        account = VirtualAccount.objects.create(
-            user=user,
-            account_number=monnify_data["accountNumber"],
-            bank_name=monnify_data["bankName"],
-            account_reference=monnify_data["accountReference"],
-            customer_email=monnify_data["customerEmail"],
-            customer_name=monnify_data["customerName"],
-            status=monnify_data.get("status", "ACTIVE"),
-        )
-        
-        # upgrade user account tier to tier 2
-        user.tier = 2
-        user.save()
-
-        serializer = VirtualAccountSerializer(account)
-        return Response(serializer.data, status=201)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
 
 
 # Wallet View
@@ -67,6 +23,14 @@ class WalletDetailView(generics.RetrieveAPIView):
     def get_object(self):
         wallet, _ = Wallet.objects.get_or_create(user=self.request.user)
         return wallet
+    
+# Get virtual account info
+class VirtualAccountDetailView(generics.RetrieveAPIView):
+    serializer_class = VirtualAccountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.virtual_account
 
 # Transactions (list user's)
 class WalletTransactionListView(generics.ListAPIView):

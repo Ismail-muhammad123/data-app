@@ -293,7 +293,39 @@ class MonnifyClient:
         event_data = payload.get("eventData")
         return event_type, event_data
 
+    def get_reserved_account_reference(self, user_id):
+        return f"USR-{user_id}"
 
+    def get_reserved_account(self, user):
+        """
+        Get a Monnify reserved account with a given user.
+        """
+        headers = self._bearer_headers()
+
+        # customer_email = user.email
+        # customer_name = user.full_name
+        account_reference = self.get_reserved_account_reference(user.id)
+
+        # payload = {
+        #     "accountReference": account_reference,
+        #     "accountName": customer_name,
+        #     "currencyCode": "NGN",
+        #     "contractCode": self.contract_code,
+        #     "customerEmail": customer_email,
+        #     "customerName": customer_name,
+        #     "getAllAvailableBanks": True,
+        # }
+
+        response = requests.get(
+            f"{self.base_url}/api/v2/bank-transfer/reserved-accounts/{account_reference}",
+            headers=headers,
+            timeout=10
+        )
+
+        data = response.json()
+        # print(data)
+        if data.get("requestSuccessful"):
+            return data['responseBody']
 
     def create_reserved_account(self, user):
         """
@@ -303,7 +335,7 @@ class MonnifyClient:
 
         customer_email = user.email
         customer_name = user.full_name
-        account_reference = f"USR-{user.id}"
+        account_reference = self.get_reserved_account_reference(user.id)
 
         payload = {
             "accountReference": account_reference,
@@ -316,13 +348,14 @@ class MonnifyClient:
         }
 
         response = requests.post(
-            f"{self.base_url}/bank-transfer/reserved-accounts",
+            f"{self.base_url}/api/v2/bank-transfer/reserved-accounts/",
             json=payload,
             headers=headers,
             timeout=10
         )
 
         data = response.json()
+        # print(data)
         if not data.get("requestSuccessful"):
             raise Exception(data.get("responseMessage", "Failed to create account"))
 

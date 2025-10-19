@@ -15,11 +15,15 @@ from .serializers import (
 )
 from .utils import send_otp_code
 from django.contrib.auth import authenticate
-from rest_framework.decorators import action
-from rest_framework import viewsets
+
+
+from rest_framework.decorators import api_view, permission_classes
+from wallet.models import VirtualAccount
+from wallet.serializers import VirtualAccountSerializer
+from payments.utils import MonnifyClient
+
 
 User = get_user_model()
-
 
 # --------------------
 # Login (Phone + PIN)
@@ -189,59 +193,61 @@ class LogoutView(APIView):
         return Response({"message": "Logged out successfully"})
 
 
-
-
 # ----------------------------------
-# Admin Views
+# Upgrade account tier
 # ----------------------------------
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def upgrade_account(request):
+    user = request.user
 
-# class AdminUserViewSet(viewsets.ModelViewSet):
-#     queryset = User.objects.filter(is_staff=True)
-#     serializer_class = ProfileSerializer
-#     permission_classes = [permissions.IsAdminUser]
+    # Check if KYC and profile are complete
+    if user.tier == 2:
+        return Response({"success": False,"error": "Account is already a tier two account"})
 
-#     def get_queryset(self):
-#         return User.objects.filter(is_staff=True)
+    if not user.full_name != "" and (user.email or '') != "" and (user.nin or '') != "" and (user.bvn or '') != "":
+        return Response({"success": False,"error": "User profile information is incomplete."}, status=400)
 
-#     def perform_create(self, serializer):
-#         serializer.save(is_staff=True, is_superuser=False, is_active=True)
+    # Prevent duplicate accounts
+    if VirtualAccount.objects.filter(user=user).exists():
+        return Response({"success": False,"error": "Virtual account already exists."}, status=400)
 
-#     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
-#     def set_password(self, request, pk=None):
-#         user = self.get_object()
-#         password = request.data.get("password")
-#         if not password:
-#             return Response({"error": "Password required"}, status=status.HTTP_400_BAD_REQUEST)
-#         user.set_password(password)
-#         user.save()
-#         return Response({"message": "Password updated successfully"})
+    try:
+        client = MonnifyClient()
+        
+        account_res = client.get_reserved_account(user)
+
+        print(account_res)
+
+        if account_res is None:
+            account_res = client.create_reserved_account(user)
 
 
-# class CustomerManagementViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing all users (CRUD).
-    Admins only.
-    """
-    queryset = User.objects.all()
-    serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAdminUser]
+        response_accoount= account_res['accounts']
+        
+        if len(response_accoount) > 0:
+            acc = response_accoount[0]
+            account,_ = VirtualAccount.objects.get_or_create(
+                user=user,
+                defaults={
+                    "account_number": acc["accountNumber"],
+                    "bank_name": acc["bankName"],
+                    "account_name": acc['accountName'],
+                    "account_reference":  account_res['accountReference'],
+                    "customer_email": account_res["customerEmail"],
+                    "customer_name": account_res["customerName"],
+                    "status": account_res.get("status", "ACTIVE"),
+                }
+            )
+        
+            # upgrade user account tier to tier 2
+            user.tier = 2
+            user.save()
 
-    def get_queryset(self):
-        return User.objects.filter(is_staff=False)
-
-    def perform_create(self, serializer):
-        serializer.save(is_active=True, is_staff=False)
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
-    def deactivate(self, request, pk=None):
-        user = self.get_object()
-        user.is_active = False
-        user.save()
-        return Response({"message": "User deactivated successfully"}, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
-    def activate(self, request, pk=None):
-        user = self.get_object()
-        user.is_active = True
-        user.save()
-        return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
+            serializer = VirtualAccountSerializer(account)
+            return Response({"success": True, "data": serializer.data}, status=201)
+        else:
+            return Response({"success": False, "error": "Virtual Account not created"}, status=500)
+    except Exception as e:
+        print(e)
+        return Response({"success": False, "error": str(e)}, status=500)

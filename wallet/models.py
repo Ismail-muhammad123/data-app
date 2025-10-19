@@ -6,9 +6,10 @@ User = get_user_model()
 
 
 class VirtualAccount(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="virtual_account")
     account_number = models.CharField(max_length=20)
     bank_name = models.CharField(max_length=100)
+    account_name = models.CharField(max_length=200)
     account_reference = models.CharField(max_length=100)
     customer_email = models.EmailField()
     customer_name = models.CharField(max_length=200)

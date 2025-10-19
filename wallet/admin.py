@@ -1,5 +1,34 @@
 from django.contrib import admin
-from .models import WalletTransaction, Wallet
+from .models import WalletTransaction, Wallet, VirtualAccount
+from django.contrib import messages
+
+
+@admin.register(VirtualAccount)
+class VirtualAccountAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "account_number",
+        "bank_name",
+        "account_reference",
+        "customer_email",
+        "customer_name",
+        "status",
+        "created_at",
+    )
+
+    def has_change_permission(self, request, obj = ...):
+        return False
+    
+    def has_add_permission(self, request):
+        return False
+
+    def deactivate_accounts(modeladmin, request, queryset):
+        updated = queryset.update(status="INACTIVE")
+        messages.success(request, f"{updated} account(s) deactivated successfully.")
+    deactivate_accounts.short_description = "Deactivate selected virtual accounts"
+
+    actions = [deactivate_accounts]
+
 
 class WalletTransactionInline(admin.TabularInline):
     model = WalletTransaction
