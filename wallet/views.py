@@ -1,7 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from payments.models import Payment
 from .models import Wallet 
 from .serializers import VirtualAccountSerializer, WalletSerializer, WalletTransactionSerializer
@@ -9,9 +8,6 @@ from django.conf import settings
 import uuid
 from payments.utils import MonnifyClient
 from django.utils import timezone
-
-
-
 
 
 
@@ -61,7 +57,6 @@ class InitFundWallet(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        
         method = request.data.get("method", "transfer")
         try:
             amount = request.data.get("amount")
