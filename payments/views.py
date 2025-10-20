@@ -1,3 +1,4 @@
+from datetime import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework import generics,permissions
@@ -6,6 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.response import Response
 from django.utils.decorators import method_decorator
 from payments.serializers import PaymentSerializer
+from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
 from .models import Payment
 from .utils import MonnifyClient
@@ -59,18 +61,31 @@ class PaymentWebhookView(APIView):
 
         # handle the different event types
         if event_type == "SUCCESSFUL_TRANSACTION":
-            print("PAYMENT SUCCESS")
             ref = data['paymentReference']
             # print("ref")
             # print(ref)
             amount = data['amountPaid']
-            payment = get_object_or_404(Payment, reference=ref)
-            if (payment.status != "SUCCESS"):
-                payment.status = "SUCCESS"
-                payment.amount = amount
-                payment.save()
+            if data['product']['type'] == 'RESERVED_ACCOUNT':
+                acc_num = data['destinationAccountInformation']['accountNumber']
+                virtual_account = VirtualAccount.objects.get(account_number=acc_num)
+
+                payment,_ = Payment.objects.get_or_create(
+                    reference=ref,
+                    defaults={
+                        "user":virtual_account.user,
+                        "amount":amount,
+                        "status":"SUCCESS",
+                        "timestamp":timezone.now(),
+                        "payment_type":"CREDIT",
+                    } 
+                )
                 fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
-            pass
+            else:
+                payment = get_object_or_404(Payment, reference=ref)
+                if payment.status != "SUCCESS":
+                    payment.status = "SUCCESS"
+                    payment.amount = amount
+                    payment.save()
         elif event_type == "SETTLEMENT_COMPLETION":
             # funds moved to your bank / wallet
             pass
@@ -81,3 +96,5 @@ class PaymentWebhookView(APIView):
         # ... handle other events you care about
 
         return HttpResponse(status=200)
+    
+
