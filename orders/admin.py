@@ -82,6 +82,17 @@ class PurchaseAdmin(admin.ModelAdmin):
             return obj.airtime_type
         else: 
             return obj.data_plan.service_type
+        
+    
+
+    def has_add_permission(self, request):
+        return False
+    
+    def has_delete_permission(self, request, obj = ...):
+        return False
+    
+    def has_change_permission(self, request, obj = ...):
+        return False
 
 
 @admin.register(AirtimeNetwork)
