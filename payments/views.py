@@ -75,7 +75,6 @@ class PaymentWebhookView(APIView):
                         "user":virtual_account.user,
                         "amount":amount,
                         "status":"SUCCESS",
-                        "timestamp":timezone.now(),
                         "payment_type":"CREDIT",
                     } 
                 )
