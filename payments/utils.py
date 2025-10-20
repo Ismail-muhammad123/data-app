@@ -115,7 +115,7 @@ class MonnifyClient:
         if meta_data:
             payload["metaData"] = meta_data
         resp = requests.post(url, json=payload, headers=self._bearer_headers())
-        print(resp.json())
+        # print(resp.json())
         resp.raise_for_status()
         return resp.json()
 
@@ -140,7 +140,7 @@ class MonnifyClient:
         transaction_reference = init_resp["responseBody"]["transactionReference"]
 
         # Step 2: Initialize bank transfer payment
-        url = f"{self.base_url}/api/v1/merchant/bank-transfer/init-payment"
+        url = f"{self.base_url}/api/v1/merchant/bank-transfer/init-payment/"
         payload = {
             "transactionReference": transaction_reference
         }

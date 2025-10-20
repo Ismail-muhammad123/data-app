@@ -73,7 +73,7 @@ class InitFundWallet(APIView):
 
 
             user = request.user
-            wallet = Wallet.objects.get(user=user)
+            wallet, _ = Wallet.objects.get_or_create(user=user)
 
             ref = str(uuid.uuid4())
 
@@ -104,7 +104,7 @@ class InitFundWallet(APIView):
                     }
                 )
 
-            print(res)
+            # print(res)
 
             if res['requestSuccessful']:
                 Payment.objects.create(
