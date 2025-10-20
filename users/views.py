@@ -206,11 +206,7 @@ def upgrade_account(request):
         return Response({"success": False,"error": "Account is already a tier two account"})
 
     if not user.full_name != "" and (user.email or '') != "" and (user.nin or '') != "" and (user.bvn or '') != "":
-        return Response({"success": False,"error": "User profile information is incomplete."}, status=400)
-
-    # Prevent duplicate accounts
-    if VirtualAccount.objects.filter(user=user).exists():
-        return Response({"success": False,"error": "Virtual account already exists."}, status=400)
+        return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
 
     try:
         client = MonnifyClient()
