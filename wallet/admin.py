@@ -16,7 +16,7 @@ class VirtualAccountAdmin(admin.ModelAdmin):
         "created_at",
     )
 
-    def has_change_permission(self, request, obj = ...):
+    def has_change_permission(self, request):
         return False
     
     def has_add_permission(self, request):
