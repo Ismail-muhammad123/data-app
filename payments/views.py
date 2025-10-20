@@ -68,15 +68,12 @@ class PaymentWebhookView(APIView):
             if data['product']['type'] == 'RESERVED_ACCOUNT':
                 acc_num = data['destinationAccountInformation']['accountNumber']
                 virtual_account = VirtualAccount.objects.get(account_number=acc_num)
-
-                payment,_ = Payment.objects.get_or_create(
+                payment,_ = Payment.objects.create(
                     reference=ref,
-                    defaults={
-                        "user":virtual_account.user,
-                        "amount":amount,
-                        "status":"SUCCESS",
-                        "payment_type":"CREDIT",
-                    } 
+                    user=virtual_account.user,
+                    amount=amount,
+                    status="SUCCESS",
+                    payment_type="CREDIT",
                 )
                 fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
             else:
