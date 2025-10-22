@@ -1,0 +1,142 @@
+{% extends "admin/change_list.html" %}
+{% load humanize %}
+{% load widget_tweaks %}
+
+
+{% block content %}
+
+<style>
+    .admin-summary {
+        width: 100%;
+    }
+
+    .admin-summary th {
+        text-align: left;
+        padding-right: 10px;
+    }
+
+    .admin-summary td {
+        text-align: right;
+        font-weight: 600;
+    }
+</style>
+<form method="get" class="form-inline" style="margin-bottom: 20px;">
+    <label for="start_date">From:</label>
+    <input type="date" name="start_date" value="{{ start_date }}">
+
+    <label for="end_date">To:</label>
+    <input type="date" name="end_date" value="{{ end_date }}">
+
+    <button class="btn" type="submit">Filter</button>
+</form>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+
+    <div class="module">
+        <h2>Users</h2>
+        <table class="admin-summary">
+            <tr>
+                <th>Total Users</th>
+                <td>{{ summary.users.total|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Active</th>
+                <td>{{ summary.users.active|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Verified</th>
+                <td>{{ summary.users.verified|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Unverified</th>
+                <td>{{ summary.users.unverified|intcomma }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="module">
+        <h2>Wallet</h2>
+        <table class="admin-summary">
+            <tr>
+                <th>Total Credits</th>
+                <td>{{ summary.wallet.credits|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Total Debits</th>
+                <td>{{ summary.wallet.debits|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Total Balance</th>
+                <td>{{ summary.wallet.balance|floatformat:2|intcomma }}</td>
+            </tr>
+        </table>
+    </div>
+
+
+    <div class="module">
+        <h2>Payments</h2>
+        <table class="admin-summary">
+
+            <tr>
+                <th>Pending</th>
+                <td>{{ summary.payments.credits_pending }}</td>
+            </tr>
+            <tr>
+                <th>Failed</th>
+                <td>{{ summary.payments.credits_failed }}</td>
+            </tr>
+            <tr>
+                <th>Success</th>
+                <td>{{ summary.payments.credits_success }}</td>
+            </tr>
+            <tr>
+                <th>Total</th>
+                <td>{{ summary.payments.credits_total|floatformat:2|intcomma }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="module">
+        <h2>Sales</h2>
+        <table class="admin-summary">
+            <tr>
+                <th>Data Sales</th>
+                <td>{{ summary.sales.data|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Airtime Sales</th>
+                <td>{{ summary.sales.airtime|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr>
+                <th>Total Sales</th>
+                <td>{{ summary.sales.total|floatformat:2|intcomma }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="module">
+        <h2>Airtime Sales Summary</h2>
+        <table class="admin-summary">
+            {% for key, value in summary.sales.airtime_summary.items %}
+            <tr>
+                <th>{{key}}</th>
+                <td>{{ value|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+
+    <div class="module">
+        <h2>Data Sales Summary</h2>
+        <table class="admin-summary">
+            {% for key, value in summary.sales.data_summary.items %}
+            <tr>
+                <th>{{key}}</th>
+                <td>{{ value|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock %}
