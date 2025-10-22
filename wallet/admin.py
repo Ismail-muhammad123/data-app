@@ -92,49 +92,6 @@ class WalletTransactionAdminForm(forms.ModelForm):
             cleaned_data["wallet"] = wallet
         return cleaned_data
 
-    # def save(self, commit=True):
-    #     instance = super().save(commit=False)
-    #     user = self.cleaned_data["user"]
-
-    #     # Get the user's wallet
-    #     wallet = Wallet.objects.filter(user=user).first()
-    #     if not wallet:
-    #         raise forms.ValidationError("This user does not have a wallet.")
-
-    #     # Compute balances
-    #     instance.wallet = wallet
-    #     instance.balance_before = wallet.balance
-
-    #     if instance.transaction_type in ["deposit", "reversal"]:
-    #         wallet.balance += instance.amount
-    #     elif instance.transaction_type in ["withdrawal", "purchase"]:
-    #         if wallet.balance < instance.amount:
-    #             raise forms.ValidationError("Insufficient balance for this transaction.")
-    #         wallet.balance -= instance.amount
-
-    #     instance.balance_after = wallet.balance
-
-    #     # Assign remaining system fields
-    #     instance.user = user
-    #     instance.reference = f"ADM-{uuid.uuid4().hex[:10].upper()}"
-    #     instance.timestamp = timezone.now()
-    #     instance.initiator = "admin"
-
-    #     wallet.save(update_fields=["balance"])
-
-    #     # Save both
-    #     if commit:
-    #         instance.save()
-
-    #     return instance
-
-
-# @admin.register(WalletTransaction)
-# class WalletTransactionAdmin(admin.ModelAdmin):
-#     list_display = ('user', 'transaction_type', 'amount', 'balance_before', 'balance_after', 'timestamp', 'reference')
-#     list_filter = ('transaction_type', 'timestamp')
-#     search_fields = ('user__email', 'reference', 'description')
-#     readonly_fields = ('timestamp',)
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):

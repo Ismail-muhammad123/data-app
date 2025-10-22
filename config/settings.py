@@ -60,17 +60,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
     # 3ed party apps
     'drf_spectacular',
     'corsheaders',
-
 
     # custom apps
     'users',
     'orders',
     'wallet',
     'payments',
+    'summary',
 ]
 
 
