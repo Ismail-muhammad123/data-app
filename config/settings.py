@@ -47,10 +47,6 @@ if csrf_origins_env:
     CSRF_TRUSTED_ORIGINS += [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
 
 
-
-
-
-
 # Application definition
 
 INSTALLED_APPS = [
