@@ -392,7 +392,7 @@ class PaystackGateway:
         data = response.json()
         if not response.ok or not data.get("status"):
             raise Exception(data.get("message", "Paystack request failed"))
-        return data["data"]
+        return data
 
     def _get(self, endpoint: str) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
@@ -431,7 +431,8 @@ class PaystackGateway:
         self,
         customer_email: str,
         amount: int,
-        description: str = "Pay with Transfer",
+        phone_number: str,
+        user_id: int,
     ) -> Dict[str, Any]:
         """
         Creates a temporary 'Pay With Transfer' account for a one-time transaction.
@@ -440,10 +441,15 @@ class PaystackGateway:
         payload = {
             "amount": amount,
             "email": customer_email,
-            "description": description,
-            "channels": ["bank"],  # restricts to transfer
+            "meta_data": {
+                "phone_number": phone_number,
+                "user_id": user_id,
+            },
+            "bank_transfer": {
+                "account_expires_at": str(datetime.now() + timedelta(hours=48))
+            } 
         }
-        return self._post("/transaction/initialize", payload)
+        return self._post("/charge", payload)
 
     # ----------------------------------------
     # 3. INITIALIZE CHARGE (WITH PAYMENT METHODS)
@@ -463,7 +469,7 @@ class PaystackGateway:
         """
         payload = {
             "email": email,
-            "amount": amount,
+            "amount": amount * 100,
         }
         if reference:
             payload["reference"] = reference

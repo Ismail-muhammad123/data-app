@@ -6,7 +6,7 @@ from .models import Wallet
 from .serializers import VirtualAccountSerializer, WalletSerializer, WalletTransactionSerializer
 from django.conf import settings
 import uuid
-from payments.utils import MonnifyClient
+from payments.utils import MonnifyClient, PaystackGateway
 from django.utils import timezone
 
 
@@ -72,36 +72,57 @@ class InitFundWallet(APIView):
 
             ref = str(uuid.uuid4())
 
-            monify_client = MonnifyClient()
+            paystack_client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
 
 
             if method == "transfer":
                 # init transaction
-                res = monify_client.init_bank_transfer_payment(
-                    amount=amount, 
-                    customer_name=user.full_name, 
-                    customer_email=user.email, 
-                    payment_reference=ref, 
-                    payment_description="Wallet Top-up",
-                    meta_data={
-                        "phone_number": user.phone_number,
+
+
+                res = paystack_client.initialize_charge(
+                    email=user.email,
+                    amount=amount,
+                      reference=ref,
+                    channels=['bank_transfer'],
+                    metadata={
+                        "phone_number": user.phone_number
                     }
                 )
+                
+                # TODO replace with geerating PWT account info
+
+                # res = paystack_client.generate_pwt_account(
+                #     customer_email=user.email,
+                #     amount=amount,
+                #     user_id=user.id,
+                #     phone_number=user.phone_number,
+                # )
+                
+                # .init_bank_transfer_payment(
+                #     amount=amount, 
+                #     customer_name=user.full_name, 
+                #     customer_email=user.email, 
+                #     payment_reference=ref, 
+                #     payment_description="Wallet Top-up",
+                #     meta_data={
+                #         "phone_number": user.phone_number,
+                #     }
+                # )
             else:
-                res = monify_client.init_card_payment(
-                    amount=amount, 
-                    customer_name=user.full_name, 
-                    customer_email=user.email, 
-                    payment_reference=ref, 
-                    payment_description="Wallet Top-up",
-                    meta_data={
-                        "phone_number": user.phone_number,
+                res = paystack_client.initialize_charge(
+                    email=user.email,
+                    amount=amount,
+                      reference=ref,
+                    channels=['card','bank_transfer'],
+                    metadata={
+                        "phone_number": user.phone_number
                     }
                 )
+                
 
-            # print(res)
+            print(res)
 
-            if res['requestSuccessful']:
+            if res['status']:
                 Payment.objects.create(
                     user=request.user,
                     amount=amount,
@@ -113,7 +134,7 @@ class InitFundWallet(APIView):
 
                 return Response({
                     "message": "Wallet funding initiated successfully",
-                    "monnify_response": res
+                    "response": res['data']
                 }, status=status.HTTP_200_OK)
             else: 
                 return Response({

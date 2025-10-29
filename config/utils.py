@@ -5,15 +5,6 @@ from django.conf import settings
 import requests
 
 
-
-
-# def generate_otp(length=6):
-#     """Generate a numeric OTP"""
-#     return str(random.randint(10**(length-1), (10**length)-1))
-
-
-
-
 class TermiiClient:
     BASE_URL = "https://api.ng.termii.com/api"
 
@@ -31,7 +22,10 @@ class TermiiClient:
         - pin_attempts: number of tries allowed before expiry
         - pin_time_to_live: validity in minutes
         """
-        url = f"{self.BASE_URL}/sms/otp/send"
+        url = f"{self.BASE_URL}/sms/send"
+
+        if phone_number.startswith("+"):
+            phone_number = phone_number[1:]
 
         payload = {
             "api_key": self.api_key,
@@ -39,10 +33,11 @@ class TermiiClient:
             "from": self.sender_id,
             "type": "plain",
             "sms": message,
-            "channel": "dnd", 
+            "channel": "generic", 
         }
 
         response = requests.post(url, json=payload)
+        print("SMS OTP res:", response)
         data = response.json()
         if not response.ok:
             raise Exception(f"OTP SMS failed: {data}")
@@ -55,10 +50,11 @@ class TermiiClient:
         """
         Send OTP via WhatsApp using Termii's WhatsApp channel.
         """
-        url = f"{self.BASE_URL}/sms/otp/send"
+        url = f"{self.BASE_URL}/sms/send"
+        if phone_number.startswith("+"):
+            phone_number = phone_number[1:]
         payload = {
         #    "channel": "whatsapp_otp",
-
             "api_key": self.api_key,
             "to": phone_number,
             "from": self.sender_id,
@@ -68,6 +64,7 @@ class TermiiClient:
         }
 
         response = requests.post(url, json=payload)
+        print("WhatsApp res: ", response.content)
         data = response.json()
         if not response.ok:
             raise Exception(f"OTP WhatsApp failed: {data}")

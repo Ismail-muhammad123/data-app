@@ -10,8 +10,9 @@ from payments.serializers import PaymentSerializer
 from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
 from .models import Payment
-from .utils import MonnifyClient
+from .utils import MonnifyClient, PaystackGateway
 import uuid
+from django.conf import settings
 
 
 
@@ -49,48 +50,64 @@ import uuid
 
 class PaymentWebhookView(APIView):
     """
-    Endpoint to receive Monnify transaction / disbursement callbacks.
+    Endpoint to receive Paystack transaction / disbursement callbacks.
     """
     @method_decorator(csrf_exempt)  # since external POST
     def post(self, request, *args, **kwargs):
-        client = MonnifyClient()
-        try:
-            event_type, data = client.handle_webhook_event(request.body, request.headers)
-        except ValueError as e:
+        # client = MonnifyClient()
+        client = PaystackGateway(
+            settings.PAYSTACK_SECRET_KEY
+        )
+        is_verified = None
+        is_verified = client.verify_webhook(request.body, request.headers['X-Paystack-Signature'])
+    
+
+        # try:
+        # except ValueError as e:
+        #     
+        if not is_verified:
             return HttpResponseBadRequest("Invalid signature")
 
+        print("Webhook origin verified")
+
+        event_type = request.data['event']
+        data = request.data['data']
+
         # handle the different event types
-        if event_type == "SUCCESSFUL_TRANSACTION":
-            ref = data['paymentReference']
+        if event_type == "charge.success":
+            ref = request.data['data']['reference']
             # print("ref")
             # print(ref)
-            amount = data['amountPaid']
-            if data['product']['type'] == 'RESERVED_ACCOUNT':
-                acc_num = data['destinationAccountInformation']['accountNumber']
-                virtual_account = VirtualAccount.objects.get(account_number=acc_num)
-                payment, created = Payment.objects.get_or_create(
-                    reference=ref,
-                    defaults={
-                        "user":virtual_account.user,
-                        "amount":amount,
-                        "status":"SUCCESS",
-                        "payment_type":"CREDIT",
-                    }
-                )
-                if not created:
-                    if not payment.status == "SUCCESS":
-                        payment.status = "SUCCESS"
-                        payment.amount = amount
-                        payment.save()
-                        fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
-                else:
-                    fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
-            else:
-                payment = get_object_or_404(Payment, reference=ref)
-                if payment.status != "SUCCESS":
-                    payment.status = "SUCCESS"
-                    payment.amount = amount
-                    payment.save()
+            amount = data['amount']
+            # if data['product']['type'] == 'RESERVED_ACCOUNT':
+            #     acc_num = data['destinationAccountInformation']['accountNumber']
+            #     virtual_account = VirtualAccount.objects.get(account_number=acc_num)
+            #     payment, created = Payment.objects.get_or_create(
+            #         reference=ref,
+            #         defaults={
+            #             "user":virtual_account.user,
+            #             "amount":amount,
+            #             "status":"SUCCESS",
+            #             "payment_type":"CREDIT",
+            #         }
+            #     )
+            #     if not created:
+            #         if not payment.status == "SUCCESS":
+            #             payment.status = "SUCCESS"
+            #             payment.amount = amount
+            #             payment.save()
+            #             fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+            #     else:
+            #         fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+            # else:
+            payment = get_object_or_404(Payment, reference=ref)
+            amount = float(amount) / 100
+            print(amount)
+            if payment.status != "SUCCESS":
+                payment.status = "SUCCESS"
+                payment.amount = amount
+                payment.save()
+                fund_wallet(payment.user.id, amount, reference=ref)
         elif event_type == "SETTLEMENT_COMPLETION":
             # funds moved to your bank / wallet
             pass

@@ -15,7 +15,7 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
             except Payment.DoesNotExist:
                 pass
         wallet, created = Wallet.objects.get_or_create(user_id=user_id, defaults={'balance': 0.0})
-        wallet.balance += amount
+        wallet.balance = float(wallet.balance) + amount
         wallet.save()
         WalletTransaction.objects.create(
             user=wallet.user,
@@ -23,7 +23,7 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
             transaction_type='credit',
             amount=amount,
             payment=payment_obj,
-            balance_before=wallet.balance-amount,
+            balance_before=float(wallet.balance) - amount,
             balance_after=wallet.balance,
             description=description,
             initiator='self',

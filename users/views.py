@@ -15,12 +15,12 @@ from .serializers import (
 )
 from .utils import send_otp_code
 from django.contrib.auth import authenticate
-
+from django.conf import settings
 
 from rest_framework.decorators import api_view, permission_classes
 from wallet.models import VirtualAccount
 from wallet.serializers import VirtualAccountSerializer
-from payments.utils import MonnifyClient
+from payments.utils import MonnifyClient, PaystackGateway
 
 
 User = get_user_model()
@@ -209,9 +209,9 @@ def upgrade_account(request):
         return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
 
     try:
-        client = MonnifyClient()
+        client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
         
-        account_res = client.get_reserved_account(user)
+        account_res = client.create_virtual_account(user)
 
         print(account_res)
 

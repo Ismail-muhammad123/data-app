@@ -1,9 +1,9 @@
 from django.urls import path
-from  .views import PaymentListView, PaymentWebhookView
+from  .views import PaymentWebhookView
 
 urlpatterns = [
     # ADMIN ENDPOINTS
-    path("admin/list-payments/", PaymentListView.as_view(), name="payment-list"),
+    # path("admin/list-payments/", PaymentListView.as_view(), name="payment-list"),
     # path("create/", PaymentCreateView.as_view(), name="payment-create"),
     # path("update/<str:reference>/", PaymentUpdateView.as_view(), name="payment-update"),
 
