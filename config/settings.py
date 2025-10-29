@@ -253,3 +253,9 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_SMS_NUMBER = os.getenv("TWILIO_SMS_NUMBER")         # e.g., +1234567890
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER") # e.g., whatsapp:+1234567890
 TWILIO_EMAIL = os.getenv("TWILIO_EMAIL")                   # Twilio SendGrid or Mail API
+
+
+
+TERMII_API_KEY = os.getenv("TERMII_API_KEY")
+TERMII_SENDER_ID = os.getenv("TERMII_SENDER_ID")
+TERMII_EMAIL_CONFIG_ID = os.getenv("TERMII_EMAIL_CONFIG_ID")

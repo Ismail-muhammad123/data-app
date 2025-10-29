@@ -16,12 +16,12 @@ import uuid
 
 
 # ADMIN Views
-class PaymentListView(generics.ListAPIView):
-    serializer_class = PaymentSerializer
-    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+# class PaymentListView(generics.ListAPIView):
+#     serializer_class = PaymentSerializer
+#     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
-    def get_queryset(self):
-        return Payment.objects.filter().order_by("-created_at")
+#     def get_queryset(self):
+#         return Payment.objects.filter().order_by("-created_at")
 
 
 # class PaymentCreateView(generics.CreateAPIView):

@@ -30,9 +30,12 @@ class Payment(models.Model):
     reference = models.CharField(max_length=100, unique=True)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPES)
     approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS_OPTIONS, default="PENDING")
-    # receiving_account_number = models.CharField(max_length=15)
-    # receiving_account_name = models.CharField(max_length=200)
-    # receiving_bank_name = models.CharField(max_length=100)
+    
+    # in case of withdrawal
+    receiving_account_number = models.CharField(max_length=15, null=True, blank=True)
+    receiving_account_name = models.CharField(max_length=200, null=True, blank=True)
+    receiving_bank_name = models.CharField(max_length=100, null=True, blank=True)
+    receiving_bank_code = models.CharField(max_length=10, null=True, blank=True)
 
     def __str__(self):
         return f"{self.payment_type} {self.amount} from {self.user}"

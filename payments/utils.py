@@ -1,6 +1,14 @@
 
 import requests
 from django.conf import settings
+import hmac
+import hashlib
+import json
+from typing import Optional, Dict, Any
+import base64
+from datetime import datetime, timedelta
+from django.utils import timezone
+
 
 import os
 #  = "https://seerbitapi.com/api/v2"  # or sandbox URL
@@ -18,14 +26,6 @@ import os
 
 # monnify/utils.py
 
-import base64
-import hashlib
-import hmac
-import json
-import requests
-from datetime import datetime, timedelta
-from django.conf import settings
-from django.utils import timezone
 
 def record_deposit(amount, description, timestamp):
     pass
@@ -360,3 +360,174 @@ class MonnifyClient:
             raise Exception(data.get("responseMessage", "Failed to create account"))
 
         return data["responseBody"]
+    
+
+
+class PaystackGateway:
+    """
+    Unified class for handling Paystack payment operations.
+    Covers:
+        - Virtual Dedicated Accounts (VDA)
+        - Pay With Transfer (PWT) Account
+        - Charge Initialization
+        - Transfers (Payouts)
+        - Transaction Verification
+        - Webhook Signature Verification
+    """
+
+    def __init__(self, secret_key: str):
+        if not secret_key:
+            raise ValueError("Paystack secret key is required.")
+        self.secret_key = secret_key
+        self.base_url = "https://api.paystack.co"
+        self.headers = {
+            "Authorization": f"Bearer {self.secret_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+    def _post(self, endpoint: str, payload: dict) -> Dict[str, Any]:
+        url = f"{self.base_url}{endpoint}"
+        response = requests.post(url, headers=self.headers, json=payload)
+        data = response.json()
+        if not response.ok or not data.get("status"):
+            raise Exception(data.get("message", "Paystack request failed"))
+        return data["data"]
+
+    def _get(self, endpoint: str) -> Dict[str, Any]:
+        url = f"{self.base_url}{endpoint}"
+        response = requests.get(url, headers=self.headers)
+        data = response.json()
+        if not response.ok or not data.get("status"):
+            raise Exception(data.get("message", "Paystack request failed"))
+        return data["data"]
+
+    # ----------------------------------------
+    # 1. CREATE DEDICATED VIRTUAL ACCOUNT (VDA)
+    # ----------------------------------------
+    def create_virtual_account(
+        self,
+        email: str,
+        first_name: str,
+        last_name: str,
+        phone: Optional[str] = None,
+        preferred_bank: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        payload = {
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+        if phone:
+            payload["phone"] = phone
+        if preferred_bank:
+            payload["preferred_bank"] = preferred_bank
+        return self._post("/dedicated_account", payload)
+
+    # ----------------------------------------
+    # 2. PAY WITH TRANSFER (PWT) ACCOUNT
+    # ----------------------------------------
+    def generate_pwt_account(
+        self,
+        customer_email: str,
+        amount: int,
+        description: str = "Pay with Transfer",
+    ) -> Dict[str, Any]:
+        """
+        Creates a temporary 'Pay With Transfer' account for a one-time transaction.
+        Amount must be in kobo (e.g., 5000 NGN = 500000 kobo).
+        """
+        payload = {
+            "amount": amount,
+            "email": customer_email,
+            "description": description,
+            "channels": ["bank"],  # restricts to transfer
+        }
+        return self._post("/transaction/initialize", payload)
+
+    # ----------------------------------------
+    # 3. INITIALIZE CHARGE (WITH PAYMENT METHODS)
+    # ----------------------------------------
+    def initialize_charge(
+        self,
+        email: str,
+        amount: int,
+        reference: Optional[str] = None,
+        callback_url: Optional[str] = None,
+        channels: Optional[list] = None,
+        metadata: Optional[dict] = None,
+    ) -> Dict[str, Any]:
+        """
+        Initialize a charge with custom payment channels.
+        Available channels: card, bank, ussd, mobile_money, qr, eft, etc.
+        """
+        payload = {
+            "email": email,
+            "amount": amount,
+        }
+        if reference:
+            payload["reference"] = reference
+        if callback_url:
+            payload["callback_url"] = callback_url
+        if channels:
+            payload["channels"] = channels
+        if metadata:
+            payload["metadata"] = metadata
+        return self._post("/transaction/initialize", payload)
+
+    # ----------------------------------------
+    # 4. MAKE PAYOUT / TRANSFER
+    # ----------------------------------------
+    def make_payout(
+        self,
+        name: str,
+        account_number: str,
+        bank_code: str,
+        amount: int,
+        reason: Optional[str] = None,
+        currency: str = "NGN",
+    ) -> Dict[str, Any]:
+        """
+        Makes a payout to a recipient bank account.
+        Amount is in kobo (e.g., 5000 NGN = 500000 kobo).
+        """
+        # Step 1: Create transfer recipient
+        recipient_payload = {
+            "type": "nuban",
+            "name": name,
+            "account_number": account_number,
+            "bank_code": bank_code,
+            "currency": currency,
+        }
+        recipient = self._post("/transferrecipient", recipient_payload)
+
+        # Step 2: Initiate transfer
+        transfer_payload = {
+            "source": "balance",
+            "amount": amount,
+            "recipient": recipient["recipient_code"],
+        }
+        if reason:
+            transfer_payload["reason"] = reason
+        return self._post("/transfer", transfer_payload)
+
+    # ----------------------------------------
+    # 5. VERIFY TRANSACTION
+    # ----------------------------------------
+    def verify_transaction(self, reference: str) -> Dict[str, Any]:
+        """
+        Verify a transaction using its reference.
+        """
+        return self._get(f"/transaction/verify/{reference}")
+
+    # ----------------------------------------
+    # 6. VERIFY WEBHOOK SIGNATURE
+    # ----------------------------------------
+    def verify_webhook(self, raw_body: bytes, signature_header: str) -> bool:
+        """
+        Verify Paystack webhook using SHA512 HMAC signature.
+        """
+        computed = hmac.new(
+            self.secret_key.encode("utf-8"), raw_body, hashlib.sha512
+        ).hexdigest()
+        return hmac.compare_digest(computed, signature_header)
