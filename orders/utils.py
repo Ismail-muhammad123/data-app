@@ -7,8 +7,7 @@ from orders.models import DataPlan, DataNetwork
 
 logger = logging.getLogger(__name__)
 
-
-VTPASS_BASE_URL = "https://sandbox.vtpass.com/api"  # Change to live when ready
+VTPASS_BASE_URL = getattr(settings, "VTPASS_BASE_URL") or "https://sandbox.vtpass.com/api"  # Change to live when ready
 # VTPASS_USERNAME = getattr(settings, "VTPASS_USERNAME", "")
 # VTPASS_PASSWORD = getattr(settings, "VTPASS_PASSWORD", "")
 

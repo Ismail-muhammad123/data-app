@@ -20,7 +20,7 @@ from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from wallet.models import VirtualAccount
 from wallet.serializers import VirtualAccountSerializer
-from payments.utils import MonnifyClient, PaystackGateway
+from payments.utils import PaystackGateway
 
 
 User = get_user_model()
