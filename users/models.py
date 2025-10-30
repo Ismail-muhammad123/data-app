@@ -236,7 +236,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     tier = models.PositiveIntegerField(default=1, choices=TIER_CHOICES)
 
-    is_active = models.BooleanField(default=True)  # TODO: change to false by default, and activated after OTP verification
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
