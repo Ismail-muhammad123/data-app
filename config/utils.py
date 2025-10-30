@@ -53,6 +53,7 @@ class TermiiClient:
         url = f"{self.BASE_URL}/sms/send"
         if phone_number.startswith("+"):
             phone_number = phone_number[1:]
+
         payload = {
         #    "channel": "whatsapp_otp",
             "api_key": self.api_key,
@@ -60,7 +61,7 @@ class TermiiClient:
             "from": self.sender_id,
             "type": "plain",
             "sms": message,
-            "channel": "whatsapp",   # or "dnd" for DND bypass
+            "channel": "whatsapp_otp",
         }
 
         response = requests.post(url, json=payload)
