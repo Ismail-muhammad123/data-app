@@ -409,20 +409,26 @@ class PaystackGateway:
         self,
         email: str,
         first_name: str,
+        middle_name: str,
         last_name: str,
         phone: Optional[str] = None,
-        preferred_bank: Optional[str] = None,
+        preferred_bank: Optional[str] = "wema-bank",
     ) -> Dict[str, Any]:
         payload = {
             "email": email,
             "first_name": first_name,
             "last_name": last_name,
+            "middle_name": middle_name,
+
+            "phone": phone,
+            "preferred_bank": preferred_bank,
+            "country": "NG"
         }
         if phone:
             payload["phone"] = phone
         if preferred_bank:
             payload["preferred_bank"] = preferred_bank
-        return self._post("/dedicated_account", payload)
+        return self._post("/dedicated_account/assign", payload)
 
     # ----------------------------------------
     # 2. PAY WITH TRANSFER (PWT) ACCOUNT

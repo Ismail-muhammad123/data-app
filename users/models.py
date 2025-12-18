@@ -229,9 +229,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name=models.CharField(max_length=225, blank=True, null=True)
     phone_country_code = models.CharField(max_length=10, choices=country_code_choices, default="+234")
     phone_number = models.CharField(max_length=15, unique=True)
-    email = models.EmailField(blank=True, null=True)
+    email = models.EmailField(blank=True, null=True, unique=True)
 
-    nin = models.CharField(max_length=200, blank=True, null=True)
     bvn = models.CharField(max_length=200, blank=True, null=True)
 
     tier = models.PositiveIntegerField(default=1, choices=TIER_CHOICES)

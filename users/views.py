@@ -205,45 +205,57 @@ def upgrade_account(request):
     if user.tier == 2:
         return Response({"success": False,"error": "Account is already a tier two account"})
 
-    if not user.full_name != "" and (user.email or '') != "" and (user.nin or '') != "" and (user.bvn or '') != "":
+    if not user.full_name != "" and (user.email or '') != "" and (user.bvn or '') != "":
         return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
 
     try:
         client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
         
-        account_res = client.create_virtual_account(user)
+        account_res = client.create_virtual_account(
+            user.email,
+            user.full_name.split(" ")[0],
+            user.full_name.split(" ")[-1] if len(user.full_name.split(" ")>=2) else "",  # assuming last word is last name
+            user.full_name.split(" ")[-2] if len(user.full_name.split(" ")==3) else "",  # assuming second word is middle name
+            user.phone_country_code + user.phone_number,
+        )
 
         print(account_res)
 
-        if account_res is None:
-            account_res = client.create_reserved_account(user)
-
-
-        response_accoount= account_res['accounts']
-        
-        if len(response_accoount) > 0:
-            acc = response_accoount[0]
-            account,_ = VirtualAccount.objects.get_or_create(
-                user=user,
-                defaults={
-                    "account_number": acc["accountNumber"],
-                    "bank_name": acc["bankName"],
-                    "account_name": acc['accountName'],
-                    "account_reference":  account_res['accountReference'],
-                    "customer_email": account_res["customerEmail"],
-                    "customer_name": account_res["customerName"],
-                    "status": account_res.get("status", "ACTIVE"),
-                }
-            )
-        
-            # upgrade user account tier to tier 2
-            user.tier = 2
-            user.save()
-
-            serializer = VirtualAccountSerializer(account)
-            return Response({"success": True, "data": serializer.data}, status=201)
+        if account_res is not None:
+            return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
         else:
-            return Response({"success": False, "error": "Virtual Account not created"}, status=500)
+            return Response({"success": False, "error": "Virtual Account not created due to an unexpected error"}, status=500)
+        # if account_res is None:
+        #     account_res = client.create_reserved_account(user)
+
+
+        # response_account= account_res['accounts']
+        
+        # if len(response_account) > 0:
+        #     acc = response_account[0]
+        #     account,_ = VirtualAccount.objects.get_or_create(
+        #         user=user,
+        #         defaults={
+        #             "account_number": acc["accountNumber"],
+        #             "bank_name": acc["bankName"],
+        #             "account_name": acc['accountName'],
+        #             "account_reference":  account_res['accountReference'],
+        #             "customer_email": account_res["customerEmail"],
+        #             "customer_name": account_res["customerName"],
+        #             "status": account_res.get("status", "ACTIVE"),
+        #         }
+        #     )
+        
+        #     # upgrade user account tier to tier 2
+        #     user.tier = 2
+        #     user.save()
+
+            # serializer = VirtualAccountSerializer(account)
+        #     # return Response({"success": True, "data": serializer.data}, status=201)
+        # else:
+        #     return Response({"success": False, "error": "Virtual Account not created"}, status=500)
     except Exception as e:
         print(e)
         return Response({"success": False, "error": str(e)}, status=500)
+    
+

@@ -1,17 +1,12 @@
-from datetime import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from rest_framework import generics,permissions
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.response import Response
 from django.utils.decorators import method_decorator
-from payments.serializers import PaymentSerializer
 from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
 from .models import Payment
-from .utils import MonnifyClient, PaystackGateway
-import uuid
+from .utils import PaystackGateway
 from django.conf import settings
 
 
@@ -75,46 +70,72 @@ class PaymentWebhookView(APIView):
 
         # handle the different event types
         if event_type == "charge.success":
+            """Handle successful charge webhook."""
             ref = request.data['data']['reference']
-            # print("ref")
-            # print(ref)
-            amount = data['amount']
-            # if data['product']['type'] == 'RESERVED_ACCOUNT':
-            #     acc_num = data['destinationAccountInformation']['accountNumber']
-            #     virtual_account = VirtualAccount.objects.get(account_number=acc_num)
-            #     payment, created = Payment.objects.get_or_create(
-            #         reference=ref,
-            #         defaults={
-            #             "user":virtual_account.user,
-            #             "amount":amount,
-            #             "status":"SUCCESS",
-            #             "payment_type":"CREDIT",
-            #         }
-            #     )
-            #     if not created:
-            #         if not payment.status == "SUCCESS":
-            #             payment.status = "SUCCESS"
-            #             payment.amount = amount
-            #             payment.save()
-            #             fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
-            #     else:
-            #         fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
-            # else:
-            payment = get_object_or_404(Payment, reference=ref)
-            amount = float(amount) / 100
-            print(amount)
-            if payment.status != "SUCCESS":
-                payment.status = "SUCCESS"
-                payment.amount = amount
-                payment.save()
-                fund_wallet(payment.user.id, amount, reference=ref)
-        elif event_type == "SETTLEMENT_COMPLETION":
-            # funds moved to your bank / wallet
-            pass
-        elif event_type == "FAILED_DISBURSEMENT":
-            pass
-        elif event_type == "SUCCESSFUL_DISBURSEMENT":
-            pass
+            amount = request.data['data']['amount']
+            if request.data['authorization']['channel'] == 'dedicated_nuban':
+                """Handle dedicated account (virtual account) payment webhook."""
+                acc_num = request.data['authorization']['receiver_bank_account_number']
+                virtual_account = VirtualAccount.objects.get(account_number=acc_num)
+                payment, created = Payment.objects.get_or_create(
+                    reference=ref,
+                    defaults={
+                        "user":virtual_account.user,
+                        "amount":amount/100,
+                        "status":"SUCCESS",
+                        "payment_type":"CREDIT",
+                    }
+                )
+                if not created:
+                    if not payment.status == "SUCCESS":
+                        payment.status = "SUCCESS"
+                        payment.amount = amount/100
+                        payment.save()
+                        fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+                else:
+                    fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+            else:
+                """Handle other payment method webhook."""
+                payment = get_object_or_404(Payment, reference=ref)
+                amount = float(amount) / 100
+                print(amount)
+                if payment.status != "SUCCESS":
+                    payment.status = "SUCCESS"
+                    payment.amount = amount
+                    payment.save()
+                    fund_wallet(payment.user.id, amount, reference=ref)
+
+        elif event_type == "dedicatedaccount.assign.success":
+            """Handle dedicated account assignment success webhook."""
+            customer = data['customer']
+            user = get_object_or_404(settings.AUTH_USER_MODEL, email=customer['email'])
+
+            if user == None:
+                return HttpResponseBadRequest("User not found")
+            
+            if user.tier == 2:
+                return HttpResponse("User already tier 2", status=200)
+            
+            response_account= data['dedicated_account']
+        
+            if len(response_account) > 0:
+                acc = response_account[0]
+                account,_ = VirtualAccount.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        "account_number": acc["account_number"],
+                        "bank_name": acc["bank"]['name'],
+                        "account_name": acc['account_name'],
+                        "customer_email": customer["email"],
+                        "customer_name": customer["first_name"] + " " + customer["last_name"],
+                        "status": data.get("status", "ACTIVE").toUpperCase(),
+                        "account_reference": str(customer["id"]),
+                    }
+                )
+            
+                # upgrade user account tier to tier 2
+                user.tier = 2
+                user.save()
         # ... handle other events you care about
 
         return HttpResponse(status=200)
