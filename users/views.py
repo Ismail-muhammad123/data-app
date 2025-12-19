@@ -228,7 +228,6 @@ def upgrade_account(request):
         # if account_res is None:
         #     account_res = client.create_reserved_account(user)
 
-
         # response_account= account_res['accounts']
         
         # if len(response_account) > 0:
