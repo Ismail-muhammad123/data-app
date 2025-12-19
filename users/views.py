@@ -224,7 +224,7 @@ def upgrade_account(request):
         if account_res is not None:
             return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
         else:
-            return Response({"success": False, "error": "Virtual Account not created due to an unexpected error"}, status=500)
+            return Response({"success": False, "error": "Tier upgrade failed due to an unexpected error"}, status=500)
         # if account_res is None:
         #     account_res = client.create_reserved_account(user)
 
