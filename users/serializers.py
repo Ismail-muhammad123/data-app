@@ -39,7 +39,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "phone_number", 
             "full_name", 
             "email", 
-            "nin",
             "bvn",
             "tier",
             "is_active", 
@@ -50,7 +49,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "full_name", "nin", "bvn"] 
+        fields = ["email", "full_name", "bvn"] 
 
 
 
