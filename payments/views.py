@@ -108,6 +108,7 @@ class PaymentWebhookView(APIView):
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""
             User = get_user_model()
+            print(request.data)
             customer = data['customer']
             user = get_object_or_404(User, email=customer['email'])
 
