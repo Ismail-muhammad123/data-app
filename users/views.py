@@ -214,8 +214,8 @@ def upgrade_account(request):
         account_res = client.create_virtual_account(
             user.email,
             user.full_name.split(" ")[0],
-            user.full_name.split(" ")[-1] if len(user.full_name.split(" ")>=2) else "",  # assuming last word is last name
-            user.full_name.split(" ")[-2] if len(user.full_name.split(" ")==3) else "",  # assuming second word is middle name
+            user.full_name.split(" ")[-1] if len(user.full_name.split(" "))>=2 else "",  # assuming last word is last name
+            user.full_name.split(" ")[-2] if len(user.full_name.split(" "))==3 else "",  # assuming second word is middle name
             user.phone_country_code + user.phone_number,
         )
 
