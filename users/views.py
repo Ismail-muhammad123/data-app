@@ -205,7 +205,7 @@ def upgrade_account(request):
     if user.tier == 2:
         return Response({"success": False,"error": "Account is already a tier two account"})
 
-    if not user.full_name != "" and (user.email or '') != "" and (user.bvn or '') != "":
+    if not user.first_name or not user.last_name or not user.email or not user.bvn:
         return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
 
     try:
