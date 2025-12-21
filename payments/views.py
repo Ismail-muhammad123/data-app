@@ -123,10 +123,9 @@ class PaymentWebhookView(APIView):
             if user.tier == 2:
                 return HttpResponse("User already tier 2", status=200)
             
-            response_account= data['dedicated_account']
+            acc= data['dedicated_account']
         
-            if response_account:
-                acc = response_account[0]
+            if acc:
                 account,_ = VirtualAccount.objects.get_or_create(
                     user=user,
                     defaults={
