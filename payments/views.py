@@ -107,6 +107,11 @@ class PaymentWebhookView(APIView):
 
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""
+
+
+            # {'event': 'dedicatedaccount.assign.success', 'data': {'customer': {'id': 325947837, 'first_name': 'Ismail', 'last_name': 'muhammmad', 'email': 'ismaeelmuhammad123@gmail.com', 'customer_code': 'CUS_icu86h5jyrlhgk2', 'phone': '+2348163351109', 'metadata': {}, 'risk_action': 'default', 'international_format_phone': '+2348163351109'}, 'dedicated_account': {'bank': {'name': 'Wema Bank', 'id': 20, 'slug': 'wema-bank'}, 'account_name': 'ASTARDATA/MUHAMMMAD ISMAIL', 'account_number': '9328428716', 'assigned': True, 'currency': 'NGN', 'metadata': None, 'active': True, 'id': 35159355, 'created_at': '2025-09-21T10:35:40.000Z', 'updated_at': '2025-12-21T08:57:48.000Z', 'assignment': {'assignee_id': 325947837, 'assignee_type': 'Customer', 'assigned_at': '2025-12-21T08:57:48.000Z', 'expired': False, 'expired_at': None, 'integration': 1622389, 'account_type': 'PAY-WITH-TRANSFER-RECURRING'}}}}
+
+
             User = get_user_model()
             print(request.data)
             customer = data['customer']
@@ -120,7 +125,7 @@ class PaymentWebhookView(APIView):
             
             response_account= data['dedicated_account']
         
-            if len(response_account) > 0:
+            if response_account:
                 acc = response_account[0]
                 account,_ = VirtualAccount.objects.get_or_create(
                     user=user,
@@ -130,7 +135,7 @@ class PaymentWebhookView(APIView):
                         "account_name": acc['account_name'],
                         "customer_email": customer["email"],
                         "customer_name": customer["first_name"] + " " + customer["last_name"],
-                        "status": data.get("status", "ACTIVE").toUpperCase(),
+                        "status": data.get("status", "ACTIVE").upper(),
                         "account_reference": str(customer["id"]),
                     }
                 )
