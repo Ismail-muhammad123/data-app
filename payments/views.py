@@ -8,7 +8,7 @@ from wallet.utils import fund_wallet
 from .models import Payment
 from .utils import PaystackGateway
 from django.conf import settings
-
+from django.contrib.auth import get_user_model
 
 
 # ADMIN Views
@@ -107,8 +107,9 @@ class PaymentWebhookView(APIView):
 
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""
+            User = get_user_model()
             customer = data['customer']
-            user = get_object_or_404(settings.AUTH_USER_MODEL, email=customer['email'])
+            user = get_object_or_404(User, email=customer['email'])
 
             if user == None:
                 return HttpResponseBadRequest("User not found")
