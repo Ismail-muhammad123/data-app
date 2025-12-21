@@ -9,7 +9,8 @@ from .views import (
     ActivateAccountView, 
     SignupView, 
     ProfileView, 
-    LogoutView, 
+    LogoutView,
+    close_account, 
     upgrade_account 
 )
 
@@ -27,6 +28,7 @@ urlpatterns = [
 
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("close-account/", close_account, name="close-account"),
     path("upgrade-account/", upgrade_account, name="upgrade-account"),
 
     # # ADMIN ENDPOINTS

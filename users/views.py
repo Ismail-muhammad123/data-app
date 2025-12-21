@@ -193,6 +193,32 @@ class LogoutView(APIView):
         return Response({"message": "Logged out successfully"})
 
 
+# ----------------------
+# Close Account
+# ----------------------
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def close_account(request):
+    user = request.user
+    
+    try:
+        # Close virtual account if it exists
+        virtual_account = VirtualAccount.objects.filter(user=user).first()
+        if virtual_account:
+            client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+            client.close_virtual_account(virtual_account.account_reference)
+            virtual_account.status = "CLOSED"
+            virtual_account.save()
+        
+        # Deactivate user account
+        user.is_active = False
+        user.save()
+        
+        return Response({"message": "Account closed successfully"}, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # ----------------------------------
 # Upgrade account tier
 # ----------------------------------

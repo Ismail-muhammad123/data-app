@@ -394,6 +394,14 @@ class PaystackGateway:
             raise Exception(data.get("message", "Paystack request failed"))
         return data
 
+    def _delete(self, endpoint: str) -> Dict[str, Any]:
+        url = f"{self.base_url}{endpoint}"
+        response = requests.delete(url, headers=self.headers)
+        data = response.json()
+        if not response.ok or not data.get("status"):
+            raise Exception(data.get("message", "Paystack request failed"))
+        return data
+
     def _get(self, endpoint: str) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
         response = requests.get(url, headers=self.headers)
@@ -429,6 +437,11 @@ class PaystackGateway:
         if preferred_bank:
             payload["preferred_bank"] = preferred_bank
         return self._post("/dedicated_account/assign", payload)
+
+
+    def close_virtual_account(self, account_id: str) -> Dict[str, Any]:
+        return self._delete("/dedicated_account/{account_id}")
+    
 
     # ----------------------------------------
     # 2. PAY WITH TRANSFER (PWT) ACCOUNT
