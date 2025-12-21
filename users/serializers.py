@@ -37,7 +37,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "id",
             "phone_country_code", 
             "phone_number", 
-            "full_name", 
+            "fist_name", "last_name", "middle_name", 
             "email", 
             "bvn",
             "tier",
@@ -49,7 +49,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "full_name", "bvn"] 
+        fields = ["email", "fist_name", "last_name", "middle_name", "bvn"] 
 
 
 

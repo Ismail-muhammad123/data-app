@@ -33,7 +33,9 @@ class UserCreationForm(forms.ModelForm):
     class Meta:
         model = User
         fields = (
-            "full_name",
+            "first_name",
+            "last_name",
+            "middle_name",
             "phone_country_code",
             "phone_number",
             "email",
@@ -59,7 +61,9 @@ class UserChangeForm(forms.ModelForm):
     class Meta:
         model = User
         fields = (
-            "full_name",
+            "first_name",
+            "last_name",
+            "middle_name",
             "phone_country_code",
             "phone_number",
             "email",
@@ -73,7 +77,9 @@ class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     list_display = [
-        "full_name", 
+        "first_name", 
+        "last_name",
+        "middle_name",
         "phone_country_code", 
         "phone_number", 
         "email", 
@@ -84,13 +90,13 @@ class UserAdmin(BaseUserAdmin):
     ]
     ordering = ['created_at']
     list_filter = ('is_active', 'is_staff' )
-    search_fields = ('full_name', 'email', "phone_number")
+    search_fields = ('first_name', 'last_name', 'middle_name', 'email', "phone_number")
     filter_horizontal = ()
     fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
         ("Personal Information", {
             'classes': ('wide',),
-            'fields': ('full_name', 'email', ),
+            'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
         }),
         ("Account Level", {"fields": ("tier",)}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
@@ -99,7 +105,7 @@ class UserAdmin(BaseUserAdmin):
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password1', 'password2')}),
         ("Personal Information", {
             'classes': ('wide',),
-            'fields': ('full_name', ),
+            'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
         }),
         # ("Account Level", {"fields": ("tier",)}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
