@@ -45,11 +45,14 @@ class Command(BaseCommand):
             logger.warning("No Data Plan types found for variations")
             return
 
-        # 2) create Plan for each of the reasult, if not already there
+        # 2) create Plan for each of the result, if not already there
         for data_type in data_types:
             logger.info("Loading Variations for %s", data_type.name)
             response = requests.get(f"https://vtpass.com/api/service-variations?serviceID={data_type.service_id}")
             response.raise_for_status()
+            if response.json().get('response_description') != '000':
+                logger.error("Error fetching variations for Data Plan Type: %s. ID: %s", data_type.name, data_type.service_id)
+            print(response.json())
             variations = response.json()['content']['variations']
 
             if not len(variations):
