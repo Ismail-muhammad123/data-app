@@ -52,7 +52,7 @@ class Command(BaseCommand):
             response.raise_for_status()
             if response.json().get('response_description') != '000':
                 logger.error("Error fetching variations for Data Plan Type: %s. ID: %s", data_type.name, data_type.service_id)
-            print(response.json())
+                continue
             variations = response.json()['content']['variations']
 
             if not len(variations):
