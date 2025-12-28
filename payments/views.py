@@ -69,7 +69,6 @@ class PaymentWebhookView(APIView):
         data = request.data['data']
 
 
-        print(f"Received data: {request.data}")
         # handle the different event types
         if event_type == "charge.success":
             """Handle successful charge webhook."""
@@ -100,7 +99,6 @@ class PaymentWebhookView(APIView):
                 """Handle other payment method webhook."""
                 payment = get_object_or_404(Payment, reference=ref)
                 amount = float(amount) / 100
-                print(amount)
                 if payment.status != "SUCCESS":
                     payment.status = "SUCCESS"
                     payment.amount = amount
