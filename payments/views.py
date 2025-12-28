@@ -68,14 +68,16 @@ class PaymentWebhookView(APIView):
         event_type = request.data['event']
         data = request.data['data']
 
+
+        print(f"Received data: {request.data}")
         # handle the different event types
         if event_type == "charge.success":
             """Handle successful charge webhook."""
-            ref = request.data['data']['reference']
-            amount = request.data['data']['amount']
-            if request.data['authorization']['channel'] == 'dedicated_nuban':
+            ref = data['reference']
+            amount = data['amount']
+            if data['authorization']['channel'] == 'dedicated_nuban':
                 """Handle dedicated account (virtual account) payment webhook."""
-                acc_num = request.data['authorization']['receiver_bank_account_number']
+                acc_num = data['authorization']['receiver_bank_account_number']
                 virtual_account = VirtualAccount.objects.get(account_number=acc_num)
                 payment, created = Payment.objects.get_or_create(
                     reference=ref,
@@ -113,7 +115,6 @@ class PaymentWebhookView(APIView):
 
 
             User = get_user_model()
-            print(request.data)
             customer = data['customer']
             user = get_object_or_404(User, email=customer['email'])
 
