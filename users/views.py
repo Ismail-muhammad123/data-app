@@ -134,6 +134,10 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def put(self, request):
+        if request.user.email:
+            users = User.objects.filter(email=request.data.get("email")).exclude(id=request.user.id)
+            if users.exists():
+                return Response({"error": "Email already in use."}, status=status.HTTP_400_BAD_REQUEST)
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
