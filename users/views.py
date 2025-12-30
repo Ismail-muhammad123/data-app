@@ -141,6 +141,10 @@ class ProfileView(APIView):
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        if request.user.email and request.user.tier == 1 and request.user.bvn and request.user.first_name and request.user.last_name:
+            upgrade_account_response = upgrade_account(request)
+            if not upgrade_account_response.data.get("success", False):
+                print("Tier upgrade failed:", upgrade_account_response.data.get("error", "Unknown error"))
         return Response(serializer.data)
 
 
