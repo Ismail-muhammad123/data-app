@@ -110,7 +110,7 @@ class InitFundWallet(APIView):
                 # )
             else:
                 res = paystack_client.initialize_charge(
-                    email=user.email,
+                    email=user.email or "user1@gmail.com",
                     amount=amount,
                       reference=ref,
                     channels=['card','bank_transfer'],

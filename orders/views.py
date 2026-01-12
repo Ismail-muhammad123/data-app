@@ -3,8 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
 
-from orders.models import DataNetwork, DataPlan, Purchase, AirtimeNetwork
-from orders.utils import buy_airtime, buy_data_plan
+from orders.models import DataService, DataVariation, Purchase, AirtimeNetwork
+# from orders.utils import buy_airtime, buy_data_plan
+from orders.utils.ebills_client import EBillsClient
 from wallet.models import Wallet
 from wallet.utils import debit_wallet, fund_wallet
 from .serializers import (
@@ -47,22 +48,21 @@ def generate_request_id():
 
 # ---------- CUSTOMER ----------
 class DataNetworksListView(generics.ListAPIView):
-    queryset = DataNetwork.objects.all()
+    queryset = DataService.objects.all()
     serializer_class = DataNetworkSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 class DataPlansListView(generics.ListAPIView):
-    queryset = DataPlan.objects.all()
+    queryset = DataVariation.objects.all()
     serializer_class = DataPlanSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
     def get_queryset(self):
-        queryset = DataPlan.objects.filter(is_active=True)
-
-        network_id = self.request.query_params.get("network_id")
-        if network_id:
-            queryset = queryset.filter(service_type=network_id)
+        queryset = DataVariation.objects.filter(is_active=True)
+        service_id = self.request.query_params.get("service_id")
+        if service_id:
+            queryset = queryset.filter(service__id=service_id)
 
         return queryset
 
@@ -83,8 +83,8 @@ class PurchaseDataPlanView(APIView):
         phone_number = serializer.validated_data["phone_number"]
 
         try:
-            plan = DataPlan.objects.get(id=plan_id, is_active=True)
-        except DataPlan.DoesNotExist:
+            plan = DataVariation.objects.get(id=plan_id, is_active=True)
+        except DataVariation.DoesNotExist:
             return Response({"error": "Invalid or inactive plan."}, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
@@ -97,37 +97,55 @@ class PurchaseDataPlanView(APIView):
 
         
         reference = generate_request_id()
-        # Step 3: Call VTPass
-        vtpass_response = buy_data_plan(
-            service_id=plan.service_type.service_id,
-            phone_number=phone_number,
-            amount=amount,
-            request_id=reference,
-            variation_code=plan.variation_code,
-        )
+        # # Step 3: Call VTPass
+        # vtpass_response = buy_data_plan(
+        #     service_id=plan.service_type.service_id,
+        #     phone_number=phone_number,
+        #     amount=amount,
+        #     request_id=reference,
+        #     variation_code=plan.variation_code,
+        # )
 
 
-        if vtpass_response.get("code") == "000":  # success
+        client = EBillsClient()
+
+        try:
+            # Authenticate
+            client.authenticate()
+
+            resp = client.buy_data(request_id=reference, 
+                                phone=phone_number, 
+                                service_id=plan.service.service_id, 
+                                variation_id=plan.variation_id)
+
             
-            # Step 1: Debit wallet
-            debit_wallet(user.id, amount, f"{plan.service_type} purchase - {reference}")
+            if resp.get("code") == "success":  # success
+                
+                # if resp.get("message") not in ["ORDER COMPLETED", "ORDER PROCESSING"]: 
+                #     return Response({"error": "Payment failed."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Step 2: Create transaction record
-            transaction = Purchase.objects.create(
-                purchase_type="data",
-                user=user,
-                data_plan=plan,
-                beneficiary=phone_number,
-                reference=reference,
-                amount=amount,
-                status="success"
-            )
-            return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
-        else:
-            # transaction.status = "failed"
-            # fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
+                # Step 1: Debit wallet
+                debit_wallet(user.id, amount, f"{plan.service.service_name} purchase - {reference}")
+
+                # Step 2: Create transaction record
+                transaction = Purchase.objects.create(
+                    user=user,
+                    purchase_type="data",
+                    data_variation=plan,
+                    beneficiary=phone_number,
+                    reference=reference,
+                    amount=amount,
+                    status="success"
+                )
+                return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+            else:
+                # transaction.status = "failed"
+                # fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
+                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Data purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
-    
+
 class PurchaseAirtimeView(APIView):
     permission_classes=  [permissions.IsAuthenticated]
     serializer_class = DataPurchaseRequestSerializer
@@ -138,12 +156,12 @@ class PurchaseAirtimeView(APIView):
 
         amount = serializer.validated_data["amount"]
         phone_number = serializer.validated_data["phone_number"]
-        network_id = serializer.validated_data["network_id"]
+        service_id = serializer.validated_data["service_id"]
 
         try:
-            network = AirtimeNetwork.objects.get(id=network_id)
-        except DataPlan.DoesNotExist:
-            return Response({"error": "Invalid Network."}, status=status.HTTP_400_BAD_REQUEST)
+            network = AirtimeNetwork.objects.get(service_id=service_id)
+        except AirtimeNetwork.DoesNotExist:
+            return Response({"error": "Invalid Service."}, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
 
@@ -152,38 +170,48 @@ class PurchaseAirtimeView(APIView):
         if wallet.balance < amount:
             return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
 
+
         reference = generate_request_id()
-        
 
-        # Step 3: Call VTPass
-        vtpass_response = buy_airtime(
-            request_id=reference,
-            service_id=network.service_id,
-            amount=amount,
-            beneficiary=phone_number,
-        )
+        client = EBillsClient()
 
-        print("VTPASS RESPONSE: ",vtpass_response)
+        try:
 
-        if vtpass_response.get("code") == "000":  # success
-            
-            # Step 1: Debit wallet
-            debit_wallet(user.id, amount, f"{network} Airtime purchase - {reference}")
-            
-            # Step 2: Create transaction record
-            transaction = Purchase.objects.create(
-                purchase_type="airtime",
-                airtime_type=network,
-                user=user,
-                beneficiary=phone_number,
-                reference=reference,
+            # Authenticate
+            client.authenticate()
+
+            resp = client.buy_airtime(
+                request_id=reference, 
+                phone=phone_number, 
+                service_id=network.service_id, 
                 amount=amount,
-                status="success"
             )
 
-            return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
-        else:
+            if resp.get("code") == "success" and resp.get("message") in ["ORDER PROCESSING", "ORDER COMPLETED"]:  # success
+                
+                # Step 1: Debit wallet
+                debit_wallet(user.id, amount, f"{network} Airtime purchase - {reference}")
+                
+                # Step 2: Create transaction record
+                # Step 2: Create transaction record
+                transaction = Purchase.objects.create(
+                    user=user,
+                    purchase_type="airtime",
+                    airtime_service=network,
+                    beneficiary=phone_number,
+                    reference=reference,
+                    amount=amount,
+                    status="success"
+                )
+                return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+
+            else:
+                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f"Airtime purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+
         
 class PurchaseHistoryView(generics.ListAPIView):
     serializer_class = PurchaseSerializer

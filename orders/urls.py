@@ -2,7 +2,6 @@
 from django.urls import path
 
 from orders.views import AirtimeNetworkListView, DataNetworksListView, DataPlansListView, PurchaseAirtimeView, PurchaseDataPlanView, PurchaseDetailsView, PurchaseHistoryView
-# from .views import AllPlanTransactionsView, PlanDetailView, PlanListCreateView, PlanTransactionsByPlanView, PlanTransactionsView, PlansListView, PurchasePlanView
 
 
 urlpatterns = [

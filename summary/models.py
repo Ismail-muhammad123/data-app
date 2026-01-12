@@ -111,12 +111,13 @@
 
 from django.db import models
 from django.contrib.auth import get_user_model
+from summary.views import get_api_wallet_balance
 from wallet.models import Wallet, WalletTransaction
 # from savings.models import Savings, SavingsTransaction
 from payments.models import Payment
 # from investments.models import InvestmentAccount, InvestmentTransaction
 from django.db.models import Q
-from orders.models import DataPlan, DataNetwork, AirtimeNetwork, Purchase
+from orders.models import DataService, DataVariation, AirtimeNetwork, Purchase
 
 User = get_user_model()
 
@@ -166,22 +167,24 @@ class SummaryDashboard(Wallet):
         data_purchases = purchases.filter(purchase_type='data').aggregate(models.Sum("amount"))["amount__sum"] or 0
         airtime_purchases = purchases.filter(purchase_type='airtime').aggregate(models.Sum("amount"))["amount__sum"] or 0
 
-        data_networks = DataNetwork.objects.all()
+        data_services = DataService.objects.all()
         airtime_networks = AirtimeNetwork.objects.all()
 
         airtime_sales = {}
         # data sales
         for i in airtime_networks:
-            airtime_sales[i.name] = purchases.filter(airtime_type=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
+            airtime_sales[i.service_name] = purchases.filter(airtime_service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
 
         data_sales = {}
         # data sales
-        for i in data_networks:
-            data_sales[i.name] = purchases.filter(data_plan__service_type=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
+        for i in data_services:
+            data_sales[i.service_name] = purchases.filter(data_variation__service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
 
-
+        # API WALLET BALANCE
+        api_wallet_balance = get_api_wallet_balance()
+        
         # PAYMENTS
-        payments_summary = {
+        payments_summary = { 
             "credits_total": payments.filter(payment_type="CREDIT").aggregate(models.Sum("amount"))["amount__sum"] or 0,
             "credits_pending": payments.filter(payment_type="CREDIT", status="PENDING").count(),
             "credits_failed": payments.filter(payment_type="CREDIT", status="FAILED").count(),
@@ -211,5 +214,6 @@ class SummaryDashboard(Wallet):
                 "airtime_summary": airtime_sales,
             },
             "payments": payments_summary,
+            "api_wallet_balance": api_wallet_balance,
         }
 

@@ -7,7 +7,6 @@ from decimal import Decimal
 import uuid
 from django.db import models, transaction
 
-
 from .models import WalletTransaction, Wallet
 from django.contrib.auth import get_user_model
 
@@ -38,7 +37,6 @@ class VirtualAccountAdmin(admin.ModelAdmin):
     deactivate_accounts.short_description = "Deactivate selected virtual accounts"
 
     actions = [deactivate_accounts]
-
 
 
 
@@ -154,7 +152,7 @@ class WalletTransactionAdmin(admin.ModelAdmin):
             with transaction.atomic():
                 wallet.save(update_fields=["balance"])
                 obj.save()
-                messages.success(request, f"✅ Transaction applied and wallet updated for {obj.user.full_name} - {obj.user.phone_number}.")
+                messages.success(request, f"✅ Transaction applied and wallet updated for {obj.user} - {obj.user.phone_number}.")
         except Exception as e:
             messages.error(request, f"❌ Transaction failed: {e}")
 

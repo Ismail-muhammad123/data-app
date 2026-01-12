@@ -1,16 +1,24 @@
 from rest_framework import serializers
-from .models import DataNetwork, DataPlan, AirtimeNetwork, Purchase 
+from .models import DataService, DataVariation, AirtimeNetwork, Purchase 
 
 
 class DataNetworkSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DataNetwork
+        model = DataService
         fields = "__all__"
 
 class DataPlanSerializer(serializers.ModelSerializer):
+    service = DataNetworkSerializer(read_only=True)
     class Meta:
-        model = DataPlan
-        fields = "__all__"
+        model = DataVariation
+        fields = [
+            "id",
+            "name",
+            "service",
+            "variation_id",
+            "selling_price",
+            "is_active",
+        ]
 
 class AirtimeNetworkSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,6 +37,6 @@ class DataPurchaseRequestSerializer(serializers.Serializer):
 
 
 class AirtimePurchaseRequestSerializer(serializers.Serializer):
-    network_id = serializers.IntegerField()
+    service_id = serializers.CharField()
     amount = serializers.IntegerField()
     phone_number = serializers.CharField(max_length=20)

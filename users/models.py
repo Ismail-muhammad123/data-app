@@ -246,6 +246,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
+    @property
+    def full_name(self):
+        names = [self.first_name, self.middle_name, self.last_name]
+        return " ".join(name for name in names if name)
+
     def __str__(self):
         return self.phone_number
 
