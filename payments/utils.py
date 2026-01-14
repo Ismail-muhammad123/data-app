@@ -420,7 +420,7 @@ class PaystackGateway:
         middle_name: str,
         last_name: str,
         phone: Optional[str] = None,
-        preferred_bank: Optional[str] = "wema-bank",
+        preferred_bank: Optional[str] = "access-bank",
     ) -> Dict[str, Any]:
         payload = {
             "email": email,

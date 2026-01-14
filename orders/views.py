@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
 
-from orders.models import DataService, DataVariation, Purchase, AirtimeNetwork
+from orders.models import DataService, DataVariation, ElectricityService, Purchase, AirtimeNetwork, TVService, TVVariation
 # from orders.utils import buy_airtime, buy_data_plan
 from orders.utils.ebills_client import EBillsClient
 from wallet.models import Wallet
@@ -12,9 +12,11 @@ from .serializers import (
     AirtimePurchaseRequestSerializer, 
     DataNetworkSerializer, 
     DataPlanSerializer, 
-    DataPurchaseRequestSerializer, 
+    DataPurchaseRequestSerializer,
+    ElectricityPurchaseRequestSerializer, 
     PurchaseSerializer, 
-    AirtimeNetworkSerializer
+    AirtimeNetworkSerializer,
+    TVPurchaseRequestSerializer
 )
 
 import logging
@@ -212,7 +214,194 @@ class PurchaseAirtimeView(APIView):
             logger.error(f"Airtime purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        
+
+# Customer Verification
+class VerifyCustomerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        service_id = request.query_params.get("service_id")
+        customer_id = request.query_params.get("customer_id")
+        variation_id = request.query_params.get("variation_id")
+
+        if not service_id or not customer_id:
+            return Response({"error": "service_id and customer_id are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        client = EBillsClient()
+
+        try:
+            # Authenticate
+            client.authenticate()
+
+            resp = client.verify_user(
+                service_id=service_id,
+                customer_id=customer_id,
+                variation_id=variation_id
+            )
+
+            if resp.get("code") == "success":
+                return Response({"customer_name": resp["data"]}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": resp.get("message", "Verification failed.")}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.error(f"Customer verification failed: {str(e)}")
+            return Response({"error": "Verification failed."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Electricity Services
+class ElectricityServiceListView(generics.ListAPIView):
+    queryset = ElectricityService.objects.all()
+    serializer_class = DataNetworkSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class PurchaseElectricityView(APIView):
+    permission_classes=  [permissions.IsAuthenticated]
+    serializer_class = ElectricityPurchaseRequestSerializer
+
+    def post(self, request):
+        serializer = ElectricityPurchaseRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data["amount"]
+        service_id = serializer.validated_data["service_id"]
+        variation_id = serializer.validated_data["variation_id"]
+        customer_id = serializer.validated_data["customer_id"]
+
+        user = request.user
+
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+
+        if wallet.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        reference = generate_request_id()
+
+        client = EBillsClient()
+
+        try:
+            # Authenticate
+            client.authenticate()
+
+            electricity_service = ElectricityService.objects.filter(service_id=service_id).first()
+            if not electricity_service:
+                return Response({"error": "Invalid Electricity Service."}, status=status.HTTP_400_BAD_REQUEST)
+
+            resp = client.pay_electricity_bill(
+                request_id=reference, 
+                service_id=service_id, 
+                variation_id=variation_id,
+                customer_id=customer_id,
+                amount=amount,
+            )
+
+
+
+            if resp.get("code") == "success":  # success
+                
+                # Step 1: Debit wallet
+                debit_wallet(user.id, amount, f"Electricity purchase - {reference}")
+
+                # Step 2: Create transaction record
+                transaction = Purchase.objects.create(
+                    user=user,
+                    purchase_type="electricity",
+                    electricity_service=electricity_service,
+                    beneficiary=customer_id,
+                    reference=reference,
+                    amount=amount,
+                    status="success"
+                )
+                return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Electricity purchase failed: {str(e)}")
+            return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Cable/TV Services
+class TVVariationsListView(generics.ListAPIView):
+    queryset = DataVariation.objects.all()
+    serializer_class = DataPlanSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DataVariation.objects.filter(is_active=True)
+        service_id = self.request.query_params.get("service_id")
+        if service_id:
+            queryset = queryset.filter(service__id=service_id)
+
+        return queryset
+
+class PurchaseTVSubscriptionView(APIView):
+    permission_classes=  [permissions.IsAuthenticated]
+    serializer_class = TVPurchaseRequestSerializer
+
+    def post(self, request):
+        serializer = TVPurchaseRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data["amount"]
+        service_id = serializer.validated_data["service_id"]
+        variation_id = serializer.validated_data["variation_id"]
+        customer_id = serializer.validated_data["customer_id"]
+        subscription_type = serializer.validated_data["subscription_type"]
+
+        user = request.user
+
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+
+        if wallet.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        reference = generate_request_id()
+
+        client = EBillsClient()
+
+        try:
+            # Authenticate
+            client.authenticate()
+
+            tv_variation = TVVariation.objects.filter(variation_id=variation_id).first()
+            if not tv_variation:
+                return Response({"error": "Invalid TV Service."}, status=status.HTTP_400_BAD_REQUEST)
+
+            resp = client.pay_tv_subscription(
+                request_id=reference, 
+                service_id=service_id, 
+                customer_id=customer_id,
+                subscription_type=subscription_type,
+                variation_id=variation_id,
+                amount=amount,
+            )
+
+            if resp.get("code") == "success":  # success
+                
+                # Step 1: Debit wallet
+                debit_wallet(user.id, amount, f"TV Subscription purchase - {reference}")
+
+                # Step 2: Create transaction record
+                transaction = Purchase.objects.create(
+                    user=user,
+                    purchase_type="tv",
+                    tv_variation=tv_variation,
+                    beneficiary=customer_id,
+                    reference=reference,
+                    amount=amount,
+                    status="success"
+                )
+                return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"TV Subscription purchase failed: {str(e)}")
+            return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Purchase History
 class PurchaseHistoryView(generics.ListAPIView):
     serializer_class = PurchaseSerializer
     permission_classes = [permissions.IsAuthenticated]

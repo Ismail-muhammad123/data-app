@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DataService, DataVariation, AirtimeNetwork, Purchase 
+from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, Purchase, TVService, TVVariation 
 
 
 class DataNetworkSerializer(serializers.ModelSerializer):
@@ -25,6 +25,42 @@ class AirtimeNetworkSerializer(serializers.ModelSerializer):
         model = AirtimeNetwork
         fields="__all__"
 
+class ElectricityServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ElectricityService
+        fields="__all__"
+
+class TVServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TVService
+        fields="__all__"
+
+class TVVariationSerializer(serializers.ModelSerializer):
+    service = TVServiceSerializer(read_only=True)
+    class Meta:
+        model = TVVariation
+        fields = [
+            "id",
+            "name",
+            "service",
+            "variation_id",
+            "selling_price",
+            "is_active",
+        ]
+
+class ElectricityPurchaseRequestSerializer(serializers.Serializer):
+    amount = serializers.IntegerField()
+    service_id = serializers.CharField()
+    variation_id = serializers.CharField(max_length=50)
+    customer_id = serializers.CharField(max_length=20)
+
+
+class TVPurchaseRequestSerializer(serializers.Serializer):
+    amount = serializers.IntegerField()
+    service_id = serializers.CharField()
+    customer_id = serializers.CharField(max_length=50)
+    subscription_type =serializers.CharField(max_length=50)
+    variation_id = serializers.CharField(max_length=50)
 
 class PurchaseSerializer(serializers.ModelSerializer):
     class Meta:
