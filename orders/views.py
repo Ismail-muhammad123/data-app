@@ -16,7 +16,9 @@ from .serializers import (
     ElectricityPurchaseRequestSerializer, 
     PurchaseSerializer, 
     AirtimeNetworkSerializer,
-    TVPurchaseRequestSerializer
+    TVPurchaseRequestSerializer,
+    TVServiceSerializer,
+    TVVariationSerializer
 )
 
 import logging
@@ -322,18 +324,21 @@ class PurchaseElectricityView(APIView):
 
 
 # Cable/TV Services
-class TVVariationsListView(generics.ListAPIView):
-    queryset = DataVariation.objects.all()
-    serializer_class = DataPlanSerializer
+class TVServicesListView(generics.ListAPIView):
+    queryset = TVService.objects.all()
+    serializer_class = TVServiceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class TVPackagesListView(generics.ListAPIView):
+    queryset = TVVariation.objects.all()
+    serializer_class = TVVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = DataVariation.objects.filter(is_active=True)
         service_id = self.request.query_params.get("service_id")
-        if service_id:
-            queryset = queryset.filter(service__id=service_id)
-
-        return queryset
+        if not service_id:
+            return TVVariation.objects.filter(is_active=True)
+        return TVVariation.objects.filter(is_active=True, service__service_id=service_id)
 
 class PurchaseTVSubscriptionView(APIView):
     permission_classes=  [permissions.IsAuthenticated]
