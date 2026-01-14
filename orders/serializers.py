@@ -71,7 +71,6 @@ class DataPurchaseRequestSerializer(serializers.Serializer):
     plan_id = serializers.IntegerField()
     phone_number = serializers.CharField(max_length=20)
 
-
 class AirtimePurchaseRequestSerializer(serializers.Serializer):
     service_id = serializers.CharField()
     amount = serializers.IntegerField()

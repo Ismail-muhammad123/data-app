@@ -427,7 +427,6 @@ class PaystackGateway:
             "first_name": first_name,
             "last_name": last_name,
             "middle_name": middle_name,
-
             "phone": phone,
             "preferred_bank": preferred_bank,
             "country": "NG"

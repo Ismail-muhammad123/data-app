@@ -221,10 +221,10 @@ class PurchaseAirtimeView(APIView):
 class VerifyCustomerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request):
-        service_id = request.query_params.get("service_id")
-        customer_id = request.query_params.get("customer_id")
-        variation_id = request.query_params.get("variation_id")
+    def post(self, request):
+        service_id = request.data.get("service_id")
+        customer_id = request.data.get("customer_id")
+        variation_id = request.data.get("variation_id")
 
         if not service_id or not customer_id:
             return Response({"error": "service_id and customer_id are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -242,7 +242,7 @@ class VerifyCustomerView(APIView):
             )
 
             if resp.get("code") == "success":
-                return Response({"customer_name": resp["data"]}, status=status.HTTP_200_OK)
+                return Response( resp["data"], status=status.HTTP_200_OK)
             else:
                 return Response({"error": resp.get("message", "Verification failed.")}, status=status.HTTP_400_BAD_REQUEST)
 
