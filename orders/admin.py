@@ -1,14 +1,30 @@
 from django.contrib import admin
 from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, ElectricityVariation, Purchase, TVService, TVVariation 
+from .services.clubkonnect import ClubKonnectClient
 from django.utils.html import format_html
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
 
 
+class ClubKonnectSyncMixin:
+    def sync_clubkonnect_services(self, request, queryset):
+        client = ClubKonnectClient()
+        try:
+            success = client.sync_all_services()
+            if success:
+                self.message_user(request, "Successfully synced all services from ClubKonnect")
+            else:
+                self.message_user(request, "Failed to sync services from ClubKonnect", level='error')
+        except Exception as e:
+            self.message_user(request, f"An error occurred: {str(e)}", level='error')
+    sync_clubkonnect_services.short_description = "Sync all ClubKonnect services"
+
+
 @admin.register(DataService)
-class DataServiceAdmin(admin.ModelAdmin):
+class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= ["network_image", "service_name", "service_id", ]
     list_display_links = ["service_name", "network_image"]
+    actions = ["sync_clubkonnect_services"]
     
     def network_image(self, obj):
         if obj.image_url:
@@ -48,13 +64,14 @@ class DataVariationAdmin(admin.ModelAdmin):
 
 
 @admin.register(ElectricityService)
-class ElectricityServiceAdmin(admin.ModelAdmin):
+class ElectricityServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
     ]
     list_display_links = ["service_name"]
     list_per_page= 100
+    actions = ["sync_clubkonnect_services"]
 
 @admin.register(ElectricityVariation)
 class ElectricityVariationAdmin(admin.ModelAdmin):
@@ -64,13 +81,14 @@ class ElectricityVariationAdmin(admin.ModelAdmin):
 
 
 @admin.register(TVService)
-class TVServiceAdmin(admin.ModelAdmin):
+class TVServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
     ]
     list_display_links = ["service_name"]
     list_per_page= 100
+    actions = ["sync_clubkonnect_services"]
 
 
 @admin.register(TVVariation)
@@ -140,7 +158,7 @@ class PurchaseAdmin(admin.ModelAdmin):
 
 
 @admin.register(AirtimeNetwork)
-class AirtimeNetworkAdmin(admin.ModelAdmin):
+class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "id",
         "network_image",
@@ -149,6 +167,7 @@ class AirtimeNetworkAdmin(admin.ModelAdmin):
     ]
 
     list_display_links = ["network_image","service_name"]
+    actions = ["sync_clubkonnect_services"]
 
     def network_image(self, obj):
         if obj.image_url:
