@@ -3,7 +3,7 @@ from django.conf import settings
 from requests.auth import HTTPBasicAuth
 import logging
 
-from orders.models import DataPlan, DataNetwork
+from orders.models import DataVariation, DataService
 
 logger = logging.getLogger(__name__)
 

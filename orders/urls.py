@@ -7,9 +7,9 @@ from orders.views import (
         PurchaseAirtimeView, 
         
         # Data Services Views
-        DataNetworksListView, 
-        DataPlansListView, 
-        PurchaseDataPlanView, 
+        DataServicesListView, 
+        DataVariationsListView, 
+        PurchaseDataVariationView, 
         
         # Verify Customer View
         VerifyCustomerView,
@@ -31,9 +31,9 @@ from orders.views import (
 
 urlpatterns = [
     # Data Services
-    path("data-networks/", DataNetworksListView.as_view(), name="list-data-networks"),
-    path("data-plans/", DataPlansListView.as_view(), name="list-plans"),
-    path("buy-data/", PurchaseDataPlanView.as_view(), name="purchase-data"),
+    path("data-networks/", DataServicesListView.as_view(), name="list-data-networks"),
+    path("data-plans/", DataVariationsListView.as_view(), name="list-plans"),
+    path("buy-data/", PurchaseDataVariationView.as_view(), name="purchase-data"),
 
     # Airtime Services
     path("airtime-networks/", AirtimeNetworkListView.as_view(), name="list-plans"),

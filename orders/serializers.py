@@ -1,14 +1,14 @@
 from rest_framework import serializers
-from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, Purchase, TVService, TVVariation 
+from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, ElectricityVariation, Purchase, TVService, TVVariation 
 
 
-class DataNetworkSerializer(serializers.ModelSerializer):
+class DataServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = DataService
         fields = "__all__"
 
-class DataPlanSerializer(serializers.ModelSerializer):
-    service = DataNetworkSerializer(read_only=True)
+class DataVariationSerializer(serializers.ModelSerializer):
+    service = DataServiceSerializer(read_only=True)
     class Meta:
         model = DataVariation
         fields = [
@@ -29,6 +29,12 @@ class ElectricityServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ElectricityService
         fields="__all__"
+
+class ElectricityVariationSerializer(serializers.ModelSerializer):
+    service = ElectricityServiceSerializer(read_only=True)
+    class Meta:
+        model = ElectricityVariation
+        fields = ["id", "name", "service", "variation_id", "is_active"]
 
 class TVServiceSerializer(serializers.ModelSerializer):
     class Meta:

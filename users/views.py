@@ -141,10 +141,16 @@ class ProfileView(APIView):
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        if request.user.email and request.user.tier == 1 and request.user.bvn and request.user.first_name and request.user.last_name:
+        
+        # Check if profile is now complete to trigger upgrade
+        u = request.user
+        if u.tier == 1 and u.first_name and u.last_name and u.middle_name and u.email and u.bvn:
             upgrade_account_response = upgrade_account(request)
+            # Note: The actual tier upgrade happens in the webhook handler 
+            # after Paystack successfully assigns the dedicated account.
             if not upgrade_account_response.data.get("success", False):
-                print("Tier upgrade failed:", upgrade_account_response.data.get("error", "Unknown error"))
+                print("Tier upgrade initiation failed:", upgrade_account_response.data.get("error", "Unknown error"))
+        
         return Response(serializer.data)
 
 

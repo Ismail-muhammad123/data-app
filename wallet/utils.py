@@ -1,6 +1,6 @@
 from datetime import datetime
 from django.db import transaction
-from payments.models import Payment
+from payments.models import Deposit
 from wallet.models import Wallet, WalletTransaction  
 import uuid
 
@@ -11,8 +11,8 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
         payment_obj = None
         if reference:
             try:
-                payment_obj = Payment.objects.get(reference=reference)
-            except Payment.DoesNotExist:
+                payment_obj = Deposit.objects.get(reference=reference)
+            except Deposit.DoesNotExist:
                 pass
         wallet, created = Wallet.objects.get_or_create(user_id=user_id, defaults={'balance': 0.0})
         wallet.balance = float(wallet.balance) + amount
@@ -22,7 +22,7 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
             wallet=wallet,
             transaction_type='credit',
             amount=amount,
-            payment=payment_obj,
+            deposit=payment_obj,
             balance_before=float(wallet.balance) - amount,
             balance_after=wallet.balance,
             description=description,

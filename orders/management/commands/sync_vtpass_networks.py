@@ -1,47 +1,15 @@
 from django.core.management.base import BaseCommand
-import requests
-from orders.models import AirtimeNetwork, DataNetwork
+from orders.services.clubkonnect import ClubKonnectClient
 
 class Command(BaseCommand):
-    help = 'Fetch all available networks from VTPass API and save to database'
+    help = 'Sync networks from ClubKonnect'
 
     def handle(self, *args, **options):
-        # Process airtime networks
-        self.process_networks('https://vtpass.com/api/services?identifier=airtime', 'Airtime')
-
-        # Process data networks
-        self.process_networks('https://vtpass.com/api/services?identifier=data', 'Data')
-
-        self.stdout.write(self.style.SUCCESS('Networks synced successfully'))
-
-    def process_networks(self, api_url, plan_type):
-
+        self.stdout.write("Syncing networks from ClubKonnect...")
+        client = ClubKonnectClient()
         try:
-            response = requests.get(api_url)
-            response.raise_for_status()
-            services = response.json().get('content', [])
+            client.sync_all_services()
+            self.stdout.write(self.style.SUCCESS('Networks synced successfully'))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))
 
-            for service in services:
-                if plan_type == 'Airtime' :
-                    network, created = AirtimeNetwork.objects.update_or_create(
-                        service_id=service.get('serviceID'),
-                        defaults={
-                            'name': service.get('name'),
-                            'image_url': service.get('image'),
-                            'minimum_amount': service.get('minimium_amount', 0),
-                            'maximum_amount': service.get('maximum_amount', 0),
-                        }
-                    )
-                elif plan_type == 'Data':
-                    network, created = DataNetwork.objects.update_or_create(
-                        service_id=service.get('serviceID'),
-                        defaults={
-                            'name': service.get('name'),
-                            'image_url': service.get('image'),
-                        }
-                    )
-                action = 'Created' if created else 'Updated'
-                self.stdout.write(f'{action}: {network.name}')
-
-        except requests.exceptions.RequestException as e:
-            self.stderr.write(self.style.ERROR(f'API Error: {str(e)}'))

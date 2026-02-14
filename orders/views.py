@@ -5,13 +5,13 @@ from rest_framework import status, permissions, generics
 
 from orders.models import DataService, DataVariation, ElectricityService, Purchase, AirtimeNetwork, TVService, TVVariation
 # from orders.utils import buy_airtime, buy_data_plan
-from orders.utils.ebills_client import EBillsClient
+from orders.services.clubkonnect import ClubKonnectClient
 from wallet.models import Wallet
 from wallet.utils import debit_wallet, fund_wallet
 from .serializers import (
     AirtimePurchaseRequestSerializer, 
-    DataNetworkSerializer, 
-    DataPlanSerializer, 
+    DataServiceSerializer, 
+    DataVariationSerializer, 
     DataPurchaseRequestSerializer,
     ElectricityPurchaseRequestSerializer, 
     PurchaseSerializer, 
@@ -51,14 +51,14 @@ def generate_request_id():
 
 
 # ---------- CUSTOMER ----------
-class DataNetworksListView(generics.ListAPIView):
+class DataServicesListView(generics.ListAPIView):
     queryset = DataService.objects.all()
-    serializer_class = DataNetworkSerializer
+    serializer_class = DataServiceSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-class DataPlansListView(generics.ListAPIView):
+class DataVariationsListView(generics.ListAPIView):
     queryset = DataVariation.objects.all()
-    serializer_class = DataPlanSerializer
+    serializer_class = DataVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
@@ -75,7 +75,7 @@ class AirtimeNetworkListView(generics.ListAPIView):
     serializer_class = AirtimeNetworkSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-class PurchaseDataPlanView(APIView):
+class PurchaseDataVariationView(APIView):
     permission_classes=  [permissions.IsAuthenticated]
     serializer_class = DataPurchaseRequestSerializer
 
@@ -111,23 +111,17 @@ class PurchaseDataPlanView(APIView):
         # )
 
 
-        client = EBillsClient()
+        client = ClubKonnectClient()
 
         try:
-            # Authenticate
-            client.authenticate()
+            resp = client.buy_data(
+                request_id=reference, 
+                phone=phone_number, 
+                network_id=plan.service.service_id, 
+                plan_id=plan.variation_id
+            )
 
-            resp = client.buy_data(request_id=reference, 
-                                phone=phone_number, 
-                                service_id=plan.service.service_id, 
-                                variation_id=plan.variation_id)
-
-            
-            if resp.get("code") == "success":  # success
-                
-                # if resp.get("message") not in ["ORDER COMPLETED", "ORDER PROCESSING"]: 
-                #     return Response({"error": "Payment failed."}, status=status.HTTP_400_BAD_REQUEST)
-
+            if resp.get("status") == "success":
                 # Step 1: Debit wallet
                 debit_wallet(user.id, amount, f"{plan.service.service_name} purchase - {reference}")
 
@@ -143,9 +137,7 @@ class PurchaseDataPlanView(APIView):
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
-                # transaction.status = "failed"
-                # fund_wallet(user.id, amount, f"Refund for failed {plan.service_type} purchase - {reference}")
-                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Data purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
@@ -177,26 +169,20 @@ class PurchaseAirtimeView(APIView):
 
         reference = generate_request_id()
 
-        client = EBillsClient()
+        client = ClubKonnectClient()
 
         try:
-
-            # Authenticate
-            client.authenticate()
-
             resp = client.buy_airtime(
                 request_id=reference, 
                 phone=phone_number, 
-                service_id=network.service_id, 
+                network_id=network.service_id, 
                 amount=amount,
             )
 
-            if resp.get("code") == "success" and resp.get("message") in ["ORDER PROCESSING", "ORDER COMPLETED"]:  # success
-                
+            if resp.get("status") == "success":
                 # Step 1: Debit wallet
-                debit_wallet(user.id, amount, f"{network} Airtime purchase - {reference}")
+                debit_wallet(user.id, amount, f"{network.service_name} Airtime purchase - {reference}")
                 
-                # Step 2: Create transaction record
                 # Step 2: Create transaction record
                 transaction = Purchase.objects.create(
                     user=user,
@@ -210,7 +196,7 @@ class PurchaseAirtimeView(APIView):
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
 
             else:
-                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
             logger.error(f"Airtime purchase failed: {str(e)}")
@@ -229,20 +215,18 @@ class VerifyCustomerView(APIView):
         if not service_id or not customer_id:
             return Response({"error": "service_id and customer_id are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        client = EBillsClient()
+        client = ClubKonnectClient()
 
         try:
-            # Authenticate
-            client.authenticate()
+            # Determine if it's TV or Electricity
+            if service_id in ["dstv", "gotv", "startimes"]:
+                resp = client.verify_tv(tv_id=service_id, smart_card_number=customer_id)
+            else:
+                resp = client.verify_electricity(disco_id=service_id, meter_number=customer_id)
 
-            resp = client.verify_user(
-                service_id=service_id,
-                customer_id=customer_id,
-                variation_id=variation_id
-            )
-
-            if resp.get("code") == "success":
-                return Response( resp["data"], status=status.HTTP_200_OK)
+            if resp.get("status") == "success":
+                # ClubKonnect returns customer name in 'customer_name' or similar
+                return Response(resp, status=status.HTTP_200_OK)
             else:
                 return Response({"error": resp.get("message", "Verification failed.")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -254,7 +238,7 @@ class VerifyCustomerView(APIView):
 # Electricity Services
 class ElectricityServiceListView(generics.ListAPIView):
     queryset = ElectricityService.objects.all()
-    serializer_class = DataNetworkSerializer
+    serializer_class = DataServiceSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 class PurchaseElectricityView(APIView):
@@ -280,28 +264,23 @@ class PurchaseElectricityView(APIView):
 
         reference = generate_request_id()
 
-        client = EBillsClient()
+        client = ClubKonnectClient()
 
         try:
-            # Authenticate
-            client.authenticate()
-
             electricity_service = ElectricityService.objects.filter(service_id=service_id).first()
             if not electricity_service:
                 return Response({"error": "Invalid Electricity Service."}, status=status.HTTP_400_BAD_REQUEST)
 
-            resp = client.pay_electricity_bill(
+            resp = client.buy_electricity(
                 request_id=reference, 
-                service_id=service_id, 
-                variation_id=variation_id,
-                customer_id=customer_id,
+                disco_id=service_id, 
+                plan_id=variation_id,
+                meter_number=customer_id,
+                phone=user.phone_number if hasattr(user, 'phone_number') else "",
                 amount=amount,
             )
 
-
-
-            if resp.get("code") == "success":  # success
-                
+            if resp.get("status") == "success":
                 # Step 1: Debit wallet
                 debit_wallet(user.id, amount, f"Electricity purchase - {reference}")
 
@@ -317,7 +296,7 @@ class PurchaseElectricityView(APIView):
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
-                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Electricity purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
@@ -364,27 +343,22 @@ class PurchaseTVSubscriptionView(APIView):
 
         reference = generate_request_id()
 
-        client = EBillsClient()
+        client = ClubKonnectClient()
 
         try:
-            # Authenticate
-            client.authenticate()
-
             tv_variation = TVVariation.objects.filter(variation_id=variation_id).first()
             if not tv_variation:
                 return Response({"error": "Invalid TV Service."}, status=status.HTTP_400_BAD_REQUEST)
 
-            resp = client.pay_tv_subscription(
+            resp = client.buy_tv(
                 request_id=reference, 
-                service_id=service_id, 
-                customer_id=customer_id,
-                subscription_type=subscription_type,
-                variation_id=variation_id,
-                amount=amount,
+                tv_id=service_id, 
+                package_id=variation_id,
+                smart_card_number=customer_id,
+                phone=user.phone_number if hasattr(user, 'phone_number') else "",
             )
 
-            if resp.get("code") == "success":  # success
-                
+            if resp.get("status") == "success":
                 # Step 1: Debit wallet
                 debit_wallet(user.id, amount, f"TV Subscription purchase - {reference}")
 
@@ -400,7 +374,7 @@ class PurchaseTVSubscriptionView(APIView):
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
-                return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"TV Subscription purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
@@ -425,90 +399,3 @@ class PurchaseDetailsView(APIView):
         serializer = PurchaseSerializer(purchase)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-# class VTpassWebhookView(APIView):
-#     """
-#     Endpoint for VTpass to notify transaction status updates.
-#     """
-
-#     authentication_classes = []  # VTpass doesn't send auth, usually open
-#     permission_classes = []      # Make sure you add extra security later (like IP whitelist or signature check)
-
-#     def post(self, request):
-#         data = request.data
-#         logger.info(f"VTpass Webhook received: {data}")
-
-#         # Example payload from VTpass:
-#         # {
-#         #   "requestId": "xxxx-xxxx",
-#         #   "transactionId": "123456",
-#         #   "status": "delivered",  # or "failed", "pending"
-#         #   "amount": "500",
-#         #   "paid_amount": "500",
-#         #   "transaction_date": "2023-08-12 10:34:21",
-#         #   "phone": "08012345678",
-#         #   "serviceID": "mtn",
-#         #   "product_name": "MTN VTU",
-#         # }
-
-#         try:
-#             request_id = data.get("requestId")
-#             status_ = data.get("status")
-#             amount = data.get("amount")
-#             phone = data.get("phone")
-#             service = data.get("serviceID")
-
-#             # 🔹 TODO: Look up your local Transaction model by requestId
-#             # transaction = Transaction.objects.get(request_id=request_id)
-#             # transaction.status = status_
-#             # transaction.save()
-
-#             # 🔹 If it's wallet funding or cashback, credit the user's wallet
-#             # wallet.credit(amount)
-
-#             return Response(
-#                 {"message": "Webhook processed successfully"},
-#                 status=status.HTTP_200_OK
-#             )
-#         except Exception as e:
-#             logger.error(f"Error handling VTpass webhook: {str(e)}")
-#             return Response({"error": "Webhook processing failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-# data = {
-#     'code': '000', 
-#     'content': {
-#         'transactions': {
-#             'status': 'delivered', 
-#             'product_name': 'MTN Airtime VTU', 
-#             'unique_element': '08011111111', 
-#             'unit_price': '50', 
-#             'quantity': 1, 
-#             'service_verification': None, 
-#             'channel': 'api', 
-#             'commission': 1.7500000000000002, 
-#             'total_amount': 48.25, 
-#             'discount': None, 
-#             'type': 'Airtime Recharge', 
-#             'email': 'ismaeelmuhammad123@gmail.com', 
-#             'phone': '08163351109', 
-#             'name': None, 
-#             'convinience_fee': 0, 
-#             'amount': '50', 
-#             'platform': 'api', 
-#             'method': 'api', 
-#             'transactionId': '17596192814965745110120424', 
-#             'commission_details': {
-#                 'amount': 1.7500000000000002, 
-#                 'rate': '3.50', 
-#                 'rate_type': 'percent', 
-#                 'computation_type': 'default'
-#             }
-#         }
-#     }, 
-#     'response_description': 'TRANSACTION SUCCESSFUL', 
-#     'requestId': '689b739f-676c-488a-8246-238d0c957816', 
-#     'amount': 50, 
-#     'transaction_date': '2025-10-04T23:08:01.000000Z', 
-#     'purchased_code': ''
-# }

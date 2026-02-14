@@ -5,10 +5,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
-from .models import Payment
+from .models import Deposit
 from .utils import PaystackGateway
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from summary.models import SiteConfig
 
 
 # ADMIN Views
@@ -73,37 +74,42 @@ class PaymentWebhookView(APIView):
         if event_type == "charge.success":
             """Handle successful charge webhook."""
             ref = data['reference']
-            amount = data['amount']
+            amount_raw = data['amount']
+            amount = float(amount_raw) / 100
+            
+            config = SiteConfig.objects.first()
+            credit_charge = config.crediting_charge if config else 0
+            amount_to_fund = max(0, amount - float(credit_charge))
+
             if data['authorization']['channel'] == 'dedicated_nuban':
                 """Handle dedicated account (virtual account) payment webhook."""
                 acc_num = data['authorization']['receiver_bank_account_number']
                 virtual_account = VirtualAccount.objects.get(account_number=acc_num)
-                payment, created = Payment.objects.get_or_create(
+                deposit, created = Deposit.objects.get_or_create(
                     reference=ref,
                     defaults={
                         "user":virtual_account.user,
-                        "amount":amount/100,
+                        "amount":amount,
                         "status":"SUCCESS",
                         "payment_type":"CREDIT",
                     }
                 )
                 if not created:
-                    if not payment.status == "SUCCESS":
-                        payment.status = "SUCCESS"
-                        payment.amount = amount/100
-                        payment.save()
-                        fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+                    if not deposit.status == "SUCCESS":
+                        deposit.status = "SUCCESS"
+                        deposit.amount = amount
+                        deposit.save()
+                        fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
                 else:
-                    fund_wallet(payment.user.id, payment.amount, "Wallet Top-Up", ref)
+                    fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
             else:
                 """Handle other payment method webhook."""
-                payment = get_object_or_404(Payment, reference=ref)
-                amount = float(amount) / 100
-                if payment.status != "SUCCESS":
-                    payment.status = "SUCCESS"
-                    payment.amount = amount
-                    payment.save()
-                    fund_wallet(payment.user.id, amount, reference=ref)
+                deposit = get_object_or_404(Deposit, reference=ref)
+                if deposit.status != "SUCCESS":
+                    deposit.status = "SUCCESS"
+                    deposit.amount = amount
+                    deposit.save()
+                    fund_wallet(deposit.user.id, amount_to_fund, reference=ref)
 
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""
@@ -146,3 +152,22 @@ class PaymentWebhookView(APIView):
         return HttpResponse(status=200)
     
 
+
+import uuid
+from rest_framework import status, permissions, generics
+from rest_framework.response import Response
+from .models import Withdrawal
+from .serializers import WithdrawalSerializer
+
+class WithdrawalRequestView(generics.CreateAPIView):
+    serializer_class = WithdrawalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            user=self.request.user,
+            reference=f"WTH-{uuid.uuid4().hex[:10].upper()}"
+        )
+
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)

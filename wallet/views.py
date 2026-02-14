@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from payments.models import Payment
+from payments.models import Deposit
 from .models import Wallet 
 from .serializers import VirtualAccountSerializer, WalletSerializer, WalletTransactionSerializer
 from django.conf import settings
@@ -123,7 +123,7 @@ class InitFundWallet(APIView):
             print(res)
 
             if res['status']:
-                Payment.objects.create(
+                Deposit.objects.create(
                     user=request.user,
                     amount=amount,
                     status="PENDING",

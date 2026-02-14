@@ -114,7 +114,7 @@ from django.contrib.auth import get_user_model
 from summary.views import get_api_wallet_balance
 from wallet.models import Wallet, WalletTransaction
 # from savings.models import Savings, SavingsTransaction
-from payments.models import Payment
+from payments.models import Deposit, Withdrawal
 # from investments.models import InvestmentAccount, InvestmentTransaction
 from django.db.models import Q
 from orders.models import DataService, DataVariation, AirtimeNetwork, Purchase
@@ -138,7 +138,8 @@ class SummaryDashboard(Wallet):
         
         wallets_transactions = WalletTransaction.objects.all()
         purchases = Purchase.objects.all()
-        payments = Payment.objects.all()
+        deposits = Deposit.objects.all()
+        withdrawals = Withdrawal.objects.all()
 
 
         # USERS
@@ -147,25 +148,27 @@ class SummaryDashboard(Wallet):
         verified_users = User.objects.filter(is_active=True, is_staff=False).count()
         unverified_users = User.objects.filter(is_active=False).count()
 
-        # WALLETS
+        # Date filtering
         if start:
             wallets_transactions = wallets_transactions.filter(timestamp__gte=start)
-            purchases = payments.filter(time__gte=start)
-            payments = purchases.filter(timestamp__gte=start)
+            purchases = purchases.filter(time__gte=start)
+            deposits = deposits.filter(timestamp__gte=start)
+            withdrawals = withdrawals.filter(created_at__gte=start)
 
         if end:
-            wallets_transactions = wallets_transactions.filter(date__lte=end)
-            purchases = payments.filter(time__lte=end)
-            payments = purchases.filter(timestamp__lte=end)
+            wallets_transactions = wallets_transactions.filter(timestamp__lte=end)
+            purchases = purchases.filter(time__lte=end)
+            deposits = deposits.filter(timestamp__lte=end)
+            withdrawals = withdrawals.filter(created_at__lte=end)
 
-        total_wallet_balance = Wallet.objects.aggregate(models.Sum("balance"))["balance__sum"] or 0
-        wallet_debits = wallets_transactions.filter(Q(transaction_type="purchase") | Q(transaction_type="withdrawal")).aggregate(models.Sum("amount"))["amount__sum"] or 0
-        wallet_credits = wallets_transactions.filter(Q(transaction_type="deposit") | Q(transaction_type="reversal")).aggregate(models.Sum("amount"))["amount__sum"] or 0
+        total_wallet_balance = float(Wallet.objects.aggregate(models.Sum("balance"))["balance__sum"] or 0)
+        wallet_debits = float(wallets_transactions.filter(Q(transaction_type="purchase") | Q(transaction_type="withdrawal")).aggregate(models.Sum("amount"))["amount__sum"] or 0)
+        wallet_credits = float(wallets_transactions.filter(Q(transaction_type="deposit") | Q(transaction_type="reversal")).aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
-        # DATA SALES SUMMARY
-        total_purchases = purchases.aggregate(models.Sum("amount"))["amount__sum"] or 0
-        data_purchases = purchases.filter(purchase_type='data').aggregate(models.Sum("amount"))["amount__sum"] or 0
-        airtime_purchases = purchases.filter(purchase_type='airtime').aggregate(models.Sum("amount"))["amount__sum"] or 0
+        # SALES SUMMARY
+        total_purchases = float(purchases.aggregate(models.Sum("amount"))["amount__sum"] or 0)
+        data_purchases = float(purchases.filter(purchase_type='data').aggregate(models.Sum("amount"))["amount__sum"] or 0)
+        airtime_purchases = float(purchases.filter(purchase_type='airtime').aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
         data_services = DataService.objects.all()
         airtime_networks = AirtimeNetwork.objects.all()
@@ -173,26 +176,41 @@ class SummaryDashboard(Wallet):
         airtime_sales = {}
         # data sales
         for i in airtime_networks:
-            airtime_sales[i.service_name] = purchases.filter(airtime_service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
+            airtime_sales[i.service_name] = float(purchases.filter(airtime_service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
         data_sales = {}
         # data sales
         for i in data_services:
-            data_sales[i.service_name] = purchases.filter(data_variation__service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0
+            data_sales[i.service_name] = float(purchases.filter(data_variation__service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
         # API WALLET BALANCE
         api_wallet_balance = get_api_wallet_balance()
         
-        # PAYMENTS
-        payments_summary = { 
-            "credits_total": payments.filter(payment_type="CREDIT").aggregate(models.Sum("amount"))["amount__sum"] or 0,
-            "credits_pending": payments.filter(payment_type="CREDIT", status="PENDING").count(),
-            "credits_failed": payments.filter(payment_type="CREDIT", status="FAILED").count(),
-            "credits_success": payments.filter(payment_type="CREDIT", status="SUCCESS").count(),
+        # DEPOSITS
+        deposits_summary = { 
+            "total_amount": float(deposits.filter(status="SUCCESS").aggregate(models.Sum("amount"))["amount__sum"] or 0),
+            "pending_count": deposits.filter(status="PENDING").count(),
+            "failed_count": deposits.filter(status="FAILED").count(),
+            "success_count": deposits.filter(status="SUCCESS").count(),
+        }
+
+        # WITHDRAWALS
+        withdrawals_summary = {
+            "total_amount": float(withdrawals.filter(status="APPROVED").aggregate(models.Sum("amount"))["amount__sum"] or 0),
+            "pending_count": withdrawals.filter(status="PENDING").count(),
+            "approved_count": withdrawals.filter(status="APPROVED").count(),
+            "rejected_count": withdrawals.filter(status="REJECTED").count(),
         }
 
 
-
+        config = SiteConfig.objects.first()
+        config_data = {
+            "withdrawal_charge": float(config.withdrawal_charge) if config else 0,
+            "crediting_charge": float(config.crediting_charge) if config else 0,
+            "provider_bank_name": config.provider_bank_name if config else "",
+            "provider_account_number": config.provider_account_number if config else "",
+            "provider_account_name": config.provider_account_name if config else "",
+        }
 
         return {
             "users": {
@@ -213,7 +231,29 @@ class SummaryDashboard(Wallet):
                 "data_summary": data_sales,
                 "airtime_summary": airtime_sales,
             },
-            "payments": payments_summary,
+            "deposits": deposits_summary,
+            "withdrawals": withdrawals_summary,
             "api_wallet_balance": api_wallet_balance,
+            "config": config_data,
         }
+
+class SiteConfig(models.Model):
+    withdrawal_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    crediting_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    provider_bank_name = models.CharField(max_length=100, blank=True, null=True)
+    provider_account_number = models.CharField(max_length=20, blank=True, null=True)
+    provider_account_name = models.CharField(max_length=100, blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Site Configuration"
+        verbose_name_plural = "Site Configuration"
+
+    def __str__(self):
+        return "Site Configuration"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and SiteConfig.objects.exists():
+            return 
+        return super(SiteConfig, self).save(*args, **kwargs)
 

@@ -1,10 +1,15 @@
-# payments/serializers.py
 from rest_framework import serializers
-from .models import Payment
+from .models import Deposit, Withdrawal
 
 
-class PaymentSerializer(serializers.ModelSerializer):
+class DepositSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Payment
+        model = Deposit
         fields = "__all__"
-        read_only_fields = ("reference", "status", "created_at", "updated_at")
+        read_only_fields = ("reference", "status", "timestamp")
+
+class WithdrawalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Withdrawal
+        fields = "__all__"
+        read_only_fields = ["user", "status", "transaction_status", "reference", "transfer_code", "created_at", "updated_at"]

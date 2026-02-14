@@ -1,5 +1,5 @@
 from django.urls import path
-from  .views import PaymentWebhookView
+from  .views import PaymentWebhookView, WithdrawalRequestView
 
 urlpatterns = [
     # ADMIN ENDPOINTS
@@ -9,4 +9,5 @@ urlpatterns = [
 
     # APP ENDPOINTS
     path('webhook/', PaymentWebhookView.as_view(), name='payment-webhook'),
+    path('withdrawal-request/', WithdrawalRequestView.as_view(), name='withdrawal-request'),
 ]

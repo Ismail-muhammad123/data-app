@@ -529,7 +529,7 @@ class PaystackGateway:
         transfer_payload = {
             "source": "balance",
             "amount": amount,
-            "recipient": recipient["recipient_code"],
+            "recipient": recipient["data"]["recipient_code"],
         }
         if reason:
             transfer_payload["reason"] = reason

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, Purchase, TVService, TVVariation 
+from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, ElectricityVariation, Purchase, TVService, TVVariation 
 from django.utils.html import format_html
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
@@ -55,6 +55,12 @@ class ElectricityServiceAdmin(admin.ModelAdmin):
     ]
     list_display_links = ["service_name"]
     list_per_page= 100
+
+@admin.register(ElectricityVariation)
+class ElectricityVariationAdmin(admin.ModelAdmin):
+    list_display = ["name", "service", "variation_id", "is_active"]
+    list_filter = ["service", "is_active"]
+    list_per_page = 50
 
 
 @admin.register(TVService)

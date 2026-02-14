@@ -2,148 +2,516 @@
 {% load humanize %}
 
 {% block content %}
+<!-- Tailwind CSS & Chart.js -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+<script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    primary: '#4F46E5',
+                    secondary: '#10B981',
+                    accent: '#F59E0B',
+                    dark: '#1F2937',
+                    'dark-card': '#111827',
+                    'dark-bg': '#030712'
+                }
+            }
+        }
+    }
+</script>
 
 <style>
-    .admin-summary {
-        width: 100%;
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        transition: background-color 0.3s ease;
     }
 
-    .admin-summary th {
-        text-align: left;
-        padding-right: 10px;
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        border-radius: 1rem;
+        transition: all 0.3s ease;
     }
 
-    .admin-summary td {
-        text-align: right;
-        font-weight: 600;
+    .dark .glass-card {
+        background: rgba(17, 24, 39, 0.8);
+        border-color: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .glass-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1);
+    }
+
+    .gradient-text {
+        background: linear-gradient(135deg, #4F46E5 0%, #7E22CE 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.75rem;
+    }
+
+    #content {
+        padding: 20px !important;
+        background: #F9FAFB !important;
+        transition: background-color 0.3s ease;
+    }
+
+    .dark #content {
+        background: #030712 !important;
+    }
+
+    .module h2 {
+        display: none !important;
+    }
+
+    /* Smooth transitions for theme toggle */
+    * {
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
 </style>
-<form method="get" class="form-inline" style="margin-bottom: 20px;">
-    <label for="start_date">From:</label>
-    <input type="date" name="start_date" value="{{ start_date }}">
 
-    <label for="end_date">To:</label>
-    <input type="date" name="end_date" value="{{ end_date }}">
+<div id="dashboard-container" class="max-w-7xl mx-auto space-y-8 py-6">
+    <!-- Header/Filter -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard <span
+                        class="gradient-text">Overview</span></h1>
+                <button id="theme-toggle"
+                    class="p-2 rounded-xl bg-gray-100 dark:bg-dark-card text-gray-600 dark:text-gray-400 hover:scale-110 transition-transform">
+                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                            d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <p class="text-gray-500 dark:text-gray-400 mt-1">Real-time platform performance and financial metrics.</p>
+        </div>
 
-    <button class="btn" type="submit">Filter</button>
-</form>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-
-    <div class="module">
-        <h2>Users</h2>
-        <table class="admin-summary">
-            <tr>
-                <th>Total Users</th>
-                <td>{{ summary.users.total|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Active</th>
-                <td>{{ summary.users.active|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Verified</th>
-                <td>{{ summary.users.verified|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Unverified</th>
-                <td>{{ summary.users.unverified|intcomma }}</td>
-            </tr>
-        </table>
+        <form method="get" class="glass-card p-4 flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-semibold text-gray-600 dark:text-gray-400">From</label>
+                <input type="date" name="start_date" value="{{ start_date }}"
+                    class="rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-sm focus:ring-indigo-500">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-semibold text-gray-600 dark:text-gray-400">To</label>
+                <input type="date" name="end_date" value="{{ end_date }}"
+                    class="rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-sm focus:ring-indigo-500">
+            </div>
+            <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-indigo-500/30">
+                Filter Data
+            </button>
+        </form>
     </div>
 
-    <div class="module">
-        <h2>Wallet</h2>
-        <table class="admin-summary">
-            <tr>
-                <th>Total Credits</th>
-                <td>{{ summary.wallet.credits|floatformat:2|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Total Debits</th>
-                <td>{{ summary.wallet.debits|floatformat:2|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Total Balance</th>
-                <td>{{ summary.wallet.balance|floatformat:2|intcomma }}</td>
-            </tr>
-        </table>
+    <!-- Main Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Balance -->
+        <div class="glass-card p-6 flex items-start justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Platform Balance</p>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    ₦{{summary.wallet.balance|floatformat:2|intcomma }}
+                </h3>
+                <div class="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
+                    <span class="font-bold">Live Status</span>
+                </div>
+            </div>
+            <div class="metric-icon bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Total Sales -->
+        <div class="glass-card p-6 flex items-start justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</p>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    ₦{{summary.sales.total|floatformat:2|intcomma }}
+                </h3>
+                <div class="mt-2 text-xs">
+                    <span class="text-indigo-600 dark:text-indigo-400 font-bold">Data & Airtime</span>
+                </div>
+            </div>
+            <div class="metric-icon bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Total Users -->
+        <div class="glass-card p-6 flex items-start justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</p>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {{ summary.users.total|intcomma }}
+                </h3>
+                <div class="mt-2 text-xs flex gap-2">
+                    <span class="text-green-600 dark:text-green-400 font-bold">
+                        {{ summary.users.active }} Active</span>
+                </div>
+            </div>
+            <div class="metric-icon bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- API Balance -->
+        <div class="glass-card p-6 flex items-start justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Provider Balance</p>
+                <h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                    {{ summary.api_wallet_balance }}
+                </h3>
+                <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wider font-bold">
+                    ClubKonnect</p>
+            </div>
+            <div
+                class="metric-icon bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+        </div>
     </div>
 
-    <div class="module">
-        <h2>API Wallet Balance</h2>
-        <table class="admin-summary">
-            <tr>
-                <th>Balance</th>
-                <td>{{ summary.api_wallet_balance }}</td>
-            </tr>
-        </table>
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Sales Distribution -->
+        <div class="glass-card p-8">
+            <h4 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Sales Distribution</h4>
+            <div class="relative h-[300px]">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- User Distribution -->
+        <div class="glass-card p-8">
+            <h4 class="text-lg font-bold text-gray-800 dark:text-white mb-6">User Distribution</h4>
+            <div class="relative h-[300px]">
+                <canvas id="userChart"></canvas>
+            </div>
+        </div>
     </div>
 
-    <div class="module">
-        <h2>Payments</h2>
-        <table class="admin-summary">
+    <!-- Financial & Config Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Financial Flow -->
+        <div class="glass-card p-6 lg:col-span-1">
+            <h4 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Financial Flow</h4>
+            <div class="space-y-6">
+                <!-- Deposits -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-600 dark:text-gray-400">Total Deposits</span>
+                        <span class="text-sm font-bold text-green-600 dark:text-green-400">
+                            ₦{{summary.deposits.total_amount|intcomma }}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full shadow-sm" style="width: 100%"></div>
+                    </div>
+                    <div
+                        class="flex justify-between mt-2 text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase">
+                        <span>Success: {{ summary.deposits.success_count }}</span>
+                        <span>Pending: {{ summary.deposits.pending_count }}</span>
+                    </div>
+                </div>
+                <!-- Withdrawals -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-600 dark:text-gray-400">Total Withdrawals</span>
+                        <span class="text-sm font-bold text-orange-600 dark:text-orange-400">
+                            ₦{{summary.withdrawals.total_amount|intcomma }}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                        <div class="bg-orange-500 h-2 rounded-full shadow-sm" style="width: 70%"></div>
+                    </div>
+                    <div
+                        class="flex justify-between mt-2 text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase">
+                        <span>Approved: {{ summary.withdrawals.approved_count }}</span>
+                        <span>Pending: {{ summary.withdrawals.pending_count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <tr>
-                <th>Pending</th>
-                <td>{{ summary.payments.credits_pending }}</td>
-            </tr>
-            <tr>
-                <th>Failed</th>
-                <td>{{ summary.payments.credits_failed }}</td>
-            </tr>
-            <tr>
-                <th>Success</th>
-                <td>{{ summary.payments.credits_success }}</td>
-            </tr>
-            <tr>
-                <th>Total</th>
-                <td>{{ summary.payments.credits_total|floatformat:2|intcomma }}</td>
-            </tr>
-        </table>
+        <!-- Site & Manual Funding Configuration -->
+        <div class="glass-card p-6 lg:col-span-2">
+            <h4 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Site Configuration & Manual Funding</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Basic Config -->
+                <div>
+                    <h5 class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-4 tracking-widest">
+                        Global Settings</h5>
+                    <div class="space-y-3">
+                        <div class="flex justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Withdrawal Charge</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-white">
+                                ₦{{summary.config.withdrawal_charge|default:"0.00" }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Crediting Charge</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-white">
+                                ₦{{ summary.config.crediting_charge|default:"0.00" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Manual Funding Info -->
+                <div
+                    class="bg-indigo-50/50 dark:bg-indigo-900/10 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40">
+                    <h5 class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-4 tracking-widest">
+                        Manual Funding Info</h5>
+                    {% if summary.config.provider_account_number %}
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">Bank Name
+                            </p>
+                            <p class="text-sm font-bold text-gray-900 dark:text-white">
+                                {{ summary.config.provider_bank_name }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">Account
+                                Number</p>
+                            <div class="flex items-center gap-2">
+                                <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400 tracking-wider">
+                                    {{ summary.config.provider_account_number }}
+                                </p>
+                                <svg class="w-4 h-4 text-gray-400 hover:text-indigo-600 cursor-pointer" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                    </path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">Account
+                                Name</p>
+                            <p class="text-sm font-bold text-gray-900 dark:text-white lowercase italic">
+                                {{ summary.config.provider_account_name }}
+                            </p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="flex items-center justify-center p-8 opacity-50">
+                        <p class="text-sm italic text-gray-500">Not configured</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="module">
-        <h2>Sales</h2>
-        <table class="admin-summary">
-            <tr>
-                <th>Data Sales</th>
-                <td>{{ summary.sales.data|floatformat:2|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Airtime Sales</th>
-                <td>{{ summary.sales.airtime|floatformat:2|intcomma }}</td>
-            </tr>
-            <tr>
-                <th>Total Sales</th>
-                <td>{{ summary.sales.total|floatformat:2|intcomma }}</td>
-            </tr>
-        </table>
-    </div>
-
-    <div class="module">
-        <h2>Airtime Sales Summary</h2>
-        <table class="admin-summary">
-            {% for key, value in summary.sales.airtime_summary.items %}
-            <tr>
-                <th>{{key}}</th>
-                <td>{{ value|floatformat:2|intcomma }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
-
-
-    <div class="module">
-        <h2>Data Sales Summary</h2>
-        <table class="admin-summary">
-            {% for key, value in summary.sales.data_summary.items %}
-            <tr>
-                <th>{{key}}</th>
-                <td>{{ value|floatformat:2|intcomma }}</td>
-            </tr>
-            {% endfor %}
-        </table>
+    <!-- Service Breakdown -->
+    <div class="glass-card p-6 overflow-hidden">
+        <h4 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Service Performance</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Airtime -->
+            <div>
+                <h5 class="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-4 tracking-widest">
+                    Airtime by Network</h5>
+                <div class="space-y-3">
+                    {% for key, value in summary.sales.airtime_summary.items %}
+                    <div
+                        class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ key }}</span>
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">₦{{ value|intcomma }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <!-- Data -->
+            <div>
+                <h5 class="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-4 tracking-widest">Data
+                    by Service</h5>
+                <div class="space-y-3">
+                    {% for key, value in summary.sales.data_summary.items %}
+                    <div
+                        class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ key }}</span>
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">₦{{ value|intcomma }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Pass data safely to JS -->
+{{ summary|json_script:"summary-data" }}
+
+<script>
+    const summaryData = JSON.parse(document.getElementById('summary-data').textContent);
+
+    // Theme Toggle Logic
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+    const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+    // Change the icons inside the button based on previous settings
+    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        themeToggleLightIcon.classList.remove('hidden');
+        document.documentElement.classList.add('dark');
+    } else {
+        themeToggleDarkIcon.classList.remove('hidden');
+        document.documentElement.classList.remove('dark');
+    }
+
+    themeToggleBtn.addEventListener('click', function () {
+        themeToggleDarkIcon.classList.toggle('hidden');
+        themeToggleLightIcon.classList.toggle('hidden');
+
+        if (localStorage.getItem('color-theme')) {
+            if (localStorage.getItem('color-theme') === 'light') {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            }
+        } else {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        }
+        updateCharts();
+    });
+
+    let salesChart, userChart;
+
+    function getChartColors() {
+        const isDark = document.documentElement.classList.contains('dark');
+        return {
+            text: isDark ? '#9CA3AF' : '#6B7280',
+            grid: isDark ? '#374151' : '#E5E7EB',
+        };
+    }
+
+    function initCharts() {
+        const colors = getChartColors();
+
+        // Sales Chart
+        const salesCtx = document.getElementById('salesChart').getContext('2d');
+        salesChart = new Chart(salesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Data Sales', 'Airtime Sales'],
+                datasets: [{
+                    data: [summaryData.sales.data || 0, summaryData.sales.airtime || 0],
+                    backgroundColor: ['#4F46E5', '#10B981'],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            color: colors.text,
+                            font: { weight: 'bold', size: 12 }
+                        }
+                    }
+                },
+                cutout: '72%'
+            }
+        });
+
+        // User Chart
+        const userCtx = document.getElementById('userChart').getContext('2d');
+        userChart = new Chart(userCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Verified', 'Unverified', 'Active'],
+                datasets: [{
+                    label: 'Users Count',
+                    data: [summaryData.users.verified || 0, summaryData.users.unverified || 0, summaryData.users.active || 0],
+                    backgroundColor: ['#4F46E5', '#F59E0B', '#10B981'],
+                    borderRadius: 10,
+                    barThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: colors.grid, drawBorder: false },
+                        ticks: { color: colors.text }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: colors.text }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateCharts() {
+        const colors = getChartColors();
+
+        salesChart.options.plugins.legend.labels.color = colors.text;
+        salesChart.update();
+
+        userChart.options.scales.y.grid.color = colors.grid;
+        userChart.options.scales.y.ticks.color = colors.text;
+        userChart.options.scales.x.ticks.color = colors.text;
+        userChart.update();
+    }
+
+    initCharts();
+</script>
 {% endblock %}

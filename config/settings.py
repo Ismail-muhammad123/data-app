@@ -264,3 +264,46 @@ TWILIO_EMAIL = os.getenv("TWILIO_EMAIL")                   # Twilio SendGrid or 
 TERMII_API_KEY = os.getenv("TERMII_API_KEY")
 TERMII_SENDER_ID = os.getenv("TERMII_SENDER_ID")
 TERMII_EMAIL_CONFIG_ID = os.getenv("TERMII_EMAIL_CONFIG_ID")
+
+
+# ----------------------------- ClubKonnect Configuration -----------------------------
+
+CLUBKONNECT_BASE_URL = "https://www.nellobytesystems.com"
+
+CLUBKONNECT_USER_ID = os.getenv("CLUBKONNECT_USER_ID", "")
+CLUBKONNECT_API_KEY = os.getenv("CLUBKONNECT_API_KEY", "")
+
+CLUBKONNECT_TIMEOUT = 30
+
+# Endpoints
+CLUBKONNECT_ENDPOINTS = {
+    # wallet balance
+    "balance": "/APIWalletBalanceV1.asp",
+    
+    # airtime
+    "airtime_networks": "/APIAirtimeDiscountV2.asp",
+    "buy_airtime": "/APIAirtimeV1.asp",
+   
+    # data
+    "buy_data": "/APIDatabundleV1.asp",
+    "data_plans": "/APIDatabundlePlansV2.asp",
+    "query": "/APIQueryV1.asp",
+    "cancel": "/APICancelV1.asp",
+
+    # Smile
+    "buy_smile": "/APISmileV1.asp",
+    "verify_smile": "/APIVerifySmileV1.asp",
+    "smile_packages": "/APISmilePackagesV2.asp",
+
+    # Cable
+    "buy_cable": "/APICableTVV1.asp",
+    "verify_cable": "/APIVerifyCableTVV1.0.asp",
+    "cable_packages": "/APICableTVPackagesV2.asp",
+
+    # Electricity
+    "buy_electricity": "/APIElectricityV1.asp",
+    "verify_electricity": "/APIVerifyElectricityV1.asp",
+    "electricity_discos": "/APIElectricityDiscosV2.asp",
+}
+
+# ----------------------------- End ClubKonnect Configuration -----------------------------

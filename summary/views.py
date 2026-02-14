@@ -1,18 +1,19 @@
-from orders.utils.ebills_client import EBillsClient
+from orders.services.clubkonnect import ClubKonnectClient
 
 
 def get_api_wallet_balance():
 
-    client = EBillsClient()
-
-    client.authenticate()
+    client = ClubKonnectClient()
 
     balance = client.get_balance()
     print("API Wallet Balance:", balance)
 
-    if balance.get("code") == "success":
-        print(balance['data'])
-        currency = balance.get("data", {}).get("currency", "NGN")
-        balance_amount = balance.get("data", {}).get("balance", 0)
-        balance_amount = float(balance_amount)
-        return f"{currency} {balance_amount:,.2f}"
+    if balance.get("status") == "success":
+        balance_amount = balance.get("balance", 0)
+        try:
+            balance_amount = float(balance_amount)
+        except (TypeError, ValueError):
+            balance_amount = 0.0
+        return f"NGN {balance_amount:,.2f}"
+    
+    return "NGN 0.00"

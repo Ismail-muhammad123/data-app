@@ -1,5 +1,3 @@
-# # vtpass_integration/services.py
-
 # import uuid
 # from .utils import vtpass_post, vtpass_get
 

@@ -55,7 +55,7 @@
 
 from django import forms
 from django.contrib import admin
-from .models import SummaryDashboard
+from .models import SummaryDashboard, SiteConfig
 from django.utils.translation import gettext_lazy as _
 
 
@@ -141,3 +141,23 @@ class SummaryAdmin(admin.ModelAdmin):
             request.GET.pop("end_date")
         
         return super().changelist_view(request, extra_context=extra_context)
+
+@admin.register(SiteConfig)
+class SiteConfigAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ("Universal Charges", {
+            "fields": ("withdrawal_charge", "crediting_charge")
+        }),
+        ("Manual Funding Info (For Provider)", {
+            "fields": ("provider_bank_name", "provider_account_number", "provider_account_name"),
+            "description": "Information provided to users for manual wallet funding/top-up."
+        }),
+    )
+
+    def has_add_permission(self, request):
+        if SiteConfig.objects.exists():
+            return False
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False

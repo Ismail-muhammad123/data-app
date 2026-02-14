@@ -19,6 +19,9 @@ class DataService(models.Model):
 class AirtimeNetwork(models.Model):
     service_name = models.CharField(max_length=200)
     service_id = models.CharField(max_length=100)
+    min_amount = models.CharField(max_length=10, default="50")
+    max_amount = models.CharField(max_length=10, default="200000")
+    discount = models.CharField(max_length=10, default="0")  
     image_url = models.URLField(blank=True, null=True)
 
     def __str__(self):
@@ -32,9 +35,25 @@ class ElectricityService(models.Model):
     def __str__(self):
         return self.service_name
     
-    class meta:
+    class Meta:
         verbose_name = "Electricity Service"
         verbose_name_plural = "Electricity Services"
+
+class ElectricityVariation(models.Model):
+    name = models.CharField(max_length=255)   
+    service = models.ForeignKey(ElectricityService, on_delete=models.CASCADE, related_name="variations", null=True)
+    variation_id = models.CharField(max_length=100)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Electricity Variation"
+        verbose_name_plural = "Electricity Variations"
+
+    def __str__(self):
+        return f"{self.service.service_name} - {self.name}"
 
 class TVService(models.Model):
     service_name=models.CharField(max_length=100)
@@ -44,7 +63,7 @@ class TVService(models.Model):
     def __str__(self):
         return self.service_name
     
-    class meta:
+    class Meta:
         verbose_name = "TV Service"
         verbose_name_plural = "TV Services"
 
@@ -106,6 +125,7 @@ class Purchase(models.Model):
     airtime_service = models.ForeignKey(AirtimeNetwork, on_delete=models.SET_NULL, null=True, related_name="sales")
     data_variation = models.ForeignKey(DataVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     electricity_service = models.ForeignKey(ElectricityService, on_delete=models.SET_NULL, null=True, related_name="sales")
+    electricity_variation = models.ForeignKey(ElectricityVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     tv_variation = models.ForeignKey(TVVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
