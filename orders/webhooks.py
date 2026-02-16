@@ -1,28 +1,34 @@
-# webhooks.py
-
-from django.http import JsonResponse
-from .models import Transaction
+from .models import Purchase
 
 
 def clubkonnect_callback(request):
     data = request.GET or request.POST
 
     order_id = data.get("orderid")
+    request_id = data.get("requestid")
     status_code = data.get("statuscode")
     order_status = data.get("orderstatus")
+    order_remark = data.get("orderremark")
 
     try:
-        transaction = Transaction.objects.get(order_id=order_id)
+        if order_id:
+            purchase = Purchase.objects.get(order_id=order_id)
+        elif request_id:
+            purchase = Purchase.objects.get(reference=request_id)
+        else:
+            return JsonResponse({"status": "ignored", "message": "No identifier provided"})
 
         if status_code == "200":
-            transaction.status = "SUCCESS"
+            purchase.status = "success"
+        elif status_code in ["100", "101", "102"]: # Pending codes
+            purchase.status = "pending"
         else:
-            transaction.status = "FAILED"
+            purchase.status = "failed"
 
-        transaction.save()
+        purchase.save()
 
-    except Transaction.DoesNotExist:
-        pass
+    except Purchase.DoesNotExist:
+        return JsonResponse({"status": "not_found"})
 
     return JsonResponse({"status": "received"})
 

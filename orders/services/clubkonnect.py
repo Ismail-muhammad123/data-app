@@ -13,8 +13,6 @@ class ClubKonnectClient:
         self.api_key = settings.CLUBKONNECT_API_KEY
         self.timeout = settings.CLUBKONNECT_TIMEOUT
 
-
-
     def _get_params(self, **kwargs):
         params = {
             "UserID": self.user_id,
@@ -206,13 +204,61 @@ class ClubKonnectClient:
             logger.error(f"ClubKonnect electricity verification error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def sync_all_services(self):
+    def buy_smile(self, plan_id, phone, request_id, callback_url=None):
         """
-        Main function to fetch all services and populate the database.
+        Purchase Smile Data bundle.
         """
-        from orders.models import AirtimeNetwork, DataService, DataVariation, TVService, TVVariation, ElectricityService, ElectricityVariation
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['buy_smile']}"
+        params = self._get_params(
+            MobileNetwork="smile-direct",
+            DataPlan=plan_id,
+            MobileNumber=phone,
+            RequestID=request_id
+        )
+        if callback_url:
+            params["CallBackURL"] = callback_url
+            
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"ClubKonnect Smile purchase error: {e}")
+            return {"status": "error", "message": str(e)}
 
-        # 1. Sync Airtime Networks
+    def verify_smile(self, phone):
+        """
+        Verify Smile account.
+        """
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_smile']}"
+        params = self._get_params(
+            MobileNetwork="smile-direct",
+            MobileNumber=phone
+        )
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"ClubKonnect Smile verification error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_smile_packages(self):
+        """
+        Fetch all Smile packages.
+        """
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['smile_packages']}"
+        params = self._get_params()
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"ClubKonnect error fetching smile packages: {e}")
+            return {}
+
+    def sync_airtime(self):
+        from orders.models import AirtimeNetwork
         print("Syncing Airtime Networks...")
         airtime_data = self.get_airtime_networks()
         airtime_networks = airtime_data.get("MOBILE_NETWORK", {})
@@ -235,8 +281,10 @@ class ClubKonnectClient:
                 )
                 airtime_count += 1
         print(f"Synced {airtime_count} airtime networks")
+        return airtime_count
 
-        # 2. Sync Data Packages
+    def sync_data(self):
+        from orders.models import DataService, DataVariation
         print("Syncing Data Packages...")
         data_resp = self.get_data_plans()
         data_networks = data_resp.get("MOBILE_NETWORK", {})
@@ -262,8 +310,10 @@ class ClubKonnectClient:
                 )
                 data_plans_count += 1
         print(f"Synced {data_plans_count} data plans")
+        return data_plans_count
 
-        # 3. Sync Cable/TV Packages
+    def sync_cable(self):
+        from orders.models import TVService, TVVariation
         print("Syncing Cable/TV Packages...")
         tv_resp = self.get_cable_packages()
         tv_networks = tv_resp.get("MOBILE_NETWORK") or tv_resp.get("TV_ID") or {}
@@ -271,7 +321,6 @@ class ClubKonnectClient:
         for network_name, network_list in tv_networks.items():
             if not network_list: continue
             net_info = network_list[0]
-            # Some responses use 'ID', some might just use the network_name as ID
             service_id = net_info.get("ID") or network_name.lower().replace(" ", "-")
             products = net_info.get("PRODUCT") or net_info.get("PACKAGE") or []
             
@@ -293,8 +342,10 @@ class ClubKonnectClient:
                 )
                 tv_packages_count += 1
         print(f"Synced {tv_packages_count} cable/tv packages")
+        return tv_packages_count
 
-        # 4. Sync Electricity Services
+    def sync_electricity(self):
+        from orders.models import ElectricityService, ElectricityVariation
         print("Syncing Electricity Services...")
         electricity_resp = self.get_electricity_discos()
         electricity_networks = electricity_resp.get("MOBILE_NETWORK") or electricity_resp.get("ELECTRIC_COMPANY") or {}
@@ -302,8 +353,6 @@ class ClubKonnectClient:
         for network_name, network_list in electricity_networks.items():
             if not network_list: continue
             net_info = network_list[0]
-            # Use network_name as ID if available, it's more descriptive than '01', '02'
-            # But if 'ID' is a string like 'abuja-electric', use it.
             raw_id = net_info.get("ID")
             service_id = raw_id if (raw_id and not raw_id.isdigit()) else network_name.lower().replace("_", "-").replace(" ", "-")
             
@@ -325,5 +374,85 @@ class ClubKonnectClient:
                 )
                 electricity_count += 1
         print(f"Synced {electricity_count} electricity variations")
+        return electricity_count
+
+    def sync_smile(self):
+        from orders.models import SmileVariation
+        print("Syncing Smile Packages...")
+        smile_resp = self.get_smile_packages()
+        smile_networks = smile_resp.get("MOBILE_NETWORK") or {}
+        smile_count = 0
+        for network_name, network_list in smile_networks.items():
+            if not network_list: continue
+            net_info = network_list[0]
+            products = net_info.get("PRODUCT") or []
+            
+            for product in products:
+                # Smile response uses PACKAGE_ID, PACKAGE_NAME, etc.
+                variation_id = product.get("PACKAGE_ID") or product.get("PRODUCT_ID")
+                name = product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME")
+                amount = product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0
+                
+                if not variation_id or not name:
+                    continue
+
+                SmileVariation.objects.update_or_create(
+                    variation_id=variation_id,
+                    defaults={
+                        "name": name,
+                        "selling_price": amount,
+                        "is_active": True
+                    }
+                )
+                smile_count += 1
+        print(f"Synced {smile_count} smile packages")
+        return smile_count
+
+    def query_transaction(self, order_id=None, request_id=None):
+        """
+        Query transaction status by OrderID or RequestID.
+        """
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['query']}"
+        params = {}
+        if order_id:
+            params["OrderID"] = order_id
+        elif request_id:
+            params["RequestID"] = request_id
+        else:
+            return {"status": "error", "message": "Either OrderID or RequestID must be provided"}
+            
+        params = self._get_params(**params)
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"ClubKonnect query error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def cancel_transaction(self, order_id):
+        """
+        Cancel transaction by OrderID.
+        """
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['cancel']}"
+        params = self._get_params(OrderID=order_id)
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"ClubKonnect cancel error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def sync_all_services(self):
+        """
+        Main function to fetch all services and populate the database.
+        """
+        self.sync_airtime()
+        self.sync_data()
+        self.sync_cable()
+        self.sync_electricity()
+        self.sync_smile()
         
         return True
+

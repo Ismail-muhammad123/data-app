@@ -3,7 +3,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
 
-from orders.models import DataService, DataVariation, ElectricityService, Purchase, AirtimeNetwork, TVService, TVVariation
+from orders.models import (
+    DataService, DataVariation, ElectricityService, 
+    Purchase, AirtimeNetwork, TVService, TVVariation,
+    SmileVariation
+)
 # from orders.utils import buy_airtime, buy_data_plan
 from orders.services.clubkonnect import ClubKonnectClient
 from wallet.models import Wallet
@@ -18,8 +22,11 @@ from .serializers import (
     AirtimeNetworkSerializer,
     TVPurchaseRequestSerializer,
     TVServiceSerializer,
-    TVVariationSerializer
+    TVVariationSerializer,
+    SmileVariationSerializer,
+    SmilePurchaseRequestSerializer
 )
+
 
 import logging
 
@@ -132,6 +139,7 @@ class PurchaseDataVariationView(APIView):
                     data_variation=plan,
                     beneficiary=phone_number,
                     reference=reference,
+                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success"
                 )
@@ -190,6 +198,7 @@ class PurchaseAirtimeView(APIView):
                     airtime_service=network,
                     beneficiary=phone_number,
                     reference=reference,
+                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success"
                 )
@@ -218,9 +227,11 @@ class VerifyCustomerView(APIView):
         client = ClubKonnectClient()
 
         try:
-            # Determine if it's TV or Electricity
+            # Determine if it's TV, Electricity, or Smile
             if service_id in ["dstv", "gotv", "startimes"]:
                 resp = client.verify_tv(tv_id=service_id, smart_card_number=customer_id)
+            elif service_id == "smile-direct":
+                resp = client.verify_smile(phone=customer_id)
             else:
                 resp = client.verify_electricity(disco_id=service_id, meter_number=customer_id)
 
@@ -291,6 +302,7 @@ class PurchaseElectricityView(APIView):
                     electricity_service=electricity_service,
                     beneficiary=customer_id,
                     reference=reference,
+                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success"
                 )
@@ -369,6 +381,7 @@ class PurchaseTVSubscriptionView(APIView):
                     tv_variation=tv_variation,
                     beneficiary=customer_id,
                     reference=reference,
+                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success"
                 )
@@ -377,6 +390,70 @@ class PurchaseTVSubscriptionView(APIView):
                 return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"TV Subscription purchase failed: {str(e)}")
+            return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Smile Services
+class SmilePackagesListView(generics.ListAPIView):
+    queryset = SmileVariation.objects.filter(is_active=True)
+    serializer_class = SmileVariationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class PurchaseSmileSubscriptionView(APIView):
+    permission_classes=  [permissions.IsAuthenticated]
+    serializer_class = SmilePurchaseRequestSerializer
+
+    def post(self, request):
+        serializer = SmilePurchaseRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data["amount"]
+        service_id = serializer.validated_data["service_id"]
+        variation_id = serializer.validated_data["variation_id"]
+        customer_id = serializer.validated_data["customer_id"]
+
+        user = request.user
+
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+
+        if wallet.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+        reference = generate_request_id()
+
+        client = ClubKonnectClient()
+
+        try:
+            smile_variation = SmileVariation.objects.filter(variation_id=variation_id).first()
+            if not smile_variation:
+                return Response({"error": "Invalid Smile Package."}, status=status.HTTP_400_BAD_REQUEST)
+
+            resp = client.buy_smile(
+                request_id=reference, 
+                plan_id=variation_id,
+                phone=customer_id,
+            )
+
+            if resp.get("status") == "success":
+                # Step 1: Debit wallet
+                debit_wallet(user.id, amount, f"Smile Subscription purchase - {reference}")
+
+                # Step 2: Create transaction record
+                transaction = Purchase.objects.create(
+                    user=user,
+                    purchase_type="smile",
+                    smile_variation=smile_variation,
+                    beneficiary=customer_id,
+                    reference=reference,
+                    order_id=resp.get("orderid"),
+                    amount=amount,
+                    status="success"
+                )
+                return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Smile Subscription purchase failed: {str(e)}")
             return Response({"error": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
 
 

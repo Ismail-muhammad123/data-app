@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import DataService, DataVariation, AirtimeNetwork, ElectricityService, ElectricityVariation, Purchase, TVService, TVVariation 
+from .models import (
+    DataService, DataVariation, AirtimeNetwork, 
+    ElectricityService, ElectricityVariation, 
+    Purchase, TVService, TVVariation,
+    SmileVariation
+)
 
 
 class DataServiceSerializer(serializers.ModelSerializer):
@@ -54,6 +59,17 @@ class TVVariationSerializer(serializers.ModelSerializer):
             "is_active",
         ]
 
+class SmileVariationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SmileVariation
+        fields = [
+            "id",
+            "name",
+            "variation_id",
+            "selling_price",
+            "is_active",
+        ]
+
 class ElectricityPurchaseRequestSerializer(serializers.Serializer):
     amount = serializers.IntegerField()
     service_id = serializers.CharField()
@@ -66,6 +82,12 @@ class TVPurchaseRequestSerializer(serializers.Serializer):
     service_id = serializers.CharField()
     customer_id = serializers.CharField(max_length=50)
     subscription_type =serializers.CharField(max_length=50)
+    variation_id = serializers.CharField(max_length=50)
+
+class SmilePurchaseRequestSerializer(serializers.Serializer):
+    amount = serializers.IntegerField()
+    service_id = serializers.CharField()
+    customer_id = serializers.CharField(max_length=50)
     variation_id = serializers.CharField(max_length=50)
 
 class PurchaseSerializer(serializers.ModelSerializer):
@@ -81,3 +103,4 @@ class AirtimePurchaseRequestSerializer(serializers.Serializer):
     service_id = serializers.CharField()
     amount = serializers.IntegerField()
     phone_number = serializers.CharField(max_length=20)
+

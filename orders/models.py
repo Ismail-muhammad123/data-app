@@ -86,6 +86,22 @@ class TVVariation(models.Model):
     def __str__(self):
         return self.name
 
+class SmileVariation(models.Model):
+    name = models.CharField(max_length=255)   
+    variation_id = models.CharField(max_length=100)
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0) 
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Smile Variation"
+        verbose_name_plural = "Smile Variations"
+
+    def __str__(self):
+        return self.name
+
 class DataVariation(models.Model):
     name = models.CharField(max_length=255)   
     service = models.ForeignKey(DataService, on_delete=models.CASCADE, related_name="variations", null=True)
@@ -111,6 +127,7 @@ class Purchase(models.Model):
         ('airtime', 'Airtime'),
         ('electricity', 'Electricity'),
         ('tv', 'TV Subscription'),
+        ('smile', 'Smile Subscription'),
     )
 
     STATUS_CHOICES = (
@@ -127,7 +144,9 @@ class Purchase(models.Model):
     electricity_service = models.ForeignKey(ElectricityService, on_delete=models.SET_NULL, null=True, related_name="sales")
     electricity_variation = models.ForeignKey(ElectricityVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     tv_variation = models.ForeignKey(TVVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
+    smile_variation = models.ForeignKey(SmileVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     reference = models.CharField(max_length=100, unique=True)
+    order_id = models.CharField(max_length=100, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     beneficiary = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -136,5 +155,6 @@ class Purchase(models.Model):
 
     def __str__(self):
         return f"{self.purchase_type} purchase to {self.beneficiary}"
+
 
 
