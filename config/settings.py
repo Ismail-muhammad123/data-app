@@ -286,7 +286,6 @@ CLUBKONNECT_ENDPOINTS = {
 
     # Smile
     "buy_smile": "/APISmileV1.asp",
-    "verify_smile": "/APIVerifySmileV1.asp",
     "smile_packages": "/APISmilePackagesV2.asp",
 
     # Cable
