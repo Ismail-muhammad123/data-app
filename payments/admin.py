@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Deposit, Withdrawal
-from wallet.utils import debit_wallet
+from wallet.utils import debit_wallet, fund_wallet
 from django.conf import settings
 from .utils import PaystackGateway
 from summary.models import SiteConfig
@@ -26,9 +26,6 @@ class WithdrawalAdmin(admin.ModelAdmin):
         success_count = 0
         for withdrawal in queryset.filter(status="PENDING"):
             try:
-                # Debit wallet (requested amount)
-                debit_wallet(withdrawal.user.id, withdrawal.amount, f"Withdrawal: {withdrawal.reference}")
-                
                 # Paystack payout (requested amount minus charge)
                 # Note: Paystack amount is in kobo
                 payout_amount_kobo = int((withdrawal.amount - charge) * 100)
@@ -37,6 +34,8 @@ class WithdrawalAdmin(admin.ModelAdmin):
                     withdrawal.status = "REJECTED"
                     withdrawal.reason = "Amount after charge is non-positive"
                     withdrawal.save()
+                    # Refund wallet since it was debited on request
+                    fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
                     continue
 
                 response = paystack.make_payout(
@@ -59,7 +58,13 @@ class WithdrawalAdmin(admin.ModelAdmin):
         self.message_user(request, f"Successfully approved {success_count} withdrawal(s).")
 
     def reject_withdrawal(self, request, queryset):
-        updated = queryset.filter(status="PENDING").update(status="REJECTED")
-        self.message_user(request, f"Successfully rejected {updated} withdrawal(s).")
+        success_count = 0
+        for withdrawal in queryset.filter(status="PENDING"):
+            withdrawal.status = "REJECTED"
+            withdrawal.save()
+            # Refund wallet
+            fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
+            success_count += 1
+        self.message_user(request, f"Successfully rejected and refunded {success_count} withdrawal(s).")
     
 

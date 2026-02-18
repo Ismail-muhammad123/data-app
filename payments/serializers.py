@@ -12,4 +12,8 @@ class WithdrawalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Withdrawal
         fields = "__all__"
-        read_only_fields = ["user", "status", "transaction_status", "reference", "transfer_code", "created_at", "updated_at"]
+        read_only_fields = [
+            "user", "status", "transaction_status", "reference", 
+            "transfer_code", "created_at", "updated_at",
+            "bank_code", "account_number", "account_name"
+        ]

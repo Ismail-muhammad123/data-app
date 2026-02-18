@@ -59,3 +59,15 @@ class WalletTransaction(models.Model):
     def __str__(self):
         return f"{self.transaction_type} of {self.amount} on {self.timestamp.date()} for {self.user.email}"
 
+
+class WithdrawalAccount(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="withdrawal_account")
+    bank_name = models.CharField(max_length=100)
+    bank_code = models.CharField(max_length=10)
+    account_number = models.CharField(max_length=20)
+    account_name = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.phone_number} - {self.bank_name} - {self.account_number}"

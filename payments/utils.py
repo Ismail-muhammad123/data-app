@@ -545,7 +545,22 @@ class PaystackGateway:
         return self._get(f"/transaction/verify/{reference}")
 
     # ----------------------------------------
-    # 6. VERIFY WEBHOOK SIGNATURE
+    # 6. BANK LIST & ACCOUNT RESOLUTION
+    # ----------------------------------------
+    def list_banks(self) -> Dict[str, Any]:
+        """
+        Get list of banks in Nigeria.
+        """
+        return self._get("/bank?country=nigeria")
+
+    def resolve_account(self, account_number: str, bank_code: str) -> Dict[str, Any]:
+        """
+        Resolve an account number against a bank code.
+        """
+        return self._get(f"/bank/resolve?account_number={account_number}&bank_code={bank_code}")
+
+    # ----------------------------------------
+    # 7. VERIFY WEBHOOK SIGNATURE
     # ----------------------------------------
     def verify_webhook(self, raw_body: bytes, signature_header: str) -> bool:
         """

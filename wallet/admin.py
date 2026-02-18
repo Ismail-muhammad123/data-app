@@ -1,4 +1,4 @@
-from .models import WalletTransaction, Wallet, VirtualAccount
+from .models import WalletTransaction, Wallet, VirtualAccount, WithdrawalAccount
 from django.contrib import messages
 from django.contrib import admin, messages
 from django.utils import timezone
@@ -11,6 +11,11 @@ from .models import WalletTransaction, Wallet
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
+@admin.register(WithdrawalAccount)
+class WithdrawalAccountAdmin(admin.ModelAdmin):
+    list_display = ("user", "bank_name", "account_number", "account_name", "created_at")
+    search_fields = ("user__phone_number", "account_number", "account_name")
 
 @admin.register(VirtualAccount)
 class VirtualAccountAdmin(admin.ModelAdmin):

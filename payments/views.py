@@ -154,20 +154,36 @@ class PaymentWebhookView(APIView):
 
 
 import uuid
-from rest_framework import status, permissions, generics
+from rest_framework import status, permissions, generics, serializers
 from rest_framework.response import Response
 from .models import Withdrawal
 from .serializers import WithdrawalSerializer
+
+from wallet.utils import debit_wallet
 
 class WithdrawalRequestView(generics.CreateAPIView):
     serializer_class = WithdrawalSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(
-            user=self.request.user,
-            reference=f"WTH-{uuid.uuid4().hex[:10].upper()}"
-        )
+        user = self.request.user
+        try:
+            withdrawal_account = user.withdrawal_account
+        except Exception:
+            raise serializers.ValidationError({"error": "No withdrawal account set up. Please set up a withdrawal account first."})
 
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        amount = serializer.validated_data['amount']
+        
+        try:
+            # Debit wallet immediately to hold funds
+            debit_wallet(user.id, amount, f"Withdrawal Request")
+        except ValueError as e:
+            raise serializers.ValidationError({"error": str(e)})
+
+        serializer.save(
+            user=user,
+            reference=f"WTH-{uuid.uuid4().hex[:10].upper()}",
+            bank_code=withdrawal_account.bank_code,
+            account_number=withdrawal_account.account_number,
+            account_name=withdrawal_account.account_name,
+        )
