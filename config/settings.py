@@ -273,7 +273,7 @@ CLUBKONNECT_TIMEOUT = 30
 CLUBKONNECT_ENDPOINTS = {
     # wallet balance
     "balance": "/APIWalletBalanceV1.asp",
-    
+
     # airtime
     "airtime_networks": "/APIAirtimeDiscountV2.asp",
     "buy_airtime": "/APIAirtimeV1.asp",

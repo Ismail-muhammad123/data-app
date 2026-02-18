@@ -8,7 +8,7 @@ def get_api_wallet_balance():
     balance = client.get_balance()
     print("API Wallet Balance:", balance)
 
-    if balance.get("status") == "success":
+    if balance and isinstance(balance, dict):
         balance_amount = balance.get("balance", 0)
         try:
             balance_amount = float(balance_amount)
