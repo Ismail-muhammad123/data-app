@@ -304,7 +304,8 @@ class PurchaseElectricityView(APIView):
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,
-                    status="success"
+                    status="success",
+                    purchased_token=resp.get("metertoken")  # assuming token is returned on success
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:

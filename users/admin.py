@@ -1,10 +1,8 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import Permission
 from users.models import OTP, User
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.contrib.auth.models import Group
 from rest_framework.authtoken.models import Token
 
 # update labes for dashboard
@@ -12,13 +10,6 @@ admin.site.site_title = "A-Star Data App - Dashboard"
 admin.site.site_header = "A-Star Data App - Admin" 
 admin.site.index_title = "Dashboard"
 
-
-
-# Unregister Group if already registered
-try:
-    admin.site.unregister(Group)
-except admin.sites.NotRegistered:
-    pass
 
 # Unregister Token if already registered
 try:
@@ -91,7 +82,7 @@ class UserAdmin(BaseUserAdmin):
     ordering = ['created_at']
     list_filter = ('is_active', 'is_staff' )
     search_fields = ('first_name', 'last_name', 'middle_name', 'email', "phone_number")
-    filter_horizontal = ()
+    filter_horizontal = ('groups', 'user_permissions',)
     fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
         ("Personal Information", {
@@ -99,7 +90,7 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
         }),
         ("Account Level", {"fields": ("tier",)}),
-        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
+        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
     )
     add_fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password1', 'password2')}),
@@ -108,7 +99,7 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
         }),
         # ("Account Level", {"fields": ("tier",)}),
-        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active')}),
+        ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
     )
     
 
