@@ -188,14 +188,15 @@ class ClubKonnectClient:
             logger.error(f"ClubKonnect TV verification error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def verify_electricity(self, disco_id, meter_number):
+    def verify_electricity(self, disco_id, meter_number, meter_type="01"):
         """
         Verify Electricity customer.
         """
         url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_electricity']}"
         params = self._get_params(
             ElectricCompany=disco_id,
-            MeterNo=meter_number
+            MeterNo=meter_number,
+            MeterType=meter_type
         )
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
