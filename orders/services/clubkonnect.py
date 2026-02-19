@@ -177,7 +177,7 @@ class ClubKonnectClient:
         """
         url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_cable']}"
         params = self._get_params(
-            TVModel=tv_id,
+            CableTV=tv_id,
             SmartCardNo=smart_card_number
         )
         try:
