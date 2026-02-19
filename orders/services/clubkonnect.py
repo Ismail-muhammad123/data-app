@@ -352,31 +352,31 @@ class ClubKonnectClient:
         electricity_resp = self.get_electricity_discos()
         electricity_companies = electricity_resp.get("ELECTRIC_COMPANY") or {}
         electricity_count = 0
-        for name, company_info in electricity_companies.items():
-            if not company_info: continue
+        for name, company_infos in electricity_companies.items():
+            if not company_infos: continue
             # net_info = company_list[0]
             # raw_id = net_info.get("ID")
             # service_id = raw_id if (raw_id and not raw_id.isdigit()) else network_name.lower().replace("_", "-").replace(" ", "-")
             
             # products = net_info.get("PRODUCT") or []
-            
-            service, _ = ElectricityService.objects.get_or_create(
-                service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
-                defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title()}
-            )
-            for product in company_info.get("PRODUCT", []):
-                ElectricityVariation.objects.update_or_create(
-                    variation_id=product.get("PRODUCT_ID"),
-                    service=service,
-                    defaults={
-                        "name": product.get("PRODUCT_TYPE", "General").capitalize(),
-                        "min_amount": product.get("MINAMOUNT", "1000"),
-                        "max_amount": product.get("MAXAMOUNT", "200000"),
-                        "discount": product.get("PRODUCT_DISCOUNT_AMOUNT", "0"),
-                        "is_active": True
-                    }
+            for company_info in company_infos:
+                service, _ = ElectricityService.objects.get_or_create(
+                    service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
+                    defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title()}
                 )
-                electricity_count += 1
+                for product in company_info.get("PRODUCT", []):
+                    ElectricityVariation.objects.update_or_create(
+                        variation_id=product.get("PRODUCT_ID"),
+                        service=service,
+                        defaults={
+                            "name": product.get("PRODUCT_TYPE", "General").capitalize(),
+                            "min_amount": product.get("MINAMOUNT", "1000"),
+                            "max_amount": product.get("MAXAMOUNT", "200000"),
+                            "discount": product.get("PRODUCT_DISCOUNT_AMOUNT", "0"),
+                            "is_active": True
+                        }
+                    )
+                    electricity_count += 1
         print(f"Synced {electricity_count} electricity variations")
         return electricity_count
 
