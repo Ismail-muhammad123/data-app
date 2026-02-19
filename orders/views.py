@@ -245,8 +245,8 @@ class VerifyCustomerView(APIView):
                 resp = client.verify_smile(phone=customer_id)
             else:
                 resp = client.verify_electricity(disco_id=service_id, meter_number=customer_id)
-            print("Customer Verification Response:", resp)  # TODO: Remove after testing
-            if resp.get("status") == "success":
+            # print("Customer Verification Response:", resp)  # TODO: Remove after testing
+            if isinstance(resp, dict) and hasattr(resp, "customer_name") and resp.get("status") == "00":
                 # ClubKonnect returns customer name in 'customer_name' or similar
                 return Response(resp, status=status.HTTP_200_OK)
             else:
