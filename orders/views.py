@@ -128,7 +128,7 @@ class PurchaseDataVariationView(APIView):
                 plan_id=plan.variation_id
             )
 
-            if resp.get("status") == "success":
+            if resp.get("status") == "ORDER_RECEIVED":
                 # Step 1: Debit wallet
                 debit_wallet(user.id, amount, f"{plan.service.service_name} purchase - {reference}")
 
@@ -187,7 +187,18 @@ class PurchaseAirtimeView(APIView):
                 amount=amount,
             )
 
-            if resp.get("status") == "success":
+            # {
+            #     "orderid":"6706101143",
+            #     "statuscode":"100",
+            #     "status":"ORDER_RECEIVED",
+            #     "productname":"50 Credit",
+            #     "amount":"48.25",
+            #     "mobilenetwork":"MTN",
+            #     "mobilenumber":"08163351109",
+            #     "walletbalance":"2936.3701171875"
+            # }
+
+            if resp.get("status") == "ORDER_RECEIVED":
                 # Step 1: Debit wallet
                 debit_wallet(user.id, amount, f"{network.service_name} Airtime purchase - {reference}")
                 
