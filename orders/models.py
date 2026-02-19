@@ -44,6 +44,10 @@ class ElectricityVariation(models.Model):
     service = models.ForeignKey(ElectricityService, on_delete=models.CASCADE, related_name="variations", null=True)
     variation_id = models.CharField(max_length=100)
     
+    min_amount = models.CharField(max_length=10, default="1000")
+    max_amount = models.CharField(max_length=10, default="200000")
+    discount = models.CharField(max_length=10, default="0")
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

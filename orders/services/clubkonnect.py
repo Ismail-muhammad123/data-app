@@ -350,27 +350,29 @@ class ClubKonnectClient:
         from orders.models import ElectricityService, ElectricityVariation
         print("Syncing Electricity Services...")
         electricity_resp = self.get_electricity_discos()
-        electricity_networks = electricity_resp.get("MOBILE_NETWORK") or electricity_resp.get("ELECTRIC_COMPANY") or {}
+        electricity_companies = electricity_resp.get("ELECTRIC_COMPANY") or {}
         electricity_count = 0
-        for network_name, network_list in electricity_networks.items():
-            if not network_list: continue
-            net_info = network_list[0]
-            raw_id = net_info.get("ID")
-            service_id = raw_id if (raw_id and not raw_id.isdigit()) else network_name.lower().replace("_", "-").replace(" ", "-")
+        for name, company_info in electricity_companies.items():
+            if not company_info: continue
+            # net_info = company_list[0]
+            # raw_id = net_info.get("ID")
+            # service_id = raw_id if (raw_id and not raw_id.isdigit()) else network_name.lower().replace("_", "-").replace(" ", "-")
             
-            products = net_info.get("PRODUCT") or []
+            # products = net_info.get("PRODUCT") or []
             
             service, _ = ElectricityService.objects.get_or_create(
-                service_id=service_id,
-                defaults={"service_name": net_info.get("NAME") or network_name.replace("_", " ").title()}
+                service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
+                defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title()}
             )
-            
-            for product in products:
+            for product in company_info.get("PRODUCT", []):
                 ElectricityVariation.objects.update_or_create(
                     variation_id=product.get("PRODUCT_ID"),
                     service=service,
                     defaults={
                         "name": product.get("PRODUCT_TYPE", "General").capitalize(),
+                        "min_amount": product.get("MINAMOUNT", "1000"),
+                        "max_amount": product.get("MAXAMOUNT", "200000"),
+                        "discount": product.get("PRODUCT_DISCOUNT_AMOUNT", "0"),
                         "is_active": True
                     }
                 )
