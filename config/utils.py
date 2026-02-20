@@ -6,7 +6,7 @@ import requests
 
 
 class TermiiClient:
-    BASE_URL = "https://api.ng.termii.com/api"
+    BASE_URL = "https://v3.api.termii.com"
 
     def __init__(self, api_key: str, sender_id: str, email_configuration_id: str = None):
         self.api_key = api_key
@@ -22,22 +22,45 @@ class TermiiClient:
         - pin_attempts: number of tries allowed before expiry
         - pin_time_to_live: validity in minutes
         """
-        url = f"{self.BASE_URL}/sms/send"
+        # url = f"{self.BASE_URL}/sms/send"
 
-        if phone_number.startswith("+"):
-            phone_number = phone_number[1:]
+        # if phone_number.startswith("+"):
+        #     phone_number = phone_number[1:]
 
+        # print("Phone number after processing: ", phone_number)
+
+        # payload = {
+        #     "api_key": self.api_key,
+        #     "to": phone_number,
+        #     "from": self.sender_id,
+        #     "type": "plain",
+        #     "sms": message,
+        #     "channel": "generic", 
+        # }
+
+        # response = requests.post(url, json=payload)
+        url = f"{self.BASE_URL}/api/sms/otp/send"
         payload = {
-            "api_key": self.api_key,
-            "to": phone_number,
-            "from": self.sender_id,
-            "type": "plain",
-            "sms": message,
-            "channel": "generic", 
+                "api_key" : self.api_key,
+                "message_type" : "NUMERIC",
+                "to" : phone_number,
+                "from" : self.sender_id,
+                "channel" : "generic",
+                "pin_attempts" : 10,
+                "pin_time_to_live" :  5,
+                "pin_length" : 8,
+                "pin_placeholder" : "< 12345678 >",
+                "message_text" : "Your pin to authenticate your transaction is < 12345678 >",
+                "pin_type" : "NUMERIC"
+            }
+        headers = {
+        'Content-Type': 'application/json',
         }
+        response = requests.request("POST", url, headers=headers, json=payload)
+        print(response.text)
 
-        response = requests.post(url, json=payload)
-        print("SMS OTP res:", response)
+
+        print("SMS OTP res:", response.content)
         data = response.json()
         if not response.ok:
             raise Exception(f"OTP SMS failed: {data}")
@@ -50,7 +73,7 @@ class TermiiClient:
         """
         Send OTP via WhatsApp using Termii's WhatsApp channel.
         """
-        url = f"{self.BASE_URL}/sms/send"
+        url = f"{self.BASE_URL}/api/sms/send"
         if phone_number.startswith("+"):
             phone_number = phone_number[1:]
 
@@ -91,13 +114,13 @@ class TermiiClient:
 
 def send_sms_otp(phone_number, message):
     """
-    Send OTP via SMS using Twilio
+    Send OTP via SMS using Termii
     :param phone_number: Recipient phone number (+234.... format)
     :param otp: Generated OTP
     """
 
-    if settings.DEBUG:
-        phone_number = "+2348163351109"
+    # if settings.DEBUG:
+    #     phone_number = "+2348163351109"
     # client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
 
@@ -114,8 +137,8 @@ def send_whatsapp_otp(phone_number, message):
     :param phone_number: Recipient WhatsApp number (+234.... format)
     :param otp: Generated OTP
     """
-    if settings.DEBUG:
-        phone_number = "+2348082668519"
+    # if settings.DEBUG:
+    #     phone_number = "+2348082668519"
 
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
 

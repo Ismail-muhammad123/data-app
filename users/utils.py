@@ -61,7 +61,7 @@ def send_otp_code(user, purpose, prefered_channel=None):
 
     phone = user.phone_number
 
-    if phone[0] ==0:
+    if phone[0] is not "+":
         phone = phone[1:]
     
     phone = user.phone_country_code + phone
