@@ -237,6 +237,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     tier = models.PositiveIntegerField(default=1, choices=TIER_CHOICES)
 
+    is_verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
+    phone_number_verified = models.BooleanField(default=False)
+
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

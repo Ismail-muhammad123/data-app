@@ -75,10 +75,24 @@ class UserAdmin(BaseUserAdmin):
         "phone_number", 
         "email", 
         "tier",
+        "is_verified",
+        "verification_methods",
         "is_active", 
         "is_staff", 
         "created_at", 
     ]
+
+    def verification_methods(self, obj):
+        methods = []
+        if obj.email_verified:
+            methods.append('<span style="display:inline-block;padding:3px 10px;background-color:#2563eb;color:#fff;border-radius:6px;font-size:12px;font-weight:600;">Email</span>')
+        if obj.phone_number_verified:
+            methods.append('<span style="display:inline-block;padding:3px 10px;background-color:#16a34a;color:#fff;border-radius:6px;font-size:12px;font-weight:600;">Phone</span>')
+        return ", ".join(methods) if methods else "None"
+    
+    verification_methods.allow_tags = True
+    verification_methods.short_description = "Verification Methods"
+
     ordering = ['created_at']
     list_filter = ('is_active', 'is_staff' )
     search_fields = ('first_name', 'last_name', 'middle_name', 'email', "phone_number")

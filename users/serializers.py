@@ -41,6 +41,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email", 
             "bvn",
             "tier",
+            "is_verified",
+            "email_verified",
+            "phone_number_verified",
             "is_active", 
             "created_at"
         ]

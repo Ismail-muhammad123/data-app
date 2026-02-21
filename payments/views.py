@@ -11,37 +11,13 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from summary.models import SiteConfig
 
+import uuid
+from rest_framework import status, permissions, generics, serializers
+from rest_framework.response import Response
+from .models import Withdrawal
+from .serializers import WithdrawalSerializer
 
-# ADMIN Views
-# class PaymentListView(generics.ListAPIView):
-#     serializer_class = PaymentSerializer
-#     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
-
-#     def get_queryset(self):
-#         return Payment.objects.filter().order_by("-created_at")
-
-
-# class PaymentCreateView(generics.CreateAPIView):
-#     serializer_class = PaymentSerializer
-#     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
-
-#     def create(self, request, *args, **kwargs):
-#         data = request.data.copy()
-#         data["user"] = request.user.id
-#         data["reference"] = str(uuid.uuid4())  # auto-generate unique reference
-
-#         serializer = self.get_serializer(data=data)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_create(serializer)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-# class PaymentUpdateView(generics.UpdateAPIView):
-#     queryset = Payment.objects.all()
-#     serializer_class = PaymentSerializer
-#     permission_classes = [permissions.IsAdminUser]  # only admin can update
-#     lookup_field = "reference"  # update via reference instead of id
-
+from wallet.utils import debit_wallet
 
 
 class PaymentWebhookView(APIView):
@@ -153,13 +129,6 @@ class PaymentWebhookView(APIView):
     
 
 
-import uuid
-from rest_framework import status, permissions, generics, serializers
-from rest_framework.response import Response
-from .models import Withdrawal
-from .serializers import WithdrawalSerializer
-
-from wallet.utils import debit_wallet
 
 class WithdrawalRequestView(generics.CreateAPIView):
     serializer_class = WithdrawalSerializer

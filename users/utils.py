@@ -31,7 +31,7 @@ def otp_expiry():
 
 
 
-def send_otp_code(user, purpose, prefered_channel=None):
+def send_otp_code(user, purpose, preferred_channel=None):
     otp = generate_otp()
     expiry = otp_expiry()
 
@@ -53,13 +53,13 @@ def send_otp_code(user, purpose, prefered_channel=None):
     # Send OTP based on preferred channel
     channels = []
     print(user.email)
-    if prefered_channel is None:
+    if preferred_channel is None:
         channels = ['sms', 'whatsapp']
         if hasattr(user, 'email') and user.email and user.email.strip():
             print("User has valid email, adding 'email' to channels.")
             channels.append('email')
     else:
-        channels = [prefered_channel]
+        channels = [preferred_channel]
 
     phone = user.phone_number
 

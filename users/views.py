@@ -81,6 +81,7 @@ class SignupView(generics.CreateAPIView):
 class ResendActivationCodeView(APIView):
     def post(self, request):
         identifier = request.data.get("identifier")  # phone/email
+        channel = request.data.get("channel", None)  # default to phone if not specified
 
         if not identifier:
             return Response({"error": "Phone Number is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -93,7 +94,7 @@ class ResendActivationCodeView(APIView):
         if user.is_active:
             return Response({"error": "Account is already active."}, status=status.HTTP_400_BAD_REQUEST)
 
-        send_otp_code(user, "activation")
+        send_otp_code(user, "activation", preferred_channel=channel)
         return Response({"message": "Activation code resent successfully."}, status=status.HTTP_200_OK)
 
 class ActivateAccountView(APIView):
