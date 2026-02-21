@@ -420,7 +420,7 @@ class PaystackGateway:
         middle_name: str,
         last_name: str,
         phone: Optional[str] = None,
-        preferred_bank: Optional[str] = "access-bank",
+        preferred_bank: Optional[str] = "access-bank" if not settings.DEBUG else None,
     ) -> Dict[str, Any]:
         payload = {
             "email": email,
@@ -428,7 +428,7 @@ class PaystackGateway:
             "last_name": last_name,
             "middle_name": middle_name,
             "phone": phone,
-            "preferred_bank": preferred_bank,
+            "preferred_bank": preferred_bank,   
             "country": "NG"
         }
         if phone:

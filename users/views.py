@@ -143,9 +143,36 @@ class ProfileView(APIView):
         serializer.save()
         
         # Check if profile is now complete to trigger upgrade
-        u = request.user
-        if u.tier == 1 and u.first_name and u.last_name and u.middle_name and u.email and u.bvn:
-            upgrade_account_response = upgrade_account(request)
+        user = request.user
+        if user.tier == 1 and user.first_name and user.last_name and user.middle_name and user.email and user.bvn:
+            # upgrade_account_response = upgrade_account(request)
+            try:
+                if user.tier == 2:
+                    return Response({"success": False,"error": "Account is already a tier two account"})
+
+                if not user.first_name or not user.last_name or not user.email or not user.bvn:
+                    return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
+
+                client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+                
+                account_res = client.create_virtual_account(
+                    user.email,
+                    user.first_name,
+                    user.middle_name,
+                    user.last_name,
+                    user.phone_country_code + user.phone_number,
+                )
+
+                print(account_res)
+
+                if account_res is not None:
+                    return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
+                else:
+                    return Response({"success": False, "error": "Tier upgrade failed due to an unexpected error"}, status=500)
+     
+            except Exception as e:
+                print("Tier upgrade initiation failed:", str(e))
+                upgrade_account_response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             # Note: The actual tier upgrade happens in the webhook handler 
             # after Paystack successfully assigns the dedicated account.
             if not upgrade_account_response.data.get("success", False):
@@ -160,6 +187,8 @@ class ProfileView(APIView):
 class PasswordResetRequestView(APIView):
     def post(self, request):
         identifier = request.data.get("identifier")  # phone/email
+        identifier = identifier[1:] if identifier and identifier.startswith("0") else identifier  # Remove leading zero if present
+
         try:
             user = User.objects.get(phone_number=identifier)
         except User.DoesNotExist:

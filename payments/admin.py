@@ -13,9 +13,14 @@ class DepositAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = ["user", "amount", "account_name", "account_number", "status", "transaction_status", "created_at"]
+    list_display = ["user", "available_balance", "amount", "account_name", "account_number", "status", "transaction_status", "created_at"]
     list_filter = ["status", "transaction_status"]
     actions = ["approve_withdrawal", "reject_withdrawal"]
+
+
+    def available_balance(self, obj):
+        return obj.user.wallet.balance
+    available_balance.short_description = "Available Balance"
 
     def approve_withdrawal(self, request, queryset):
         config = SiteConfig.objects.first()
@@ -30,7 +35,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
                 # Note: Paystack amount is in kobo
                 payout_amount_kobo = int((withdrawal.amount - charge) * 100)
                 
-                if payout_amount_kobo <= 0:
+                if payout_amount_kobo <= 10000:
                     withdrawal.status = "REJECTED"
                     withdrawal.reason = "Amount after charge is non-positive"
                     withdrawal.save()
@@ -45,6 +50,8 @@ class WithdrawalAdmin(admin.ModelAdmin):
                     amount=payout_amount_kobo,
                     reason=f"Withdrawal {withdrawal.reference}"
                 )
+
+                print("Withdrawal response", response)
                 
                 withdrawal.status = "APPROVED"
                 withdrawal.transaction_status = "SUCCESS"

@@ -22,49 +22,32 @@ class TermiiClient:
         - pin_attempts: number of tries allowed before expiry
         - pin_time_to_live: validity in minutes
         """
-        # url = f"{self.BASE_URL}/sms/send"
+        url = f"{self.BASE_URL}/api/sms/send"
+        # print("Phone number before formatting:", phone_number)
 
-        # if phone_number.startswith("+"):
-        #     phone_number = phone_number[1:]
-
-        # print("Phone number after processing: ", phone_number)
-
-        # payload = {
-        #     "api_key": self.api_key,
-        #     "to": phone_number,
-        #     "from": self.sender_id,
-        #     "type": "plain",
-        #     "sms": message,
-        #     "channel": "generic", 
-        # }
-
-        # response = requests.post(url, json=payload)
-        url = f"{self.BASE_URL}/api/sms/otp/send"
+        if phone_number.startswith("+"):
+            phone_number = phone_number[1:]
         payload = {
-                "api_key" : self.api_key,
-                "message_type" : "NUMERIC",
-                "to" : phone_number,
-                "from" : self.sender_id,
-                "channel" : "generic",
-                "pin_attempts" : 10,
-                "pin_time_to_live" :  5,
-                "pin_length" : 8,
-                "pin_placeholder" : "< 12345678 >",
-                "message_text" : "Your pin to authenticate your transaction is < 12345678 >",
-                "pin_type" : "NUMERIC"
-            }
-        headers = {
-        'Content-Type': 'application/json',
+            "from": self.sender_id,
+            "to": phone_number,
+           "sms": message ,
+           "type": "plain",
+           "channel": "generic",
+           "api_key": self.api_key,
         }
-        response = requests.request("POST", url, headers=headers, json=payload)
-        print(response.text)
-
-
-        print("SMS OTP res:", response.content)
+        # print(payload)
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        # print("SMS OTP res:", response.content)
         data = response.json()
         if not response.ok:
             raise Exception(f"OTP SMS failed: {data}")
+        else:
+            print(f"OTP SMS sent successfully to {phone_number}")
         return data
+       
 
     # -----------------------------------------
     # 2️⃣ Send OTP via WhatsApp
@@ -78,24 +61,30 @@ class TermiiClient:
             phone_number = phone_number[1:]
 
         payload = {
-        #    "channel": "whatsapp_otp",
             "api_key": self.api_key,
             "to": phone_number,
             "from": self.sender_id,
             "type": "plain",
             "sms": message,
-            "channel": "whatsapp_otp",
+            "channel": "whatsapp",
         }
 
-        response = requests.post(url, json=payload)
-        print("WhatsApp res: ", response.content)
-        data = response.json()
-        if not response.ok:
-            raise Exception(f"OTP WhatsApp failed: {data}")
-        return data
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers)
+            print("WhatsApp OTP res: ", response.content)
+            data = response.json()
+            if not response.ok:
+                raise Exception(f"OTP WhatsApp failed: {data}")
+            return data
+        except Exception as e:
+            print(f"Error sending WhatsApp OTP: {e}")
     
     def send_otp_email(self, recipient_email: str, otp_code:  str):
-        url = f"{self.BASE_URL}/email/otp/send"
+        url = f"{self.BASE_URL}/api/email/otp/send"
         payload = {
                     "api_key" : self.api_key,
                     "email_address" : recipient_email,
@@ -141,19 +130,6 @@ def send_whatsapp_otp(phone_number, message):
     #     phone_number = "+2348082668519"
 
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
-
-    # message = client.messages.create(
-    #     from_='whatsapp:+14155238886',
-    #     content_sid='HX229f5a04fd0510ce1b071852155d3e75',
-    #     content_variables='{"1":"'+ message +'"}',
-    #     to='whatsapp:'+phone_number
-    # )
-    # message = client.messages.create(
-    #     body=message,
-    #     from_=f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
-    #     to=f"whatsapp:{phone_number}"
-    # )
-
 
     res = client.send_otp_whatsapp(
         phone_number=phone_number,

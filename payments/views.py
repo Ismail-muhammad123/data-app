@@ -187,3 +187,14 @@ class WithdrawalRequestView(generics.CreateAPIView):
             account_number=withdrawal_account.account_number,
             account_name=withdrawal_account.account_name,
         )
+
+class ChargesConfigView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        config = SiteConfig.objects.first()
+        data = {
+            "withdrawal_charge": float(config.withdrawal_charge) if config else 0.0,
+            "deposit_charge": float(config.crediting_charge) if config else 0.0,
+        }
+        return Response(data, status=status.HTTP_200_OK)

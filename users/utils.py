@@ -52,20 +52,22 @@ def send_otp_code(user, purpose, prefered_channel=None):
 
     # Send OTP based on preferred channel
     channels = []
+    print(user.email)
     if prefered_channel is None:
         channels = ['sms', 'whatsapp']
-        # if hasattr(user, 'email') and user.email:
-        #     channels.append('email')
+        if hasattr(user, 'email') and user.email and user.email.strip():
+            print("User has valid email, adding 'email' to channels.")
+            channels.append('email')
     else:
         channels = [prefered_channel]
 
     phone = user.phone_number
 
-    if phone[0] is not "+":
+    if phone[0] is "0":
         phone = phone[1:]
     
     phone = user.phone_country_code + phone
-
+    
     for channel in channels:
         if channel == 'sms' and hasattr(user, 'phone_number') and phone:
             send_sms_otp(phone, message)
