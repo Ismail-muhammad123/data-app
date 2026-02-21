@@ -10,35 +10,9 @@ def generate_otp():
 def otp_expiry():
     return timezone.now() + timedelta(minutes=5)
 
-
-# def regidter_new_admin():
-#     pass
-
-# def register_new_customer():
-#     pass
-
-
-# def send_sms(phone_number, message):
-#     print(f"SMS message '{message}' to {phone_number}")
-
-
-# def send_whatsapp(phone_number, message):
-#     print(f"WhatsApp message '{message}' to {phone_number}")
-
-
-# def send_email(email_address, message_header, message_body):
-#     print(f"Email headed '{message_header}' and body {message_body}  sent to {email_address}")
-
-
-
 def send_otp_code(user, purpose, preferred_channel=None):
     otp = generate_otp()
     expiry = otp_expiry()
-
-    # Save OTP and expiry to user (assuming user model has these fields)
-    # user.otp_code = otp
-    # user.otp_expiry = expiry
-    # user.save()
 
     OTP.objects.create(
         user=user,

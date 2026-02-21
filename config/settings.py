@@ -51,7 +51,7 @@ if csrf_origins_env:
 
 INSTALLED_APPS = [
     # >custom template for admin
-        'jazzmn',
+    'jazzmin',
 
 
     'django.contrib.admin',
