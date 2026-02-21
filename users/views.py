@@ -91,8 +91,8 @@ class ResendActivationCodeView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if user.is_active:
-            return Response({"error": "Account is already active."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_verified:
+            return Response({"error": "Account is already verified."}, status=status.HTTP_400_BAD_REQUEST)
 
         send_otp_code(user, "activation", preferred_channel=channel)
         return Response({"message": "Activation code resent successfully."}, status=status.HTTP_200_OK)
