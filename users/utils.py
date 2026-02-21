@@ -19,6 +19,7 @@ def send_otp_code(user, purpose, preferred_channel=None):
         code=otp,
         purpose=purpose, 
         expires_at=expiry,
+        channel=preferred_channel
     )
 
     # Prepare message

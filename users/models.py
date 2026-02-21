@@ -269,6 +269,7 @@ class OTP(models.Model):
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
+    channel = models.CharField(max_length=20, blank=True, null=True)  # Optional: Store the channel used for sending OTP    
     is_used = models.BooleanField(default=False)
 
     def __str__(self):

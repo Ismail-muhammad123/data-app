@@ -116,8 +116,13 @@ class ActivateAccountView(APIView):
             return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
         user.is_active = True
+        user.is_verified = True
+        if otp.channel == "email":
+            user.email_verified = True
+        elif otp.channel in ["sms", "whatsapp"]:
+            user.phone_number_verified = True
         user.save()
-        otp.is_used = True
+        otp.is_used = True          
         otp.save()
 
         return Response({"message": "Account activated successfully."}, status=status.HTTP_200_OK)
