@@ -5,33 +5,43 @@ function initJazzminFix() {
     document.addEventListener('click', function (e) {
         const tabLink = e.target.closest('.nav-tabs a, .nav-pills a, [data-toggle="tab"], [data-toggle="pill"]');
         if (tabLink) {
-            const href = tabLink.getAttribute('href');
+            let href = tabLink.getAttribute('href');
+            if (href && href.includes('#')) {
+                href = '#' + href.split('#')[1];
+            }
             if (href && href.startsWith('#')) {
                 e.preventDefault();
 
-                if (typeof jQuery !== 'undefined' && jQuery.fn.tab) {
-                    jQuery(tabLink).tab('show');
+                let jq = (typeof $ !== 'undefined') ? $ : ((typeof jQuery !== 'undefined') ? jQuery : null);
+                if (jq && jq.fn && jq.fn.tab) {
+                    jq(tabLink).tab('show');
                     return;
                 }
 
-                const targetPane = document.querySelector(href);
-                if (targetPane) {
-                    const contentContainer = targetPane.closest('.tab-content');
-                    if (contentContainer) {
-                        contentContainer.querySelectorAll(':scope > .tab-pane').forEach(pane => {
-                            pane.classList.remove('active', 'show');
-                        });
-                    }
+                try {
+                    const targetPane = document.querySelector(href);
+                    if (targetPane) {
+                        const contentContainer = targetPane.closest('.tab-content');
+                        if (contentContainer) {
+                            Array.from(contentContainer.children).forEach(pane => {
+                                if (pane.classList.contains('tab-pane')) {
+                                    pane.classList.remove('active', 'show');
+                                }
+                            });
+                        }
 
-                    const navContainer = tabLink.closest('.nav');
-                    if (navContainer) {
-                        navContainer.querySelectorAll('.nav-link').forEach(link => {
-                            link.classList.remove('active');
-                        });
-                    }
+                        const navContainer = tabLink.closest('.nav');
+                        if (navContainer) {
+                            navContainer.querySelectorAll('.nav-link').forEach(link => {
+                                link.classList.remove('active');
+                            });
+                        }
 
-                    targetPane.classList.add('active', 'show');
-                    tabLink.classList.add('active');
+                        targetPane.classList.add('active', 'show');
+                        tabLink.classList.add('active');
+                    }
+                } catch (err) {
+                    console.error("Tab switch error:", err);
                 }
             }
         }

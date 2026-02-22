@@ -122,6 +122,31 @@ class UserAdmin(BaseUserAdmin):
         }),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
     )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        
+        if obj.tier == 1 and obj.first_name and obj.last_name and obj.email and obj.bvn:
+            from wallet.models import VirtualAccount
+            if not VirtualAccount.objects.filter(user=obj).exists():
+                try:
+                    from payments.utils import PaystackGateway
+                    from django.conf import settings
+                    client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+                    
+                    phone = f"{obj.phone_country_code}{obj.phone_number}" if obj.phone_number else ""
+                    
+                    client.create_virtual_account(
+                        email=obj.email,
+                        first_name=obj.first_name,
+                        middle_name=obj.middle_name or "",
+                        last_name=obj.last_name,
+                        phone=phone,
+                    )
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to create virtual account in admin: {e}")
     
 
 from django.contrib.auth.models import Group
