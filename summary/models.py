@@ -1,10 +1,8 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from summary.views import get_api_wallet_balance
+from summary.views import get_api_wallet_balance, get_paystack_balance
 from wallet.models import Wallet, WalletTransaction
-# from savings.models import Savings, SavingsTransaction
 from payments.models import Deposit, Withdrawal
-# from investments.models import InvestmentAccount, InvestmentTransaction
 from django.db.models import Q
 from orders.models import DataService, DataVariation, AirtimeNetwork, Purchase
 
@@ -63,17 +61,21 @@ class SummaryDashboard(Wallet):
         airtime_networks = AirtimeNetwork.objects.all()
 
         airtime_sales = {}
-        # data sales
         for i in airtime_networks:
             airtime_sales[i.service_name] = float(purchases.filter(airtime_service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
         data_sales = {}
-        # data sales
         for i in data_services:
             data_sales[i.service_name] = float(purchases.filter(data_variation__service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
 
-        # API WALLET BALANCE
-        api_wallet_balance = get_api_wallet_balance()
+        # API WALLET BALANCE (VTU)
+        vtu_balance = get_api_wallet_balance() or 0.0
+        
+        # PAYSTACK BALANCE (RESERVE)
+        reserve_balance = get_paystack_balance() or 0.0
+
+        # TOTAL SYSTEM FUNDS
+        total_system_funds = vtu_balance + reserve_balance
         
         # DEPOSITS
         deposits_summary = { 
@@ -91,14 +93,13 @@ class SummaryDashboard(Wallet):
             "rejected_count": withdrawals.filter(status="REJECTED").count(),
         }
 
-
         config = SiteConfig.objects.first()
         config_data = {
             "withdrawal_charge": float(config.withdrawal_charge) if config else 0,
             "crediting_charge": float(config.crediting_charge) if config else 0,
-            "provider_bank_name": config.provider_bank_name if config else "",
-            "provider_account_number": config.provider_account_number if config else "",
-            "provider_account_name": config.provider_account_name if config else "",
+            "vtu_funding_bank_name": config.vtu_funding_bank_name if config else "",
+            "vtu_funding_account_number": config.vtu_funding_account_number if config else "",
+            "vtu_funding_account_name": config.vtu_funding_account_name if config else "",
         }
 
         return {
@@ -122,7 +123,9 @@ class SummaryDashboard(Wallet):
             },
             "deposits": deposits_summary,
             "withdrawals": withdrawals_summary,
-            "api_wallet_balance": api_wallet_balance,
+            "api_wallet_balance": vtu_balance,
+            "reserve_balance": reserve_balance,
+            "total_system_funds": total_system_funds,
             "config": config_data,
         }
 
@@ -130,9 +133,10 @@ class SiteConfig(models.Model):
     withdrawal_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     crediting_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
-    provider_bank_name = models.CharField(max_length=100, blank=True, null=True)
-    provider_account_number = models.CharField(max_length=20, blank=True, null=True)
-    provider_account_name = models.CharField(max_length=100, blank=True, null=True)
+    # VTU API Funding Details (The bank account to move money to for VTU funding)
+    vtu_funding_bank_name = models.CharField(max_length=100, blank=True, null=True)
+    vtu_funding_account_number = models.CharField(max_length=20, blank=True, null=True)
+    vtu_funding_account_name = models.CharField(max_length=100, blank=True, null=True)
     
     class Meta:
         verbose_name = "Site Configuration"
@@ -146,3 +150,27 @@ class SiteConfig(models.Model):
             return 
         return super(SiteConfig, self).save(*args, **kwargs)
 
+
+class SystemTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ("CASHOUT", "Cashout (Paystack to Bank)"),
+        ("VTU_FUNDING", "VTU Wallet Funding"),
+    ]
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("SUCCESS", "Success"),
+        ("FAILED", "Failed"),
+    ]
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="PENDING")
+    reference = models.CharField(max_length=100, unique=True)
+    metadata = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} - {self.amount} ({self.status})"
+
+    class Meta:
+        ordering = ["-created_at"]

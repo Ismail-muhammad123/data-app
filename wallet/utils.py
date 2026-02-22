@@ -4,7 +4,7 @@ from payments.models import Deposit
 from wallet.models import Wallet, WalletTransaction  
 import uuid
 
-def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
+def fund_wallet(user_id, amount, description="Wallet funded", reference=None, initiator='self', initiated_by=None):
     if amount <= 0:
         raise ValueError("Amount must be positive")
     with transaction.atomic():
@@ -15,7 +15,7 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
             except Deposit.DoesNotExist:
                 pass
         wallet, created = Wallet.objects.get_or_create(user_id=user_id, defaults={'balance': 0.0})
-        wallet.balance = float(wallet.balance) + amount
+        wallet.balance = wallet.balance + amount
         wallet.save()
         WalletTransaction.objects.create(
             user=wallet.user,
@@ -26,12 +26,13 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None):
             balance_before=float(wallet.balance) - amount,
             balance_after=wallet.balance,
             description=description,
-            initiator='self',
+            initiator=initiator,
+            initiated_by=initiated_by,
             reference=uuid.uuid4().hex[:10].upper(),
         )
     return wallet.balance
 
-def debit_wallet(user_id, amount, description="Wallet debited"):
+def debit_wallet(user_id, amount, description="Wallet debited", initiator='self', initiated_by=None):
     if amount <= 0:
         raise ValueError("Amount must be positive")
     with transaction.atomic():
@@ -48,7 +49,8 @@ def debit_wallet(user_id, amount, description="Wallet debited"):
             description=description,
             balance_before=wallet.balance+amount,
             balance_after=wallet.balance,
-            initiator='self',
+            initiator=initiator,
+            initiated_by=initiated_by,
             user=wallet.user,
             reference=uuid.uuid4().hex[:10].upper(),
         )

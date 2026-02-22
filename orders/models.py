@@ -139,6 +139,10 @@ class Purchase(models.Model):
     ("success", "Success"),
     ("failed", "Failed"),
 )
+    INITIATOR_CHOICES = [
+        ("self", "Self"),
+        ("admin", "Admin"),
+    ]
 
     purchase_type = models.CharField(max_length=50, choices=PURCHASE_TYPES)  # 'data' or 'airtime'
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases")
@@ -155,6 +159,8 @@ class Purchase(models.Model):
     beneficiary = models.CharField(max_length=20)
     purchased_token = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    initiator = models.CharField(max_length=10, choices=INITIATOR_CHOICES, default="self")
+    initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="initiated_purchases")
     time = models.DateTimeField(auto_now=True)
 
 

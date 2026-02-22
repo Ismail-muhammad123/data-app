@@ -1,13 +1,10 @@
 from .models import WalletTransaction, Wallet, VirtualAccount, WithdrawalAccount
-from django.contrib import messages
-from django.contrib import admin, messages
+from django.contrib import messages, admin
 from django.utils import timezone
 from django import forms
 from decimal import Decimal
 import uuid
 from django.db import models, transaction
-
-from .models import WalletTransaction, Wallet
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -15,7 +12,9 @@ User = get_user_model()
 @admin.register(WithdrawalAccount)
 class WithdrawalAccountAdmin(admin.ModelAdmin):
     list_display = ("user", "bank_name", "account_number", "account_name", "created_at")
-    search_fields = ("user__phone_number", "account_number", "account_name")
+    search_fields = ("user__email", "user__phone_number", "account_number", "account_name")
+    list_filter = ("bank_name", "created_at")
+    readonly_fields = ("created_at",)
 
 @admin.register(VirtualAccount)
 class VirtualAccountAdmin(admin.ModelAdmin):
@@ -23,14 +22,14 @@ class VirtualAccountAdmin(admin.ModelAdmin):
         "user",
         "account_number",
         "bank_name",
-        "account_reference",
-        "customer_email",
-        "customer_name",
         "status",
         "created_at",
     )
+    list_filter = ("bank_name", "status", "created_at")
+    search_fields = ("user__email", "user__phone_number", "account_number")
+    readonly_fields = ("created_at",)
 
-    def has_change_permission(self, request):
+    def has_change_permission(self, request, obj=None):
         return False
     
     def has_add_permission(self, request):
@@ -44,19 +43,14 @@ class VirtualAccountAdmin(admin.ModelAdmin):
     actions = [deactivate_accounts]
 
 
-
-class WalletTransactionInline(admin.TabularInline):
-    model = WalletTransaction
-    extra = 0
-    readonly_fields = ('timestamp', 'balance_before', 'balance_after', 'reference')
-
 @admin.register(Wallet)
 class WalletAdmin(admin.ModelAdmin):
     list_display = ('user','balance','updated_at','created_at')
     sortable_by = ('balance', 'updated_at', 'created_at')
-    readonly_fields = ('balance', 'updated_at', 'created_at')
+    readonly_fields = ('user', 'balance', 'updated_at', 'created_at')
+    search_fields = ('user__email', 'user__phone_number')
 
-    inlines = [WalletTransactionInline]
+    # inlines = [WalletTransactionInline]
 
 
 

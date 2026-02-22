@@ -410,6 +410,21 @@ class PaystackGateway:
             raise Exception(data.get("message", "Paystack request failed"))
         return data["data"]
 
+    def get_balance(self) -> str:
+        """
+        Fetch Paystack ledger balance.
+        """
+        try:
+            balance_data = self._get("/balance")
+            # balance_data is a list of balances per currency
+            for item in balance_data:
+                if item.get("currency") == "NGN":
+                    balance = float(item.get("balance", 0)) / 100
+                    return f"NGN {balance:,.2f}"
+            return "NGN 0.00"
+        except Exception as e:
+            return f"Error: {str(e)}"
+
     # ----------------------------------------
     # 1. CREATE DEDICATED VIRTUAL ACCOUNT (VDA)
     # ----------------------------------------
@@ -515,25 +530,34 @@ class PaystackGateway:
         Makes a payout to a recipient bank account.
         Amount is in kobo (e.g., 5000 NGN = 500000 kobo).
         """
-        # Step 1: Create transfer recipient
-        recipient_payload = {
-            "type": "nuban",
-            "name": name,
-            "account_number": account_number,
-            "bank_code": bank_code,
-            "currency": currency,
-        }
-        recipient = self._post("/transferrecipient", recipient_payload)
+        try:
+            # Step 1: Create transfer recipient
+            recipient_payload = {
+                "type": "nuban",
+                "name": name,
+                "account_number": account_number,
+                "bank_code": bank_code,
+                "currency": currency,
+            }
+            recipient = self._post("/transferrecipient", recipient_payload)
 
-        # Step 2: Initiate transfer
-        transfer_payload = {
-            "source": "balance",
-            "amount": amount,
-            "recipient": recipient["data"]["recipient_code"],
-        }
-        if reason:
-            transfer_payload["reason"] = reason
-        return self._post("/transfer", transfer_payload)
+            # Step 2: Initiate transfer
+            transfer_payload = {
+                "source": "balance",
+                "amount": amount,
+                "recipient": recipient["data"]["recipient_code"],
+            }
+            if reason:
+                transfer_payload["reason"] = reason
+            
+            return self._post("/transfer", transfer_payload)
+        except Exception as e:
+            error_msg = str(e)
+            if "otp" in error_msg.lower():
+                error_msg = "Paystack requires OTP for transfers. Please disable 'Confirm transfers before sending' in your Paystack Dashboard preferences."
+            elif "balance" in error_msg.lower():
+                error_msg = f"Insufficient Paystack balance: {error_msg}"
+            raise Exception(error_msg)
 
     # ----------------------------------------
     # 5. VERIFY TRANSACTION

@@ -70,8 +70,6 @@ class UserAdmin(BaseUserAdmin):
     list_display = [
         "first_name", 
         "last_name",
-        "middle_name",
-        "phone_country_code", 
         "phone_number", 
         "email", 
         "tier",
@@ -81,30 +79,40 @@ class UserAdmin(BaseUserAdmin):
         "is_staff", 
         "created_at", 
     ]
+    readonly_fields = [
+        "created_at",
+        "email",
+        "phone_number",
+        "bvn",
+        "is_verified",
+        "email_verified",
+        "phone_number_verified"
+    ]
 
     def verification_methods(self, obj):
+        from django.utils.html import format_html
         methods = []
         if obj.email_verified:
             methods.append('<span style="display:inline-block;padding:3px 10px;background-color:#2563eb;color:#fff;border-radius:6px;font-size:12px;font-weight:600;">Email</span>')
         if obj.phone_number_verified:
             methods.append('<span style="display:inline-block;padding:3px 10px;background-color:#16a34a;color:#fff;border-radius:6px;font-size:12px;font-weight:600;">Phone</span>')
-        return ", ".join(methods) if methods else "None"
+        return format_html(", ".join(methods)) if methods else "None"
     
-    verification_methods.allow_tags = True
     verification_methods.short_description = "Verification Methods"
 
-    ordering = ['created_at']
-    list_filter = ('is_active', 'is_staff' )
-    search_fields = ('first_name', 'last_name', 'middle_name', 'email', "phone_number")
+    ordering = ['-created_at']
+    list_filter = ('is_active', 'is_staff', 'tier')
+    search_fields = ('first_name', 'last_name', 'email', "phone_number")
     filter_horizontal = ('groups', 'user_permissions',)
     fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
         ("Personal Information", {
             'classes': ('wide',),
-            'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
+            'fields': ('first_name', 'last_name', 'middle_name', 'email', 'bvn'),
         }),
-        ("Account Level", {"fields": ("tier",)}),
+        ("Account Level", {"fields": ("tier", "is_verified", "email_verified", "phone_number_verified")}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
+        ('Important Dates', {'fields': ('created_at', )}),
     )
     add_fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password1', 'password2')}),
@@ -112,20 +120,17 @@ class UserAdmin(BaseUserAdmin):
             'classes': ('wide',),
             'fields': ('first_name', 'last_name', 'middle_name', 'email', ),
         }),
-        # ("Account Level", {"fields": ("tier",)}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
     )
     
 
-class OTPAdmin(admin.ModelAdmin):
-    list_display= [
-        "user",
-        "code",
-        "purpose",
-        "created_at",
-        "expires_at",
-        "is_used",
-    ]
+from django.contrib.auth.models import Group
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+
+admin.site.unregister(Group)
+
+@admin.register(Group)
+class GroupAdmin(BaseGroupAdmin):
+    filter_horizontal = ('permissions',)
 
 admin.site.register(User, UserAdmin)
-admin.site.register(OTP, OTPAdmin)

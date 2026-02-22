@@ -1,0 +1,168 @@
+/* Modernizing filter_horizontal (the dual listbox) */
+.selector {
+    width: 100% !important;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.selector-available,
+.selector-chosen {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.selector .selector-available h2,
+.selector .selector-chosen h2 {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 12px 15px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.selector select {
+    border: none !important;
+    height: 350px !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+    color: #1e293b;
+    outline: none !important;
+}
+
+.selector select option {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+}
+
+.selector select option:hover {
+    background-color: #f1f5f9;
+}
+
+.selector-filter {
+    padding: 10px 15px !important;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.selector-filter input {
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+.selector-chooser {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    background: none !important;
+}
+
+.selector-add,
+.selector-remove {
+    background-color: #f1f5f9 !important;
+    border-radius: 8px !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.selector-add:hover,
+.selector-remove:hover {
+    background-color: #2563eb !important;
+    color: white !important;
+}
+
+.selector-chooseall,
+.selector-clearall {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase;
+    padding: 5px 0 !important;
+}
+
+.active-filter {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Dark mode support */
+.dark-mode .selector-available,
+.dark-mode .selector-chosen {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dark-mode .selector .selector-available h2,
+.dark-mode .selector .selector-chosen h2 {
+    background: #0f172a !important;
+    color: #94a3b8 !important;
+    border-color: #334155 !important;
+}
+
+.dark-mode .selector select {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+
+.dark-mode .selector select option:hover {
+    background-color: #334155;
+}
+
+.dark-mode .selector-filter {
+    background: #1e293b;
+    border-color: #334155 !important;
+}
+
+.dark-mode .selector-filter input {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+/* Responsiveness for selectors */
+@media (max-width: 991px) {
+    .selector {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .selector-available,
+    .selector-chosen {
+        width: 100% !important;
+    }
+
+    .selector-chooser {
+        flex-direction: row !important;
+        justify-content: center !important;
+        padding: 10px 0 !important;
+    }
+
+    .selector-add,
+    .selector-remove {
+        transform: rotate(90deg);
+    }
+}
+
+/* Specific styling for the simplified labels */
+.selector select option {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+}

@@ -1,0 +1,98 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="module">
+            <table style="width: 100%;">
+                <tr class="form-row">
+                    <td style="width: 200px;"><label class="required" for="id_user">User:</label></td>
+                    <td>
+                        <select name="user" id="id_user" required style="width: 50%;">
+                            <option value="">--- Select User ---</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.email }} ({{ user.phone_number }})</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                <tr class="form-row">
+                    <td><label class="required" for="id_purchase_type">Purchase Type:</label></td>
+                    <td>
+                        <select name="purchase_type" id="id_purchase_type" required style="width: 50%;">
+                            <option value="AIRTIME">Airtime</option>
+                            <option value="DATA">Data</option>
+                        </select>
+                    </td>
+                </tr>
+
+                <!-- Airtime Section -->
+                <tr class="form-row airtime-field">
+                    <td><label class="required" for="id_network">Network:</label></td>
+                    <td>
+                        <select name="network" id="id_network" style="width: 50%;">
+                            {% for network in networks %}
+                            <option value="{{ network.id }}">{{ network.service_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                <tr class="form-row airtime-field">
+                    <td><label class="required" for="id_amount">Amount:</label></td>
+                    <td>
+                        <input type="number" name="amount" id="id_amount" step="0.01" style="width: 50%;">
+                    </td>
+                </tr>
+
+                <!-- Data Section -->
+                <tr class="form-row data-field" style="display: none;">
+                    <td><label class="required" for="id_variation">Data Plan:</label></td>
+                    <td>
+                        <select name="variation" id="id_variation" style="width: 50%;">
+                            {% for var in variations %}
+                            <option value="{{ var.id }}">{{ var.service.service_name }} - {{ var.name }} (₦{{
+                                var.selling_price }})</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+
+                <tr class="form-row">
+                    <td><label class="required" for="id_beneficiary">Beneficiary Phone:</label></td>
+                    <td>
+                        <input type="text" name="beneficiary" id="id_beneficiary" required style="width: 50%;">
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="submit-row">
+            <input type="submit" value="Perform Purchase" class="default" name="_save">
+        </div>
+    </form>
+</div>
+
+<script>
+    document.getElementById('id_purchase_type').addEventListener('change', function () {
+        const type = this.value;
+        const airtimeFields = document.querySelectorAll('.airtime-field');
+        const dataFields = document.querySelectorAll('.data-field');
+
+        if (type === 'AIRTIME') {
+            airtimeFields.forEach(f => f.style.display = '');
+            dataFields.forEach(f => f.style.display = 'none');
+            document.getElementById('id_amount').required = true;
+            document.getElementById('id_network').required = true;
+            document.getElementById('id_variation').required = false;
+        } else {
+            airtimeFields.forEach(f => f.style.display = 'none');
+            dataFields.forEach(f => f.style.display = '');
+            document.getElementById('id_amount').required = false;
+            document.getElementById('id_network').required = false;
+            document.getElementById('id_variation').required = true;
+        }
+    });
+</script>
+{% endblock %}

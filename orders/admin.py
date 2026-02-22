@@ -91,16 +91,14 @@ class DataVariationAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "service",
-        "variation_id",
-        "cost_price",
         "selling_price",
         "is_active",
-        "created_at",
         "updated_at",
     ]
 
-    list_filter = ["service", "is_active"]
-    ordering = ["service__service_name", "name", "selling_price"]
+    list_filter = ["service", "is_active", "updated_at"]
+    ordering = ["service__service_name", "selling_price"]
+    search_fields = ["name", "service__service_name"]
     list_per_page = 50
 
 
@@ -196,16 +194,35 @@ class PurchaseAdmin(admin.ModelAdmin):
         "user",
         "service_name",
         "reference",
-        "order_id",
         "amount",
         "beneficiary",
         "status",
+        "initiator",
         "time",
     ]
-  
-
-    list_filter = ["purchase_type", "data_variation__service", "airtime_service", "status"]
+    
+    readonly_fields = [
+        "user", "purchase_type", "amount", "beneficiary", 
+        "status", "reference", "order_id", "time", 
+        "initiator", "initiated_by", "airtime_service",
+        "data_variation", "electricity_service", "tv_variation",
+        "smile_variation",
+    ]
+    fieldsets = [
+        ("Purchase Details", {
+            "fields": ("user", "purchase_type", "amount", "beneficiary", "service_name", "time")
+        }),
+        ("Transaction Status", {
+            "fields": ("status", "reference", "order_id", "initiator", "initiated_by")
+        }),
+        ("Service Data", {
+            "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
+        }),
+    ]
+    list_filter = ["purchase_type", "status", "initiator", "time"]
+    search_fields = ["user__email", "user__phone_number", "reference", "beneficiary"]
     list_per_page = 100    
+    change_list_template = "admin/orders/purchase/change_list.html"
 
     actions = ["query_status", "cancel_transaction_action"]
 
@@ -261,12 +278,117 @@ class PurchaseAdmin(admin.ModelAdmin):
         return "-"
     service_name.short_description = "Service Name"
 
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_admin_purchase_link'] = True
+        return super().changelist_view(request, extra_context=extra_context)
+
     def has_add_permission(self, request):
-        return False
+        return True # We will use a custom view for adding
     
-    def has_delete_permission(self, request, obj = ...):
-        return False
-    
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('admin-purchase/', self.admin_site.admin_view(self.admin_purchase_view), name='orders-admin-purchase'),
+        ]
+        return custom_urls + urls
+
+    def admin_purchase_view(self, request):
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from users.models import User
+        from wallet.utils import debit_wallet
+        from .services.clubkonnect import ClubKonnectClient
+
+        if request.method == "POST":
+            user_id = request.POST.get("user")
+            purchase_type = request.POST.get("purchase_type")
+            beneficiary = request.POST.get("beneficiary")
+            
+            try:
+                user = User.objects.get(id=user_id)
+                client = ClubKonnectClient()
+                
+                if purchase_type == "AIRTIME":
+                    network_id = request.POST.get("network")
+                    amount = float(request.POST.get("amount"))
+                    network = AirtimeNetwork.objects.get(id=network_id)
+                    
+                    # 1. Debit wallet first
+                    debit_success, msg = debit_wallet(user.id, amount, f"Admin Airtime Purchase: {network.service_name}", initiator="admin", initiated_by=request.user)
+                    if not debit_success:
+                        messages.error(request, f"Debit failed: {msg}")
+                    else:
+                        # 2. Call ClubKonnect
+                        ref = f"ADM-AIR-{uuid.uuid4().hex[:8].upper()}"
+                        resp = client.buy_airtime(network.service_id, amount, beneficiary, ref)
+                        
+                        # 3. Create Purchase record
+                        Purchase.objects.create(
+                            user=user,
+                            purchase_type="AIRTIME",
+                            airtime_service=network,
+                            amount=amount,
+                            beneficiary=beneficiary,
+                            reference=ref,
+                            order_id=resp.get("orderid") if resp.get("status") == "success" else None,
+                            status="success" if resp.get("status") == "success" else "failed",
+                            initiator="admin",
+                            initiated_by=request.user
+                        )
+                        if resp.get("status") == "success":
+                            messages.success(request, "Airtime purchase successful")
+                        else:
+                            messages.error(request, f"ClubKonnect Error: {resp.get('message')}")
+
+                elif purchase_type == "DATA":
+                    variation_id = request.POST.get("variation")
+                    variation = DataVariation.objects.get(id=variation_id)
+                    amount = float(variation.selling_price)
+                    
+                    # 1. Debit wallet
+                    debit_success, msg = debit_wallet(user.id, amount, f"Admin Data Purchase: {variation.name}", initiator="admin", initiated_by=request.user)
+                    if not debit_success:
+                        messages.error(request, f"Debit failed: {msg}")
+                    else:
+                        # 2. Call ClubKonnect
+                        ref = f"ADM-DAT-{uuid.uuid4().hex[:8].upper()}"
+                        resp = client.buy_data(variation.service.service_id, variation.variation_id, beneficiary, ref)
+                        
+                        # 3. Create Purchase record
+                        Purchase.objects.create(
+                            user=user,
+                            purchase_type="DATA",
+                            data_variation=variation,
+                            amount=amount,
+                            beneficiary=beneficiary,
+                            reference=ref,
+                            order_id=resp.get("orderid") if resp.get("status") == "success" else None,
+                            status="success" if resp.get("status") == "success" else "failed",
+                            initiator="admin",
+                            initiated_by=request.user
+                        )
+                        if resp.get("status") == "success":
+                            messages.success(request, "Data purchase successful")
+                        else:
+                            messages.error(request, f"ClubKonnect Error: {resp.get('message')}")
+                
+            except Exception as e:
+                messages.error(request, f"Error: {str(e)}")
+            
+            return redirect("..")
+
+        # GET request: Show form
+        context = {
+            **self.admin_site.each_context(request),
+            "users": User.objects.all(),
+            "networks": AirtimeNetwork.objects.all(),
+            "variations": DataVariation.objects.filter(is_active=True).select_related('service'),
+            "title": "Perform Admin VTU Purchase"
+        }
+        return render(request, "admin/orders/admin_purchase.html", context)
+
     def has_change_permission(self, request, obj = ...):
         return False
 
@@ -274,7 +396,6 @@ class PurchaseAdmin(admin.ModelAdmin):
 @admin.register(AirtimeNetwork)
 class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
-        "id",
         "network_image",
         "service_name", 
         "service_id", 
