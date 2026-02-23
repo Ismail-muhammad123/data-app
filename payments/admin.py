@@ -9,22 +9,18 @@ from django.contrib import messages
 @admin.register(Deposit)
 class DepositAdmin(admin.ModelAdmin):
     list_display =[
-        "user", "amount", "status", "timestamp", "reference", "payment_type", "is_recieved", ]
+        "user", "amount", "status", "timestamp", "reference", "payment_type", "recieved", ]
     list_filter = ["status", "payment_type", "recieved", "timestamp"]
     search_fields = ["user__email", "user__phone_number", "reference"]
-    readonly_fields = ["user", "amount", "status", "timestamp", "reference", "payment_type", "is_recieved"]
+    readonly_fields = ["user", "amount", "status", "timestamp", "reference", "payment_type", "recieved"]
     fieldsets = (
         ("Transaction Details", {
             "fields": ("user", "amount", "payment_type", "reference", "timestamp")
         }),
         ("Status & Approval", {
-            "fields": ("status", "is_recieved")
+            "fields": ("status", "recieved")
         }),
     )
-
-    def is_recieved(self, obj):
-        return obj.is_recieved
-    is_recieved.short_description = "Recieved"
 
     def has_add_permission(self, request):
         return False
