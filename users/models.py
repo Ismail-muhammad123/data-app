@@ -262,7 +262,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         if self.is_closed:
             return f"{self.phone_number} (Closed)"
-        return f"{self.full_name if self.full_name else self.phone_number} ({self.tier})"
+        return self.full_name if self.full_name else self.phone_number
 
 class OTP(models.Model):
     PURPOSE_CHOICES = [

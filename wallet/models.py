@@ -17,7 +17,7 @@ class VirtualAccount(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.customer_name} - {self.account_number}"
+        return f"{self.user.full_name} - {self.account_number}"
 
 
 class Wallet(models.Model):
