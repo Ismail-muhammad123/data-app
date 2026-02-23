@@ -29,7 +29,7 @@ class Deposit(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     reference = models.CharField(max_length=100, unique=True)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPES, default="CREDIT")
-    approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS_OPTIONS, default="PENDING")
+    recieved = models.BooleanField(default=False)
     
     def __str__(self):
         return f"Deposit {self.amount} from {self.user}"

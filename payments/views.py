@@ -57,6 +57,8 @@ class PaymentWebhookView(APIView):
             credit_charge = config.crediting_charge if config else 0
             amount_to_fund = max(0, amount - float(credit_charge))
 
+            print(data)
+
             if data['authorization']['channel'] == 'dedicated_nuban':
                 """Handle dedicated account (virtual account) payment webhook."""
                 acc_num = data['authorization']['receiver_bank_account_number']
@@ -70,14 +72,18 @@ class PaymentWebhookView(APIView):
                         "payment_type":"CREDIT",
                     }
                 )
-                if not created:
-                    if not deposit.status == "SUCCESS":
+                if created:
+                    fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
+                    deposit.recieved = True
+                    deposit.save()
+                else:
+                    if deposit.status != "SUCCESS":
                         deposit.status = "SUCCESS"
                         deposit.amount = amount
-                        deposit.save()
                         fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
-                else:
-                    fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
+                        deposit.recieved = True
+                        deposit.save()
+                        
             else:
                 """Handle other payment method webhook."""
                 deposit = get_object_or_404(Deposit, reference=ref)

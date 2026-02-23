@@ -9,21 +9,41 @@ from django.contrib import messages
 @admin.register(Deposit)
 class DepositAdmin(admin.ModelAdmin):
     list_display =[
-        "user", "amount", "status", "timestamp", "reference", "payment_type", "approval_status", ]
-    list_filter = ["status", "payment_type", "approval_status", "timestamp"]
+        "user", "amount", "status", "timestamp", "reference", "payment_type", "is_recieved", ]
+    list_filter = ["status", "payment_type", "recieved", "timestamp"]
     search_fields = ["user__email", "user__phone_number", "reference"]
-    readonly_fields = ["user", "amount", "status", "timestamp", "reference", "payment_type", "approval_status"]
+    readonly_fields = ["user", "amount", "status", "timestamp", "reference", "payment_type", "is_recieved"]
     fieldsets = (
         ("Transaction Details", {
             "fields": ("user", "amount", "payment_type", "reference", "timestamp")
         }),
         ("Status & Approval", {
-            "fields": ("status", "approval_status")
+            "fields": ("status", "is_recieved")
         }),
     )
 
+    def is_recieved(self, obj):
+        return obj.is_recieved
+    is_recieved.short_description = "Recieved"
+
     def has_add_permission(self, request):
         return False
+
+
+    actions = ["verify_payment"]
+
+    def verify_payment(self, request, queryset):
+        for deposit in queryset:
+            if deposit.recieved == True:
+                continue
+            if deposit.status == "SUCCESS":
+                fund_wallet(deposit.user, deposit.amount, deposit.reference)
+                deposit.recieved = True
+                deposit.save()
+        messages.success(request, "Selected deposits approved successfully.")
+    verify_payment.short_description = "Verify selected deposits"
+
+    
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
