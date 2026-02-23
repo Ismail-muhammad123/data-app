@@ -33,9 +33,13 @@ class DepositAdmin(admin.ModelAdmin):
             if deposit.recieved == True:
                 continue
             if deposit.status == "SUCCESS":
-                fund_wallet(deposit.user, deposit.amount, deposit.reference)
-                deposit.recieved = True
-                deposit.save()
+                try:
+                    fund_wallet(deposit.user, deposit.amount, deposit.reference)
+                    deposit.recieved = True
+                    deposit.save()
+                except Exception as e:
+                    print(e)
+                    self.message_user(request, f"Error processing {deposit.reference}: {str(e)}", level=messages.ERROR)
         messages.success(request, "Selected deposits approved successfully.")
     verify_payment.short_description = "Verify selected deposits"
 
