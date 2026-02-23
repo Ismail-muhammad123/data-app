@@ -245,6 +245,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    is_closed = models.BooleanField(default=False)
+    closed_at = models.DateTimeField(blank=True, null=True)
+    closed_reason = models.TextField(blank=True, null=True)
+
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
 

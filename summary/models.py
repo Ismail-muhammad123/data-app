@@ -97,6 +97,7 @@ class SummaryDashboard(Wallet):
         config_data = {
             "withdrawal_charge": float(config.withdrawal_charge) if config else 0,
             "crediting_charge": float(config.crediting_charge) if config else 0,
+            "automatic_withdrawal": config.automatic_withdrawal if config else False,
             "vtu_funding_bank_name": config.vtu_funding_bank_name if config else "",
             "vtu_funding_account_number": config.vtu_funding_account_number if config else "",
             "vtu_funding_account_name": config.vtu_funding_account_name if config else "",
@@ -132,6 +133,7 @@ class SummaryDashboard(Wallet):
 class SiteConfig(models.Model):
     withdrawal_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     crediting_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    automatic_withdrawal = models.BooleanField(default=False, help_text="If enabled, withdrawals will be processed automatically via Paystack.")
     
     # VTU API Funding Details (The bank account to move money to for VTU funding)
     vtu_funding_bank_name = models.CharField(max_length=100, blank=True, null=True)

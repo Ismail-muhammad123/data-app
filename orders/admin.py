@@ -72,7 +72,7 @@ class ClubKonnectSyncMixin:
 
 @admin.register(DataService)
 class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
-    list_display= ["network_image", "service_name", "service_id", ]
+    list_display= ["network_image", "service_name", "service_id", "data_plans_count"]
     list_display_links = ["service_name", "network_image"]
     actions = ["sync_data_services", "sync_all_clubkonnect_services"]
     
@@ -85,6 +85,13 @@ class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
         return "#"
     network_image.short_description = "Preview"
 
+    def data_plans_count(self, obj):
+        from django.urls import reverse
+        count = obj.variations.count()
+        url = reverse('admin:orders_datavariation_changelist') + f'?service__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Plans</a>', url, count)
+    data_plans_count.short_description = "Packages"
+
 
 @admin.register(DataVariation)
 class DataVariationAdmin(admin.ModelAdmin):
@@ -93,6 +100,7 @@ class DataVariationAdmin(admin.ModelAdmin):
         "service",
         "selling_price",
         "is_active",
+        "sales_count",
         "updated_at",
     ]
 
@@ -101,7 +109,12 @@ class DataVariationAdmin(admin.ModelAdmin):
     search_fields = ["name", "service__service_name"]
     list_per_page = 50
 
-
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?data_variation__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Purchases</a>', url, count)
+    sales_count.short_description = "Purchases"
     
     actions = ["make_as_active"]
 
@@ -116,16 +129,31 @@ class ElectricityServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
+        "variation_count",
     ]
     list_display_links = ["service_name"]
     list_per_page= 100
     actions = ["sync_electricity_services", "sync_all_clubkonnect_services"]
 
+    def variation_count(self, obj):
+        from django.urls import reverse
+        count = obj.variations.count()
+        url = reverse('admin:orders_electricityvariation_changelist') + f'?service__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Types</a>', url, count)
+    variation_count.short_description = "Disco Types"
+
 @admin.register(ElectricityVariation)
 class ElectricityVariationAdmin(admin.ModelAdmin):
-    list_display = ["name", "service", "variation_id", "is_active"]
+    list_display = ["name", "service", "variation_id", "is_active", "sales_count"]
     list_filter = ["service", "is_active"]
     list_per_page = 50
+
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?electricity_variation__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Purchases</a>', url, count)
+    sales_count.short_description = "Purchases"
 
 
 @admin.register(TVService)
@@ -133,10 +161,18 @@ class TVServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
+        "variation_count",
     ]
     list_display_links = ["service_name"]
     list_per_page= 100
     actions = ["sync_cable_services", "sync_all_clubkonnect_services"]
+
+    def variation_count(self, obj):
+        from django.urls import reverse
+        count = obj.variations.count()
+        url = reverse('admin:orders_tvvariation_changelist') + f'?service__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Packages</a>', url, count)
+    variation_count.short_description = "Packages"
 
 
 @admin.register(TVVariation)
@@ -147,6 +183,7 @@ class TVVariationAdmin(admin.ModelAdmin):
         "variation_id",
         "selling_price",
         "is_active",
+        "sales_count",
         "created_at",
         "updated_at",
     ]
@@ -155,7 +192,12 @@ class TVVariationAdmin(admin.ModelAdmin):
     ordering = ["service__service_name", "name", "selling_price"]
     list_per_page = 50
 
-
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?tv_variation__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Purchases</a>', url, count)
+    sales_count.short_description = "Purchases"
     
     actions = ["make_as_active"]
 
@@ -172,6 +214,7 @@ class SmileVariationAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
         "variation_id",
         "selling_price",
         "is_active",
+        "sales_count",
         "created_at",
         "updated_at",
     ]
@@ -180,6 +223,13 @@ class SmileVariationAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     ordering = ["name", "selling_price"]
     list_per_page = 50
     actions = ["make_as_active", "sync_smile_services", "sync_all_clubkonnect_services"]
+
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?smile_variation__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Purchases</a>', url, count)
+    sales_count.short_description = "Purchases"
 
     def make_as_active(self, request, queryset):
         updated = queryset.update(is_active=True)
@@ -219,7 +269,7 @@ class PurchaseAdmin(admin.ModelAdmin):
             "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
         }),
     ]
-    list_filter = ["purchase_type", "status", "initiator", "time"]
+    list_filter = ["purchase_type", "status", "initiator", "time", "airtime_service", "data_variation", "electricity_service", "electricity_variation", "tv_variation", "smile_variation"]
     search_fields = ["user__email", "user__phone_number", "reference", "beneficiary"]
     list_per_page = 100    
     change_list_template = "admin/orders/purchase/change_list.html"
@@ -300,6 +350,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         from users.models import User
         from wallet.utils import debit_wallet
         from .services.clubkonnect import ClubKonnectClient
+        import uuid
 
         if request.method == "POST":
             user_id = request.POST.get("user")
@@ -327,7 +378,7 @@ class PurchaseAdmin(admin.ModelAdmin):
                         # 3. Create Purchase record
                         Purchase.objects.create(
                             user=user,
-                            purchase_type="AIRTIME",
+                            purchase_type="airtime",
                             airtime_service=network,
                             amount=amount,
                             beneficiary=beneficiary,
@@ -359,7 +410,7 @@ class PurchaseAdmin(admin.ModelAdmin):
                         # 3. Create Purchase record
                         Purchase.objects.create(
                             user=user,
-                            purchase_type="DATA",
+                            purchase_type="data",
                             data_variation=variation,
                             amount=amount,
                             beneficiary=beneficiary,
@@ -399,6 +450,7 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
         "network_image",
         "service_name", 
         "service_id", 
+        "sales_count",
     ]
 
     list_display_links = ["network_image","service_name"]
@@ -412,5 +464,12 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
             )
         return "#"
     network_image.short_description = "Preview"
+
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?airtime_service__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Sales</a>', url, count)
+    sales_count.short_description = "Sales"
 
     list_per_page= 100

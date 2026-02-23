@@ -44,8 +44,8 @@ class SummaryAdmin(admin.ModelAdmin):
 @admin.register(SiteConfig)
 class SiteConfigAdmin(admin.ModelAdmin):
     fieldsets = (
-        ("Universal Charges", {
-            "fields": ("withdrawal_charge", "crediting_charge")
+        ("Universal Charges & Settings", {
+            "fields": ("withdrawal_charge", "crediting_charge", "automatic_withdrawal")
         }),
         ("VTU Provider Funding Account", {
             "fields": ("vtu_funding_bank_name", "vtu_funding_account_number", "vtu_funding_account_name"),

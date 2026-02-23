@@ -149,13 +149,50 @@ class WithdrawalRequestView(generics.CreateAPIView):
         except ValueError as e:
             raise serializers.ValidationError({"error": str(e)})
 
-        serializer.save(
+        withdrawal = serializer.save(
             user=user,
             reference=f"WTH-{uuid.uuid4().hex[:10].upper()}",
             bank_code=withdrawal_account.bank_code,
             account_number=withdrawal_account.account_number,
             account_name=withdrawal_account.account_name,
         )
+
+        # Check if automatic withdrawal is enabled
+        config = SiteConfig.objects.first()
+        if config and config.automatic_withdrawal:
+            try:
+                charge = config.withdrawal_charge or 0
+                payout_amount_kobo = int((amount - charge) * 100)
+                
+                # Mimic admin approval logic: minimum 100 Naira (10000 kobo) after charge
+                if payout_amount_kobo >= 10000:
+                    paystack_client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+                    
+                    response = paystack_client.make_payout(
+                        name=withdrawal_account.account_name,
+                        account_number=withdrawal_account.account_number,
+                        bank_code=withdrawal_account.bank_code,
+                        amount=payout_amount_kobo,
+                        reason=f"Withdrawal for {user.phone_number}"
+                    )
+                    
+                    if response.get('status'):
+                        withdrawal.status = "APPROVED"
+                        withdrawal.transaction_status = "SUCCESS"
+                        if 'data' in response:
+                            withdrawal.transfer_code = response['data'].get('transfer_code')
+                        withdrawal.save()
+                else:
+                    # Amount too small for automatic processing, leave as PENDING for manual review
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Automatic withdrawal skipped for {withdrawal.reference}: Amount after charge (₦{payout_amount_kobo/100}) is below minimum ₦100.")
+                    
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Automatic withdrawal failed for {withdrawal.reference}: {str(e)}")
+                # We leave it as PENDING for manual review/processing
 
 class ChargesConfigView(APIView):
     permission_classes = [permissions.IsAuthenticated]
