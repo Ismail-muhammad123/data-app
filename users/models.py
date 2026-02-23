@@ -257,10 +257,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def full_name(self):
         names = [self.first_name, self.middle_name, self.last_name]
-        return " ".join(name for name in names if name)
+        return " ".join(name for name in names if name).strip()
 
     def __str__(self):
-        return self.phone_number
+        if self.is_closed:
+            return f"{self.phone_number} (Closed)"
+        return f"{self.full_name if self.full_name else self.phone_number} ({self.tier})"
 
 class OTP(models.Model):
     PURPOSE_CHOICES = [
