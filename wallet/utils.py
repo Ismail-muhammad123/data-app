@@ -15,7 +15,7 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None, in
             except Deposit.DoesNotExist:
                 pass
         wallet, created = Wallet.objects.get_or_create(user_id=user_id, defaults={'balance': 0.0})
-        wallet.balance = wallet.balance + amount
+        wallet.balance = float(wallet.balance) + float(amount)
         wallet.save()
         WalletTransaction.objects.create(
             user=wallet.user,
@@ -39,7 +39,7 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
         wallet, created = Wallet.objects.get_or_create(user_id=user_id, defaults={'balance': 0.0})
         if wallet.balance < amount:
             raise ValueError("Insufficient balance")
-        wallet.balance -= amount
+        wallet.balance = float(wallet.balance)- float(amount)
         wallet.save()
         WalletTransaction.objects.create(
             wallet=wallet,
@@ -47,7 +47,7 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
             amount=amount,
             timestamp=datetime.now(),
             description=description,
-            balance_before=wallet.balance+amount,
+            balance_before=float(wallet.balance)+ float(amount),
             balance_after=wallet.balance,
             initiator=initiator,
             initiated_by=initiated_by,
