@@ -228,14 +228,14 @@ class ClubKonnectClient:
             logger.error(f"ClubKonnect Smile purchase error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def verify_smile(self, phone):
+    def verify_smile(self, accountID):
         """
         Verify Smile account.
         """
         url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_smile']}"
         params = self._get_params(
             MobileNetwork="smile-direct",
-            MobileNumber=phone
+            AccountID=accountID
         )
         try:
             response = requests.get(url, params=params, timeout=self.timeout)

@@ -289,6 +289,7 @@ CLUBKONNECT_ENDPOINTS = {
     "cancel": "/APICancelV1.asp",
 
     # Smile
+    "verify_smile": "/APIVerifySmileV1.asp",
     "buy_smile": "/APISmileV1.asp",
     "smile_packages": "/APISmilePackagesV2.asp",
 

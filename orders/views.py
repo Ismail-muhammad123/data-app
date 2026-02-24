@@ -243,7 +243,7 @@ class VerifyCustomerView(APIView):
             if service_id in ["dstv", "gotv", "startimes"]:
                 resp = client.verify_tv(tv_id=service_id, smart_card_number=customer_id)
             elif service_id == "smile-direct":
-                resp = client.verify_smile(phone=customer_id)
+                resp = client.verify_smile(accountID=customer_id)
             else:
                 resp = client.verify_electricity(disco_id=service_id, meter_number=customer_id)
             # print("Customer Verification Response:", resp)  # TODO: Remove after testing
