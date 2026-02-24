@@ -243,7 +243,7 @@ class ClubKonnectClient:
             response.raise_for_status()
             data =  response.json()['content']
             return {
-                "customer_name": data.get("Customer_Name", "")
+                "Customer_Name": data.get("Customer_Name", "")
             }
         except Exception as e:
             logger.error(f"ClubKonnect Smile verification error: {e}")
