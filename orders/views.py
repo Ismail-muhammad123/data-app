@@ -230,12 +230,11 @@ class VerifyCustomerView(APIView):
     def post(self, request):
         service_id = request.data.get("service_id")
         customer_id = request.data.get("customer_id")
-        variation_id = request.data.get("variation_id")
-        meter_type = request.data.get("meter_type", "01")  
 
         if not service_id or not customer_id:
             return Response({"error": "service_id and customer_id are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        
         client = ClubKonnectClient()
 
         try:

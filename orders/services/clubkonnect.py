@@ -235,8 +235,9 @@ class ClubKonnectClient:
         url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_smile']}"
         params = self._get_params(
             MobileNetwork="smile-direct",
-            AccountID=accountID
+            MobileNumber=accountID
         )
+
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
