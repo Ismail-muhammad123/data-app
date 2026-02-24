@@ -241,7 +241,10 @@ class ClubKonnectClient:
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
-            return response.json()
+            data =  response.json()['content']
+            return {
+                "customer_name": data.get("Customer_Name", "")
+            }
         except Exception as e:
             logger.error(f"ClubKonnect Smile verification error: {e}")
             return {"status": "error", "message": str(e)}
