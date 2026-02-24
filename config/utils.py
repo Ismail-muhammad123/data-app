@@ -83,7 +83,7 @@ class TermiiClient:
         except Exception as e:
             print(f"Error sending WhatsApp OTP: {e}")
     
-    def send_otp_email(self, recipient_email: str, otp_code:  str):
+    def send_email_otp(self, recipient_email: str, otp_code:  str):
         url = f"{self.BASE_URL}/api/email/otp/send"
         payload = {
                     "api_key" : self.api_key,
@@ -97,8 +97,12 @@ class TermiiClient:
         response = requests.request("POST", url, headers=headers, json=payload)
         print(response.text)
 
-    
-
+    def get_balance(self) -> dict:
+        url = f"{self.BASE_URL}/api/get-balance?api_key={self.api_key}"
+        response = requests.get(url)
+        if response.ok:
+            return response.json()
+        return {"error": "Failed to get balance"}
 
 
 def send_sms_otp(phone_number, message):

@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from summary.views import get_api_wallet_balance, get_paystack_balance
+from summary.views import get_api_wallet_balance, get_paystack_balance, get_termii_balance
 from wallet.models import Wallet, WalletTransaction
 from payments.models import Deposit, Withdrawal
 from django.db.models import Q
@@ -74,8 +74,11 @@ class SummaryDashboard(Wallet):
         # PAYSTACK BALANCE (RESERVE)
         reserve_balance = get_paystack_balance() or 0.0
 
+        # TERMII BALANCE
+        termii_balance = get_termii_balance() or 0.0
+
         # TOTAL SYSTEM FUNDS
-        total_system_funds = vtu_balance + reserve_balance
+        total_system_funds = vtu_balance + reserve_balance + termii_balance
         
         # DEPOSITS
         deposits_summary = { 
@@ -126,6 +129,7 @@ class SummaryDashboard(Wallet):
             "withdrawals": withdrawals_summary,
             "api_wallet_balance": vtu_balance,
             "reserve_balance": reserve_balance,
+            "termii_balance": termii_balance,
             "total_system_funds": total_system_funds,
             "config": config_data,
         }

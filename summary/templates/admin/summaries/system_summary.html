@@ -230,15 +230,35 @@
             </div>
         </div>
 
+        <!-- Termii Balance -->
+        <div class="glass-card p-6 flex items-start justify-between border-l-4 border-blue-500">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Notifications</p>
+                <h3 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                    ₦{{ summary.termii_balance|floatformat:2|intcomma }}
+                </h3>
+                <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wider font-bold">
+                    Termii Balance</p>
+            </div>
+            <div class="metric-icon bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+            </div>
+        </div>
+
         <!-- Total System Funds -->
-        <div class="glass-card p-6 flex items-start justify-between bg-indigo-600 dark:bg-indigo-600 text-white">
+        <div
+            class="glass-card p-6 flex items-start justify-between bg-indigo-600 dark:bg-indigo-600 text-white border-l-4 border-indigo-400">
             <div>
                 <p class="text-sm font-medium opacity-80">Total System Funds</p>
                 <h3 class="text-2xl font-bold mt-1">
                     ₦{{ summary.total_system_funds|floatformat:2|intcomma }}
                 </h3>
                 <p class="text-[10px] opacity-70 mt-1 uppercase tracking-wider font-bold">
-                    VTU + Reserve</p>
+                    VTU + Reserve + Termii</p>
             </div>
             <div class="metric-icon bg-white/20 text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"

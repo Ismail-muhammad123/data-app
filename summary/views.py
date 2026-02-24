@@ -48,3 +48,18 @@ def get_paystack_balance():
 
 # I need requests in summary/views.py for the re-implementation
 import requests
+from config.utils import TermiiClient
+
+def get_termii_balance():
+    if not settings.TERMII_API_KEY:
+        return 0.0
+    
+    # We can use TermiiClient from config.utils because it has our new get_balance method
+    client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
+    try:
+        data = client.get_balance()
+        if "balance" in data:
+            return float(data["balance"])
+        return 0.0
+    except Exception:
+        return 0.0
