@@ -42,6 +42,10 @@ class UserCreationForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
+        # remove the first 0 in the users phone number
+        phone = user.phone_number 
+        if phone.startswith("0"):
+            user.phone_number = phone[1:]
         if commit:
             user.save()
         return user
@@ -66,6 +70,15 @@ class UserChangeForm(forms.ModelForm):
             'password',
         )
 
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        phone = user.phone_number 
+        if phone.startswith("0"):
+            user.phone_number = phone[1:]
+        if commit:
+            user.save()
+        return user
+    
 
 class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
@@ -82,12 +95,10 @@ class UserAdmin(BaseUserAdmin):
     ]
     readonly_fields = [
         "created_at",
-        "bvn",
-        "email_verified",
-        "phone_number_verified",
-        "is_verified"
     ]
     actions = ["create_virtual_account", "deactivate_user", "activate_user", "set_as_verified"]
+
+
 
     def wallet_balance(self, obj):
         from wallet.models import Wallet

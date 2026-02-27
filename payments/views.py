@@ -5,19 +5,21 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
-from .models import Deposit
+from .models import Deposit, Withdrawal, TransferRecipient
 from .utils import PaystackGateway
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from summary.models import SiteConfig
 
 import uuid
+import logging
 from rest_framework import status, permissions, generics, serializers
 from rest_framework.response import Response
-from .models import Withdrawal
 from .serializers import WithdrawalSerializer
 
 from wallet.utils import debit_wallet
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentWebhookView(APIView):
@@ -26,7 +28,6 @@ class PaymentWebhookView(APIView):
     """
     @method_decorator(csrf_exempt)  # since external POST
     def post(self, request, *args, **kwargs):
-        # client = MonnifyClient()
         client = PaystackGateway(
             settings.PAYSTACK_SECRET_KEY
         )
@@ -34,9 +35,6 @@ class PaymentWebhookView(APIView):
         is_verified = client.verify_webhook(request.body, request.headers['X-Paystack-Signature'])
     
 
-        # try:
-        # except ValueError as e:
-        #     
         if not is_verified:
             return HttpResponseBadRequest("Invalid signature")
 
@@ -96,10 +94,6 @@ class PaymentWebhookView(APIView):
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""
 
-
-            # {'event': 'dedicatedaccount.assign.success', 'data': {'customer': {'id': 325947837, 'first_name': 'Ismail', 'last_name': 'muhammmad', 'email': 'ismaeelmuhammad123@gmail.com', 'customer_code': 'CUS_icu86h5jyrlhgk2', 'phone': '+2348163351109', 'metadata': {}, 'risk_action': 'default', 'international_format_phone': '+2348163351109'}, 'dedicated_account': {'bank': {'name': 'Wema Bank', 'id': 20, 'slug': 'wema-bank'}, 'account_name': 'ASTARDATA/MUHAMMMAD ISMAIL', 'account_number': '9328428716', 'assigned': True, 'currency': 'NGN', 'metadata': None, 'active': True, 'id': 35159355, 'created_at': '2025-09-21T10:35:40.000Z', 'updated_at': '2025-12-21T08:57:48.000Z', 'assignment': {'assignee_id': 325947837, 'assignee_type': 'Customer', 'assigned_at': '2025-12-21T08:57:48.000Z', 'expired': False, 'expired_at': None, 'integration': 1622389, 'account_type': 'PAY-WITH-TRANSFER-RECURRING'}}}}
-
-
             User = get_user_model()
             customer = data['customer']
             user = get_object_or_404(User, email=customer['email'])
@@ -129,7 +123,88 @@ class PaymentWebhookView(APIView):
                 # upgrade user account tier to tier 2
                 user.tier = 2
                 user.save()
-        # ... handle other events you care about
+
+        elif event_type == "transfer.success":
+            """Handle successful transfer webhook (single or bulk)."""
+            transfer_code = data.get('transfer_code')
+            reference = data.get('reference')
+
+            if transfer_code:
+                withdrawal = Withdrawal.objects.filter(transfer_code=transfer_code).first()
+            elif reference:
+                withdrawal = Withdrawal.objects.filter(reference=reference).first()
+            else:
+                withdrawal = None
+
+            if withdrawal:
+                withdrawal.transaction_status = "SUCCESS"
+                if not withdrawal.transfer_code and transfer_code:
+                    withdrawal.transfer_code = transfer_code
+                withdrawal.save()
+                logger.info(f"Transfer success for withdrawal {withdrawal.reference}")
+            else:
+                logger.warning(f"Transfer success webhook received but no matching withdrawal found. "
+                             f"transfer_code={transfer_code}, reference={reference}")
+
+        elif event_type == "transfer.failed":
+            """Handle failed transfer webhook — refund user wallet."""
+            transfer_code = data.get('transfer_code')
+            reference = data.get('reference')
+
+            if transfer_code:
+                withdrawal = Withdrawal.objects.filter(transfer_code=transfer_code).first()
+            elif reference:
+                withdrawal = Withdrawal.objects.filter(reference=reference).first()
+            else:
+                withdrawal = None
+
+            if withdrawal:
+                withdrawal.transaction_status = "FAILED"
+                withdrawal.status = "REJECTED"
+                withdrawal.reason = data.get('reason', 'Transfer failed')
+                withdrawal.save()
+
+                # Refund the user's wallet
+                try:
+                    fund_wallet(
+                        withdrawal.user.id,
+                        withdrawal.amount,
+                        f"Refund: Transfer failed for {withdrawal.reference}",
+                    )
+                    logger.info(f"Wallet refunded for failed withdrawal {withdrawal.reference}")
+                except Exception as e:
+                    logger.error(f"Failed to refund wallet for {withdrawal.reference}: {str(e)}")
+            else:
+                logger.warning(f"Transfer failed webhook received but no matching withdrawal found. "
+                             f"transfer_code={transfer_code}, reference={reference}")
+
+        elif event_type == "transfer.reversed":
+            """Handle reversed transfer webhook — refund user wallet."""
+            transfer_code = data.get('transfer_code')
+            reference = data.get('reference')
+
+            if transfer_code:
+                withdrawal = Withdrawal.objects.filter(transfer_code=transfer_code).first()
+            elif reference:
+                withdrawal = Withdrawal.objects.filter(reference=reference).first()
+            else:
+                withdrawal = None
+
+            if withdrawal and withdrawal.transaction_status != "FAILED":
+                withdrawal.transaction_status = "FAILED"
+                withdrawal.status = "REJECTED"
+                withdrawal.reason = "Transfer reversed"
+                withdrawal.save()
+
+                try:
+                    fund_wallet(
+                        withdrawal.user.id,
+                        withdrawal.amount,
+                        f"Refund: Transfer reversed for {withdrawal.reference}",
+                    )
+                    logger.info(f"Wallet refunded for reversed withdrawal {withdrawal.reference}")
+                except Exception as e:
+                    logger.error(f"Failed to refund wallet for reversed {withdrawal.reference}: {str(e)}")
 
         return HttpResponse(status=200)
     
@@ -170,16 +245,25 @@ class WithdrawalRequestView(generics.CreateAPIView):
                 charge = config.withdrawal_charge or 0
                 payout_amount_kobo = int((amount - charge) * 100)
                 
-                # Mimic admin approval logic: minimum 100 Naira (10000 kobo) after charge
+                # Minimum 100 Naira (10000 kobo) after charge
                 if payout_amount_kobo >= 10000:
                     paystack_client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+
+                    # Look up cached recipient via withdrawal account
+                    recipient_code = None
+                    try:
+                        cached_recipient = withdrawal_account.transfer_recipient
+                        recipient_code = cached_recipient.recipient_code
+                    except TransferRecipient.DoesNotExist:
+                        pass
                     
                     response = paystack_client.make_payout(
                         name=withdrawal_account.account_name,
                         account_number=withdrawal_account.account_number,
                         bank_code=withdrawal_account.bank_code,
                         amount=payout_amount_kobo,
-                        reason=f"Withdrawal for {user.phone_number}"
+                        reason=f"Withdrawal for {user.phone_number}",
+                        recipient_code=recipient_code,
                     )
                     
                     if response.get('status'):
@@ -187,16 +271,33 @@ class WithdrawalRequestView(generics.CreateAPIView):
                         withdrawal.transaction_status = "SUCCESS"
                         if 'data' in response:
                             withdrawal.transfer_code = response['data'].get('transfer_code')
+
+                            # Cache the recipient if it was newly created
+                            if not recipient_code and response['data'].get('recipient_code'):
+                                TransferRecipient.objects.update_or_create(
+                                    withdrawal_account=withdrawal_account,
+                                    defaults={"recipient_code": response['data']['recipient_code']},
+                                )
+                            # If no recipient_code in transfer response, create one from Paystack
+                            elif not recipient_code:
+                                try:
+                                    r = paystack_client.create_recipient(
+                                        name=withdrawal_account.account_name,
+                                        account_number=withdrawal_account.account_number,
+                                        bank_code=withdrawal_account.bank_code,
+                                    )
+                                    TransferRecipient.objects.update_or_create(
+                                        withdrawal_account=withdrawal_account,
+                                        defaults={"recipient_code": r['data']['recipient_code']},
+                                    )
+                                except Exception:
+                                    pass  # Non-critical — caching failed but transfer succeeded
+
                         withdrawal.save()
                 else:
-                    # Amount too small for automatic processing, leave as PENDING for manual review
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.warning(f"Automatic withdrawal skipped for {withdrawal.reference}: Amount after charge (₦{payout_amount_kobo/100}) is below minimum ₦100.")
                     
             except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"Automatic withdrawal failed for {withdrawal.reference}: {str(e)}")
                 # We leave it as PENDING for manual review/processing
 

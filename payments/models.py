@@ -50,4 +50,21 @@ class Withdrawal(models.Model):
 
     def __str__(self):
         return f"Withdrawal {self.amount} by {self.user.full_name}"
-   
+
+
+class TransferRecipient(models.Model):
+    """
+    Caches a Paystack transfer recipient so it can be reused
+    for future transfers to the same withdrawal account.
+    Keyed by WithdrawalAccount — if bank info changes, the old
+    recipient is cascade-deleted and a new one is created.
+    """
+    withdrawal_account = models.OneToOneField(
+        'wallet.WithdrawalAccount', on_delete=models.CASCADE,
+        related_name='transfer_recipient'
+    )
+    recipient_code = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Recipient {self.recipient_code} for {self.withdrawal_account}"

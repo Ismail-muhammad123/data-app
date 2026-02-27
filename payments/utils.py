@@ -515,7 +515,30 @@ class PaystackGateway:
         return self._post("/transaction/initialize", payload)
 
     # ----------------------------------------
-    # 4. MAKE PAYOUT / TRANSFER
+    # 4. TRANSFER RECIPIENTS
+    # ----------------------------------------
+    def create_recipient(
+        self,
+        name: str,
+        account_number: str,
+        bank_code: str,
+        currency: str = "NGN",
+    ) -> Dict[str, Any]:
+        """
+        Create a Paystack transfer recipient.
+        Returns the full response including data.recipient_code.
+        """
+        payload = {
+            "type": "nuban",
+            "name": name,
+            "account_number": account_number,
+            "bank_code": bank_code,
+            "currency": currency,
+        }
+        return self._post("/transferrecipient", payload)
+
+    # ----------------------------------------
+    # 5. MAKE PAYOUT / SINGLE TRANSFER
     # ----------------------------------------
     def make_payout(
         self,
@@ -525,27 +548,29 @@ class PaystackGateway:
         amount: int,
         reason: Optional[str] = None,
         currency: str = "NGN",
+        recipient_code: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Makes a payout to a recipient bank account.
         Amount is in kobo (e.g., 5000 NGN = 500000 kobo).
+        If recipient_code is provided, skips recipient creation.
         """
         try:
-            # Step 1: Create transfer recipient
-            recipient_payload = {
-                "type": "nuban",
-                "name": name,
-                "account_number": account_number,
-                "bank_code": bank_code,
-                "currency": currency,
-            }
-            recipient = self._post("/transferrecipient", recipient_payload)
+            # Step 1: Use existing recipient or create a new one
+            if not recipient_code:
+                recipient = self.create_recipient(
+                    name=name,
+                    account_number=account_number,
+                    bank_code=bank_code,
+                    currency=currency,
+                )
+                recipient_code = recipient["data"]["recipient_code"]
 
             # Step 2: Initiate transfer
             transfer_payload = {
                 "source": "balance",
                 "amount": amount,
-                "recipient": recipient["data"]["recipient_code"],
+                "recipient": recipient_code,
             }
             if reason:
                 transfer_payload["reason"] = reason
@@ -558,6 +583,31 @@ class PaystackGateway:
             elif "balance" in error_msg.lower():
                 error_msg = f"Insufficient Paystack balance: {error_msg}"
             raise Exception(error_msg)
+
+    # ----------------------------------------
+    # 6. BULK TRANSFER
+    # ----------------------------------------
+    def initiate_bulk_transfer(
+        self,
+        transfers: list,
+        currency: str = "NGN",
+    ) -> Dict[str, Any]:
+        """
+        Send bulk transfer request to Paystack.
+        POST /transfer/bulk
+
+        transfers: list of dicts, each with:
+            - amount (int, in kobo)
+            - recipient (str, recipient_code)
+            - reference (str, unique)
+            - reason (str, optional)
+        """
+        payload = {
+            "source": "balance",
+            "currency": currency,
+            "transfers": transfers,
+        }
+        return self._post("/transfer/bulk", payload)
 
     # ----------------------------------------
     # 5. VERIFY TRANSACTION
