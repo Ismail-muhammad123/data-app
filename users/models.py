@@ -221,21 +221,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         (i[1], f"{i[0]} ({i[1]})") for i in country_phone_codes.items()
     ]
 
-    TIER_CHOICES = [
-        (1, "Tier One"),
-        (2, "Tier Two"),
-    ]
-
     first_name=models.CharField(max_length=225, blank=True, null=True)
     last_name=models.CharField(max_length=225, blank=True, null=True)
     middle_name=models.CharField(max_length=225, blank=True, null=True)
     phone_country_code = models.CharField(max_length=10, choices=country_code_choices, default="+234")
     phone_number = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
-
-    bvn = models.CharField(max_length=200, blank=True, null=True)
-
-    tier = models.PositiveIntegerField(default=1, choices=TIER_CHOICES)
 
     is_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)

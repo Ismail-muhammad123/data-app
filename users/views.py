@@ -147,43 +147,6 @@ class ProfileView(APIView):
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        
-        # Check if profile is now complete to trigger upgrade
-        user = request.user
-        if user.tier == 1 and user.first_name and user.last_name and user.middle_name and user.email and user.bvn:
-            # upgrade_account_response = upgrade_account(request)
-            try:
-                if user.tier == 2:
-                    return Response({"success": False,"error": "Account is already a tier two account"})
-
-                if not user.first_name or not user.last_name or not user.email or not user.bvn:
-                    return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
-
-                client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
-                
-                account_res = client.create_virtual_account(
-                    user.email,
-                    user.first_name,
-                    user.middle_name,
-                    user.last_name,
-                    user.phone_country_code + user.phone_number,
-                )
-
-                print(account_res)
-
-                if account_res is not None:
-                    return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
-                else:
-                    return Response({"success": False, "error": "Tier upgrade failed due to an unexpected error"}, status=500)
-     
-            except Exception as e:
-                print("Tier upgrade initiation failed:", str(e))
-                upgrade_account_response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            # Note: The actual tier upgrade happens in the webhook handler 
-            # after Paystack successfully assigns the dedicated account.
-            if not upgrade_account_response.data.get("success", False):
-                print("Tier upgrade initiation failed:", upgrade_account_response.data.get("error", "Unknown error"))
-        
         return Response(serializer.data)
 
 
@@ -273,15 +236,16 @@ def close_account(request):
 # ----------------------------------
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
-def upgrade_account(request):
+def generate_virtual_account(request):
     user = request.user
 
-    # Check if KYC and profile are complete
-    if user.tier == 2:
-        return Response({"success": False,"error": "Account is already a tier two account"})
+    # Check if a virtual account already exists
+    if hasattr(user, 'virtual_account'):
+        return Response({"success": False, "error": "User already has a virtual account"}, status=400)
 
-    if not user.first_name or not user.last_name or not user.email or not user.bvn:
-        return Response({"success": False,"error": "User profile information is incomplete."}, status=400)   
+    # Check if profile is complete enough for Paystack (Email and Names are required)
+    if not user.first_name or not user.last_name or not user.email:
+        return Response({"success": False, "error": "User profile information is incomplete. First name, last name, and email are required."}, status=400)   
 
     try:
         client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
@@ -289,17 +253,15 @@ def upgrade_account(request):
         account_res = client.create_virtual_account(
             user.email,
             user.first_name,
-            user.middle_name,
+            user.middle_name or "",
             user.last_name,
             user.phone_country_code + user.phone_number,
         )
 
-        print(account_res)
-
         if account_res is not None:
             return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
         else:
-            return Response({"success": False, "error": "Tier upgrade failed due to an unexpected error"}, status=500)
+            return Response({"success": False, "error": "Virtual account generation failed due to an unexpected error"}, status=500)
      
     except Exception as e:
         print(e)

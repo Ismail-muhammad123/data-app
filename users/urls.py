@@ -11,7 +11,7 @@ from .views import (
     ProfileView, 
     LogoutView,
     close_account, 
-    upgrade_account 
+    generate_virtual_account 
 )
 
 urlpatterns = [
@@ -29,7 +29,7 @@ urlpatterns = [
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("close-account/", close_account, name="close-account"),
-    path("upgrade-account/", upgrade_account, name="upgrade-account"),
+    path("generate-virtual-account/", generate_virtual_account, name="generate-virtual-account"),
 
     # # ADMIN ENDPOINTS
     # path("admins/", AdminUserViewSet.as_view({'get': 'retrieve','post': 'create', 'put': 'update'}), name="admins"),

@@ -101,8 +101,7 @@ class PaymentWebhookView(APIView):
             if user == None:
                 return HttpResponseBadRequest("User not found")
             
-            if user.tier == 2:
-                return HttpResponse("User already tier 2", status=200)
+
             
             acc= data['dedicated_account']
         
@@ -120,9 +119,8 @@ class PaymentWebhookView(APIView):
                     }
                 )
             
-                # upgrade user account tier to tier 2
-                user.tier = 2
-                user.save()
+                # user account tier logic removed as requested
+                pass
 
         elif event_type == "transfer.success":
             """Handle successful transfer webhook (single or bulk)."""

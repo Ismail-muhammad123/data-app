@@ -18,34 +18,31 @@ class TermiiClient:
     # -----------------------------------------
     def send_otp_sms(self, phone_number: str, message: str = "") -> dict:
         """
-        Send OTP via SMS using Termii's token endpoint.
-        - pin_attempts: number of tries allowed before expiry
-        - pin_time_to_live: validity in minutes
+        Send SMS via Termii's Number API.
+        Endpoint: https://v3.api.termii.com/api/sms/number/send
         """
-        url = f"{self.BASE_URL}/api/sms/send"
-        # print("Phone number before formatting:", phone_number)
+        url = f"{self.BASE_URL}/api/sms/number/send"
 
         if phone_number.startswith("+"):
             phone_number = phone_number[1:]
+            
         payload = {
-            "from": self.sender_id,
             "to": phone_number,
-           "sms": message ,
-           "type": "plain",
-           "channel": "generic",
-           "api_key": self.api_key,
+            "sms": message,
+            "api_key": self.api_key,
         }
-        # print(payload)
+        
         headers = {
             'Content-Type': 'application/json'
         }
+        
         response = requests.post(url, json=payload, headers=headers)
-        # print("SMS OTP res:", response.content)
         data = response.json()
+        
         if not response.ok:
-            raise Exception(f"OTP SMS failed: {data}")
+            raise Exception(f"SMS via Number API failed: {data}")
         else:
-            print(f"OTP SMS sent successfully to {phone_number}")
+            print(f"SMS sent successfully via Number API to {phone_number}")
         return data
        
 
@@ -109,12 +106,9 @@ def send_sms_otp(phone_number, message):
     """
     Send OTP via SMS using Termii
     :param phone_number: Recipient phone number (+234.... format)
-    :param otp: Generated OTP
+    :param message: The message to send
     """
-
-    # if settings.DEBUG:
-    #     phone_number = "+2348163351109"
-    # client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    print(f"DEBUG: Preparing to send SMS to {phone_number}")
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
 
     res = client.send_otp_sms(
@@ -126,13 +120,11 @@ def send_sms_otp(phone_number, message):
 
 def send_whatsapp_otp(phone_number, message):
     """
-    Send OTP via WhatsApp using Twilio
+    Send OTP via WhatsApp using Termii
     :param phone_number: Recipient WhatsApp number (+234.... format)
-    :param otp: Generated OTP
+    :param message: The message to send
     """
-    # if settings.DEBUG:
-    #     phone_number = "+2348082668519"
-
+    print(f"DEBUG: Preparing to send WhatsApp to {phone_number}")
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
 
     res = client.send_otp_whatsapp(
@@ -144,10 +136,10 @@ def send_whatsapp_otp(phone_number, message):
 
 def send_email_otp(email, otp):
     """
-    Send OTP via Email (using Django's email backend)
-    Requires EMAIL_BACKEND configured in settings.py
+    Send OTP via Email using Termii
     """
+    print(f"DEBUG: Preparing to send Email to {email}")
     client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID, settings.TERMII_EMAIL_CONFIG_ID)
 
-    client.send_otp_email(email, otp)
+    client.send_email_otp(email, otp)
     return True

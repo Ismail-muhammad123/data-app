@@ -86,7 +86,6 @@ class UserAdmin(BaseUserAdmin):
     list_display = [
         "full_name_and_phone",
         "email", 
-        "tier",
         "wallet_balance",
         "account_verification_status",
         "active_status", 
@@ -189,7 +188,7 @@ class UserAdmin(BaseUserAdmin):
             is_complete = all([obj.first_name, obj.last_name, obj.email])
             has_account = VirtualAccount.objects.filter(user=obj).exists()
 
-            if obj.tier == 1 and is_complete and not has_account:
+            if is_complete and not has_account:
                 try:
                     client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
                     phone = f"{obj.phone_country_code}{obj.phone_number}" if obj.phone_number else ""
@@ -211,11 +210,9 @@ class UserAdmin(BaseUserAdmin):
             else:
                 reason = ""
                 if not is_complete:
-                    reason = "Profile incomplete (missing name, email or BVN)"
+                    reason = "Profile incomplete (missing name or email)"
                 elif has_account:
                     reason = "Already has a virtual account"
-                elif obj.tier != 1:
-                    reason = f"Not Tier 1 (Current Tier: {obj.get_tier_display()})"
                 
                 error_msg = f"Skipped {obj.email or obj.phone_number}: {reason}"
                 logger.error(error_msg)
@@ -227,16 +224,16 @@ class UserAdmin(BaseUserAdmin):
             self.message_user(request, f"Successfully triggered virtual account creation for {success_count} users.")
         
     ordering = ['-created_at']
-    list_filter = ('is_active', 'is_staff', 'tier')
+    list_filter = ('is_active', 'is_staff')
     search_fields = ('first_name', 'last_name', 'email', "phone_number")
     filter_horizontal = ('groups', 'user_permissions',)
     fieldsets = (
         ('Authentication', {'fields': ('phone_country_code', 'phone_number', 'password')}),
         ("Personal Information", {
             'classes': ('wide',),
-            'fields': ('first_name', 'last_name', 'middle_name', 'email', 'bvn'),
+            'fields': ('first_name', 'last_name', 'middle_name', 'email'),
         }),
-        ("Account Level", {"fields": ("tier", "is_verified", "email_verified", "phone_number_verified")}),
+        ("Verification Status", {"fields": ("is_verified", "email_verified", "phone_number_verified")}),
         ('Permissions', {'fields': ('is_staff', 'is_superuser', 'is_active', 'groups', 'user_permissions')}),
         ('Important Dates', {'fields': ('created_at', )}),
         ('Account Status', {
@@ -266,7 +263,7 @@ class UserAdmin(BaseUserAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         
-        if obj.tier == 1 and obj.first_name and obj.last_name and obj.email and obj.bvn:
+        if obj.first_name and obj.last_name and obj.email:
             from wallet.models import VirtualAccount
             if not VirtualAccount.objects.filter(user=obj).exists():
                 try:

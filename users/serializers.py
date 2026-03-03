@@ -18,7 +18,16 @@ class SignupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["phone_country_code", "phone_number", "email", "pin"]
+        fields = [
+            "phone_country_code", "phone_number", "email", "pin",
+            "first_name", "last_name", "middle_name",
+        ]
+        extra_kwargs = {
+            "first_name": {"required": False},
+            "last_name": {"required": False},
+            "middle_name": {"required": False},
+            "email": {"required": False},
+        }
 
     def create(self, validated_data):
         pin = validated_data.pop("pin")
@@ -39,8 +48,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "phone_number", 
             "first_name", "last_name", "middle_name", 
             "email", 
-            "bvn",
-            "tier",
             "is_verified",
             "email_verified",
             "phone_number_verified",
@@ -52,7 +59,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "middle_name", "bvn"] 
+        fields = ["email", "first_name", "last_name", "middle_name"]
 
 
 

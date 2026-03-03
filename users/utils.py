@@ -11,6 +11,7 @@ def otp_expiry():
     return timezone.now() + timedelta(minutes=5)
 
 def send_otp_code(user, purpose, preferred_channel=None):
+    print(f"DEBUG: Processing OTP for user: {user} (ID: {user.id}) - Phone: {user.phone_number}")
     otp = generate_otp()
     expiry = otp_expiry()
 
