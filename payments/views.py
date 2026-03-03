@@ -215,25 +215,24 @@ class WithdrawalRequestView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        try:
-            withdrawal_account = user.withdrawal_account
-        except Exception:
-            raise serializers.ValidationError({"error": "No withdrawal account set up. Please set up a withdrawal account first."})
-
-        amount = serializer.validated_data['amount']
         
+        amount = serializer.validated_data['amount']
+        account_name = serializer.validated_data['account_name']
+        account_number = serializer.validated_data['account_number']
+        bank_name = serializer.validated_data['bank_name']
+        bank_code = serializer.validated_data['bank_code']
+        reason = serializer.validated_data.get('reason', f"Withdrawal for {user.phone_number}")
+
         try:
             # Debit wallet immediately to hold funds
-            debit_wallet(user.id, amount, f"Withdrawal Request")
+            debit_wallet(user.id, amount, "Withdrawal Request")
         except ValueError as e:
             raise serializers.ValidationError({"error": str(e)})
 
         withdrawal = serializer.save(
             user=user,
             reference=f"WTH-{uuid.uuid4().hex[:10].upper()}",
-            bank_code=withdrawal_account.bank_code,
-            account_number=withdrawal_account.account_number,
-            account_name=withdrawal_account.account_name,
+            # account_name, account_number, bank_name, bank_code, amount, and reason are already in validated_data
         )
 
         # Check if automatic withdrawal is enabled
@@ -247,20 +246,27 @@ class WithdrawalRequestView(generics.CreateAPIView):
                 if payout_amount_kobo >= 10000:
                     paystack_client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
 
-                    # Look up cached recipient via withdrawal account
+                    # Try to look up cached recipient ONLY if it matches user's saved withdrawal account
                     recipient_code = None
+                    withdrawal_account = None
                     try:
-                        cached_recipient = withdrawal_account.transfer_recipient
-                        recipient_code = cached_recipient.recipient_code
-                    except TransferRecipient.DoesNotExist:
+                        temp_withdrawal_account = user.withdrawal_account
+                        if (temp_withdrawal_account.account_number == account_number and 
+                            temp_withdrawal_account.bank_code == bank_code):
+                            withdrawal_account = temp_withdrawal_account
+                            try:
+                                recipient_code = withdrawal_account.transfer_recipient.recipient_code
+                            except Exception:
+                                pass
+                    except Exception:
                         pass
                     
                     response = paystack_client.make_payout(
-                        name=withdrawal_account.account_name,
-                        account_number=withdrawal_account.account_number,
-                        bank_code=withdrawal_account.bank_code,
+                        name=account_name,
+                        account_number=account_number,
+                        bank_code=bank_code,
                         amount=payout_amount_kobo,
-                        reason=f"Withdrawal for {user.phone_number}",
+                        reason=reason,
                         recipient_code=recipient_code,
                     )
                     
@@ -270,19 +276,19 @@ class WithdrawalRequestView(generics.CreateAPIView):
                         if 'data' in response:
                             withdrawal.transfer_code = response['data'].get('transfer_code')
 
-                            # Cache the recipient if it was newly created
-                            if not recipient_code and response['data'].get('recipient_code'):
+                            # Cache the recipient if it was newly created AND matches the user's saved account
+                            if withdrawal_account and not recipient_code and response['data'].get('recipient_code'):
                                 TransferRecipient.objects.update_or_create(
                                     withdrawal_account=withdrawal_account,
                                     defaults={"recipient_code": response['data']['recipient_code']},
                                 )
-                            # If no recipient_code in transfer response, create one from Paystack
-                            elif not recipient_code:
+                            # If no recipient_code in transfer response but we want to cache for future
+                            elif withdrawal_account and not recipient_code:
                                 try:
                                     r = paystack_client.create_recipient(
-                                        name=withdrawal_account.account_name,
-                                        account_number=withdrawal_account.account_number,
-                                        bank_code=withdrawal_account.bank_code,
+                                        name=account_name,
+                                        account_number=account_number,
+                                        bank_code=bank_code,
                                     )
                                     TransferRecipient.objects.update_or_create(
                                         withdrawal_account=withdrawal_account,

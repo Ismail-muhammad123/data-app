@@ -53,7 +53,7 @@ class DepositAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = ["user", "amount", "destiantion_account", "status", "transaction_status", "created_at"]
+    list_display = ["user", "amount", "destination_account", "status", "transaction_status", "created_at"]
     list_filter = ["status", "transaction_status", "created_at"]
     search_fields = ["user__email", "user__phone_number", "reference", "account_number", "account_name"]
     readonly_fields = ["user", "amount", "account_name", "account_number", "bank_code", "reference", "status", "transaction_status", "transfer_code", "created_at"]
@@ -70,9 +70,9 @@ class WithdrawalAdmin(admin.ModelAdmin):
     )
     actions = ["approve_withdrawal", "approve_withdrawal_bulk", "reject_withdrawal"]
 
-    def destiantion_account(self, obj):
-        return f"{obj.account_name} - {obj.account_number}"
-    destiantion_account.short_description = "Destination Account"
+    def destination_account(self, obj):
+        return f"{obj.account_name} | {obj.bank_name} - {obj.account_number}"
+    destination_account.short_description = "Destination Account"
 
     def has_add_permission(self, request):
         return False

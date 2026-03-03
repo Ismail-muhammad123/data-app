@@ -37,6 +37,7 @@ class Deposit(models.Model):
 class Withdrawal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawals')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    bank_name = models.CharField(max_length=100)
     bank_code = models.CharField(max_length=10)
     account_number = models.CharField(max_length=20)
     account_name = models.CharField(max_length=200)

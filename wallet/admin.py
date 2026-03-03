@@ -11,10 +11,14 @@ User = get_user_model()
 
 @admin.register(WithdrawalAccount)
 class WithdrawalAccountAdmin(admin.ModelAdmin):
-    list_display = ("user", "bank_name", "account_number", "account_name", "created_at")
+    list_display = ("user", "account_info", "created_at")
     search_fields = ("user__email", "user__phone_number", "account_number", "account_name")
     list_filter = ("bank_name", "created_at")
     readonly_fields = ("created_at",)
+
+    def account_info(self, obj):
+        return f"{obj.account_name} | {obj.bank_name} - {obj.account_number}"
+    account_info.short_description = "Account Information"
 
 @admin.register(VirtualAccount)
 class VirtualAccountAdmin(admin.ModelAdmin):

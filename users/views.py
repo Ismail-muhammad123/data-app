@@ -76,7 +76,7 @@ class SignupView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save(is_active=False)  # wait for OTP verification
-        send_otp_code(user, "activation")  # send OTP to email/phone/whatsapp
+        # send_otp_code(user, "activation")  # se   nd OTP to email/phone/whatsapp
 
 class ResendActivationCodeView(APIView):
     def post(self, request):

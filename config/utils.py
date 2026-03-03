@@ -19,16 +19,19 @@ class TermiiClient:
     def send_otp_sms(self, phone_number: str, message: str = "") -> dict:
         """
         Send SMS via Termii's Number API.
-        Endpoint: https://v3.api.termii.com/api/sms/number/send
+        Endpoint: https://v3.api.termii.com/api/sms/send
         """
-        url = f"{self.BASE_URL}/api/sms/number/send"
+        url = f"{self.BASE_URL}/api/sms/send"
 
         if phone_number.startswith("+"):
             phone_number = phone_number[1:]
             
         payload = {
             "to": phone_number,
+            "from": self.sender_id,
             "sms": message,
+            "type": "plain",
+            "channel": "generic",
             "api_key": self.api_key,
         }
         
