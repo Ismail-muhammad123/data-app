@@ -140,7 +140,7 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def put(self, request):
-        if request.user.email:
+        if request.user.email and request.data.get("email") and request.user.email != request.data.get("email"):
             users = User.objects.filter(email=request.data.get("email"), email_verified=True).exclude(id=request.user.id)
             if users.exists():
                 return Response({"error": "Email already in use."}, status=status.HTTP_400_BAD_REQUEST)
