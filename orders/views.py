@@ -424,6 +424,8 @@ class PurchaseSmileSubscriptionView(APIView):
         variation_id = serializer.validated_data["variation_id"]
         customer_id = serializer.validated_data["customer_id"]
 
+        print(serializer.validated_data)  # TODO: Remove after testing
+
         user = request.user
 
         wallet, _ = Wallet.objects.get_or_create(user=user)
