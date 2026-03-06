@@ -222,7 +222,6 @@ class ClubKonnectClient:
             
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
-            print("ClubKonnect Smile Purchase Response:", response.text) # TODO: Remove after testing
             response.raise_for_status()
             return response.json()
         except Exception as e:

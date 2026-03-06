@@ -451,11 +451,17 @@ class PurchaseSmileSubscriptionView(APIView):
             if not smile_variation:
                 return Response({"error": "Invalid Smile Package."}, status=status.HTTP_400_BAD_REQUEST)
 
+
+            # {"status":"TXN_HISTORY","transactionid":"2026030700376706830999","transactiondate":"3/7/2026 12:37:14 AM","status":"ORDER_RECEIVED","productname":"smile-direct-843","amount":"441","amountcredited":"","DataBundlePhoneNo":"2347020249942","paymentoption":"Wallet","walletbalance":"50616.578125"}
+            
             resp = client.buy_smile(
                 request_id=reference, 
                 plan_id=variation_id,
                 phone=phone_number,
             )
+
+            print("ClubKonnect Smile Purchase Response:", resp) # TODO: Remove after testing
+
 
             if resp.get("status") == "success":
                 # Step 1: Debit wallet
