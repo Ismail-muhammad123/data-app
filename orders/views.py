@@ -417,6 +417,7 @@ class PurchaseSmileSubscriptionView(APIView):
 
     def post(self, request):
         serializer = SmilePurchaseRequestSerializer(data=request.data)
+        print(request.data)  # TODO: Remove after testing   
         serializer.is_valid(raise_exception=True)
 
         amount = serializer.validated_data["amount"]
