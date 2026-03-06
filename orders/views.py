@@ -417,15 +417,23 @@ class PurchaseSmileSubscriptionView(APIView):
 
     def post(self, request):
         serializer = SmilePurchaseRequestSerializer(data=request.data)
-        print(request.data)  # TODO: Remove after testing   
         serializer.is_valid(raise_exception=True)
 
-        amount = serializer.validated_data["amount"]
-        service_id = serializer.validated_data["service_id"]
-        variation_id = serializer.validated_data["variation_id"]
-        customer_id = serializer.validated_data["customer_id"]
+        plan_id = serializer.validated_data["plan_id"]
+        phone_number = serializer.validated_data["phone_number"]
+
+        plan = SmileVariation.objects.filter(id=plan_id, is_active=True).first()
+        if not plan:
+            return Response({"error": "Invalid Smile Package."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        amount = plan.selling_price
+        variation_id = plan.variation_id
+
+        if phone_number.startswith("0"):
+            phone_number = "234" + phone_number[1:]
 
         print(serializer.validated_data)  # TODO: Remove after testing
+
 
         user = request.user
 
@@ -446,7 +454,7 @@ class PurchaseSmileSubscriptionView(APIView):
             resp = client.buy_smile(
                 request_id=reference, 
                 plan_id=variation_id,
-                phone=customer_id,
+                phone=phone_number,
             )
 
             if resp.get("status") == "success":
@@ -458,7 +466,7 @@ class PurchaseSmileSubscriptionView(APIView):
                     user=user,
                     purchase_type="smile",
                     smile_variation=smile_variation,
-                    beneficiary=customer_id,
+                    beneficiary=phone_number,
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,

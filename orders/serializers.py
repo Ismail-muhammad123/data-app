@@ -85,10 +85,8 @@ class TVPurchaseRequestSerializer(serializers.Serializer):
     variation_id = serializers.CharField(max_length=50)
 
 class SmilePurchaseRequestSerializer(serializers.Serializer):
-    amount = serializers.IntegerField()
-    service_id = serializers.CharField()
-    customer_id = serializers.CharField(max_length=50)
-    variation_id = serializers.CharField(max_length=50)
+    plan_id = serializers.IntegerField()
+    phone_number = serializers.CharField()
 
 class PurchaseSerializer(serializers.ModelSerializer):
     class Meta:
