@@ -102,9 +102,9 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "user",
         "wallet",
         "transaction_type",
+        "initiator",
+        "initiated_by",
         "amount",
-        "balance_before",
-        "balance_after",
         "reference",
         "timestamp",
     )
@@ -117,6 +117,8 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "initiator",
         "initiated_by",
     )
+
+        
 
     search_fields = ("user__username", "reference")
     list_filter = ("transaction_type", "initiator")

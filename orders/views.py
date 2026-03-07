@@ -245,7 +245,6 @@ class VerifyCustomerView(APIView):
                 resp = client.verify_smile(accountID=customer_id)
             else:
                 resp = client.verify_electricity(disco_id=service_id, meter_number=customer_id)
-            # print("Customer Verification Response:", resp)  # TODO: Remove after testing
             if isinstance(resp, dict):
                 # ClubKonnect returns customer name in 'customer_name' or similar
                 return Response(resp, status=status.HTTP_200_OK)
@@ -431,9 +430,6 @@ class PurchaseSmileSubscriptionView(APIView):
 
         if phone_number.startswith("0"):
             phone_number = "234" + phone_number[1:]
-
-        print(serializer.validated_data)  # TODO: Remove after testing
-
 
         user = request.user
 
