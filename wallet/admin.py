@@ -6,6 +6,7 @@ from decimal import Decimal
 import uuid
 from django.db import models, transaction
 from django.contrib.auth import get_user_model
+from django.utils.html import format_html
 
 User = get_user_model()
 
@@ -102,12 +103,12 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "user",
         "wallet",
         "transaction_type",
-        "initiator",
-        "initiated_by",
-        "amount",
+        "transaction_initiator",
+        "transaction_amount",
         "reference",
         "timestamp",
     )
+
     readonly_fields = (
         "wallet",
         "balance_before",
@@ -117,6 +118,27 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "initiator",
         "initiated_by",
     )
+
+
+    def transaction_amount(self, obj):
+        amount = "{:,.2f}".format(obj.amount)
+
+        if obj.transaction_type.lower() in ["credit", "deposit", "reversal"]:
+            return format_html("<span style='color:green;'>+ {}</span>", amount)
+
+        elif obj.transaction_type.lower() in ["debit", "withdrawal", "purchase"]:
+            return format_html("<span style='color:red;'>- {}</span>", amount)
+
+        return amount
+     
+    def transaction_initiator(self, obj):
+        if obj.initiator == "self":
+            return "Self Initiated"
+        elif obj.initiator == "admin":
+            return f"Admin: {obj.initiated_by}"
+        return obj.initiator
+
+
 
         
 

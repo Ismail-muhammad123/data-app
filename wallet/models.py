@@ -32,10 +32,8 @@ class Wallet(models.Model):
 
 class WalletTransaction(models.Model):
     TRANSACTION_TYPE_CHOICES = [
-        ('deposit', 'Deposit'),
-        ('withdrawal', 'Withdrawal'),
-        ('purchase', 'Purchase'),
-        ('reversal', 'Reversal')
+        ('credit', 'Credit'),
+        ('debit', 'debit'),
     ]
 
     INITIATOR_CHOICES = [
