@@ -474,6 +474,7 @@ class PurchaseSmileSubscriptionView(APIView):
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
+                print("Smile Purchase Response:", resp)  # TODO: Remove after testing
                 return Response({"error": resp.get("message", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Smile Subscription purchase failed: {str(e)}")
