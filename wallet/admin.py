@@ -168,15 +168,15 @@ class WalletTransactionAdmin(admin.ModelAdmin):
 
             obj.balance_before = wallet.balance
 
-            if obj.transaction_type in ['deposit', 'reversal']:
+            if obj.transaction_type.lower() in ['deposit', 'reversal', 'credit']:
                 fund_wallet(obj.user, obj.amount, reference=obj.reference, description=obj.description)
+                obj.balance_after = float(wallet.balance) + float(obj.amount)
                 # wallet.balance += obj.amount
-            elif obj.transaction_type in ['withdrawal', 'purchase']:
+            elif obj.transaction_type.lower() in ['withdrawal', 'purchase', 'debit']:
                 if wallet.balance < obj.amount:
                     raise ValueError("Insufficient funds")
                 debit_wallet(obj.user, obj.amount, reference=obj.reference, description=obj.description)
-
-            obj.balance_after = wallet.balance
+                obj.balance_after = float(wallet.balance) - float(obj.amount)
 
             # Save both atomically
             with transaction.atomic():
