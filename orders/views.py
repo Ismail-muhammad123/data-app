@@ -516,7 +516,7 @@ class QueryPurchaseStatusView(APIView):
         # Use reference as OrderID for querying
         client = ClubKonnectClient()
         try:
-            resp = client.query_transaction(order_id=purchase.reference)
+            resp = client.query_transaction(request_id=purchase.reference)
             logger.info(f"Manual query for purchase {purchase.reference}: {resp}")
 
             # Update purchase details
@@ -540,7 +540,7 @@ class QueryPurchaseStatusView(APIView):
 
                 if terminal_failure:
                     # 1. Send Cancel Request (reference is OrderID)
-                    cancel_resp = client.cancel_transaction(order_id=purchase.reference)
+                    cancel_resp = client.cancel_transaction(request_id=purchase.reference)
                     logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
                     purchase.provider_response["cancel_request_response"] = cancel_resp
                     purchase.save()

@@ -290,8 +290,8 @@ class PurchaseAdmin(admin.ModelAdmin):
         
         for purchase in queryset:
             try:
-                # Reference is the OrderID
-                resp = client.query_transaction(order_id=purchase.reference)
+                # Use reference as RequestID
+                resp = client.query_transaction(request_id=purchase.reference)
                 
                 # Update purchase details
                 purchase.provider_response = resp
@@ -315,8 +315,8 @@ class PurchaseAdmin(admin.ModelAdmin):
                     purchase.save()
 
                     if terminal_failure:
-                        # 1. Send Cancel Request (reference is OrderID)
-                        cancel_resp = client.cancel_transaction(order_id=purchase.reference)
+                        # 1. Send Cancel Request (reference is RequestID)
+                        cancel_resp = client.cancel_transaction(request_id=purchase.reference)
                         purchase.provider_response["cancel_request_response"] = cancel_resp
                         purchase.save()
 
@@ -341,7 +341,7 @@ class PurchaseAdmin(admin.ModelAdmin):
     def cancel_transaction_action(self, request, queryset):
         client = ClubKonnectClient()
         for purchase in queryset:
-            resp = client.cancel_transaction(order_id=purchase.reference)
+            resp = client.cancel_transaction(request_id=purchase.reference)
             if resp.get("status") == "success":
                 self.message_user(request, f"Cancelled {purchase.reference}: {resp.get('message')}")
             else:

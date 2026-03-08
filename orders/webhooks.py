@@ -59,9 +59,9 @@ def clubkonnect_callback(request):
 
             # Handle Fund Reversal on Failure
             if terminal_failure:
-                # 1. Send Cancel Request first (reference is the order_id)
+                # 1. Send Cancel Request first (reference is RequestID)
                 client = ClubKonnectClient()
-                cancel_resp = client.cancel_transaction(order_id=purchase.reference)
+                cancel_resp = client.cancel_transaction(request_id=purchase.reference)
                 logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
                 
                 # Update response to include cancel details

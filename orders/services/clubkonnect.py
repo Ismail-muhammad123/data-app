@@ -438,12 +438,20 @@ class ClubKonnectClient:
             logger.error(f"ClubKonnect query error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def cancel_transaction(self, order_id):
+    def cancel_transaction(self, order_id=None, request_id=None):
         """
-        Cancel transaction by OrderID.
+        Cancel transaction by OrderID or RequestID.
         """
         url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['cancel']}"
-        params = self._get_params(OrderID=order_id)
+        params = {}
+        if order_id:
+            params["OrderID"] = order_id
+        elif request_id:
+            params["RequestID"] = request_id
+        else:
+            return {"status": "error", "message": "Either OrderID or RequestID must be provided"}
+            
+        params = self._get_params(**params)
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
