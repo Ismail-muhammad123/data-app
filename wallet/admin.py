@@ -1,3 +1,5 @@
+from wallet.utils import debit_wallet, fund_wallet
+
 from .models import WalletTransaction, Wallet, VirtualAccount, WithdrawalAccount
 from django.contrib import messages, admin
 from django.utils import timezone
@@ -149,7 +151,7 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         return False
     
     def has_delete_permission(self, request, obj = ...):
-        return False
+        return request.user.is_superuser
 
     def save_model(self, request, obj, form, change):
         obj.user = form.cleaned_data["user"]
@@ -167,17 +169,18 @@ class WalletTransactionAdmin(admin.ModelAdmin):
             obj.balance_before = wallet.balance
 
             if obj.transaction_type in ['deposit', 'reversal']:
-                wallet.balance += obj.amount
+                fund_wallet(obj.user, obj.amount, reference=obj.reference, description=obj.description)
+                # wallet.balance += obj.amount
             elif obj.transaction_type in ['withdrawal', 'purchase']:
                 if wallet.balance < obj.amount:
                     raise ValueError("Insufficient funds")
-                wallet.balance -= obj.amount
+                debit_wallet(obj.user, obj.amount, reference=obj.reference, description=obj.description)
 
             obj.balance_after = wallet.balance
 
             # Save both atomically
             with transaction.atomic():
-                wallet.save(update_fields=["balance"])
+                # wallet.save(update_fields=["balance"])
                 obj.save()
                 messages.success(request, f"✅ Transaction applied and wallet updated for {obj.user} - {obj.user.phone_number}.")
         except Exception as e:
