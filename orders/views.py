@@ -140,10 +140,8 @@ class PurchaseDataVariationView(APIView):
                     data_variation=plan,
                     beneficiary=phone_number,
                     reference=reference,
-                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
-                    status_code=resp.get("statuscode"),
                     provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
@@ -212,10 +210,8 @@ class PurchaseAirtimeView(APIView):
                     airtime_service=network,
                     beneficiary=phone_number,
                     reference=reference,
-                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
-                    status_code=resp.get("statuscode"),
                     provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
@@ -317,11 +313,9 @@ class PurchaseElectricityView(APIView):
                     electricity_service=electricity_service,
                     beneficiary=customer_id,
                     reference=reference,
-                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
                     purchased_token=resp.get("metertoken"),  # assuming token is returned on success
-                    status_code=resp.get("statuscode"),
                     provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
@@ -399,10 +393,8 @@ class PurchaseTVSubscriptionView(APIView):
                     tv_variation=tv_variation,
                     beneficiary=customer_id,
                     reference=reference,
-                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
-                    status_code=resp.get("statuscode"),
                     provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
@@ -473,10 +465,8 @@ class PurchaseSmileSubscriptionView(APIView):
                     smile_variation=smile_variation,
                     beneficiary=phone_number,
                     reference=reference,
-                    order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
-                    status_code=resp.get("statuscode"),
                     provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
@@ -520,31 +510,27 @@ class QueryPurchaseStatusView(APIView):
         except Purchase.DoesNotExist:
             return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not purchase.order_id:
-            return Response({"error": "No order identifier available for this purchase."}, status=status.HTTP_400_BAD_REQUEST)
+        if not purchase.reference:
+            return Response({"error": "No reference available for this purchase."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Use reference as OrderID for querying
         client = ClubKonnectClient()
         try:
-            resp = client.query_transaction(order_id=purchase.order_id)
+            resp = client.query_transaction(order_id=purchase.reference)
             logger.info(f"Manual query for purchase {purchase.reference}: {resp}")
 
             # Update purchase details
             purchase.provider_response = resp
-            purchase.status_code = resp.get("statuscode")
-            purchase.order_remark = resp.get("orderremark")
+            status_code = resp.get("statuscode")
 
-            # Map Status Codes (Same logic as callback)
+            # Map Status Codes
             terminal_failure = False
-            status_code = purchase.status_code
 
             if status_code == "200":
                 purchase.status = "success"
             elif status_code in ["100", "101", "102"]:
-                # Keep as is or update to pending if it was failed incorrectly
                 purchase.status = "pending"
             else:
-                # If it was already failed/cancelled, we might not want to double refund.
-                # But for this implementation, we ensure it's terminal failure.
                 if purchase.status != "failed":
                     purchase.status = "failed"
                     terminal_failure = True
@@ -553,14 +539,13 @@ class QueryPurchaseStatusView(APIView):
                 purchase.save()
 
                 if terminal_failure:
-                    # 1. Send Cancel Request
-                    cancel_resp = client.cancel_transaction(purchase.order_id)
+                    # 1. Send Cancel Request (reference is OrderID)
+                    cancel_resp = client.cancel_transaction(order_id=purchase.reference)
                     logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
                     purchase.provider_response["cancel_request_response"] = cancel_resp
                     purchase.save()
 
                     # 2. Reverse funds
-                    logger.info(f"Initiating fund reversal for failed purchase {purchase.reference}")
                     fund_wallet(
                         user_id=purchase.user.id,
                         amount=purchase.amount,

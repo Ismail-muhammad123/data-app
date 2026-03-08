@@ -30,33 +30,20 @@ def clubkonnect_callback(request):
     order_id = data.get("orderid")
     request_id = data.get("requestid")
     status_code = data.get("statuscode")
-    order_status = data.get("orderstatus")
     order_remark = data.get("orderremark")
 
     try:
-        # Find the purchase record
-        if order_id:
-            purchase = Purchase.objects.filter(order_id=order_id).first()
-        elif request_id:
-            # ClubKonnect sometimes sends their own OrderID as 'requestid' or the original reference
-            purchase = Purchase.objects.filter(reference=request_id).first()
-        else:
-            return JsonResponse({"status": "ignored", "message": "No identifier provided"}, status=400)
-
+        # Find the purchase record (Reference is the OrderID)
+        purchase = Purchase.objects.filter(reference__in=[order_id, request_id]).first()
+        
         if not purchase:
             logger.warning(f"Purchase not found for callback: order_id={order_id}, request_id={request_id}")
             return JsonResponse({"status": "not_found"}, status=404)
 
         # Update purchase details
         purchase.provider_response = data
-        purchase.status_code = status_code
-        purchase.order_remark = order_remark
 
         # Map Status Codes
-        # 200: ORDER_COMPLETED
-        # 100, 101, 102: ORDER_RECEIVED / ORDER_ONHOLD (Pending)
-        # Everything else is usually a terminal failure
-        
         terminal_failure = False
         
         if status_code == "200":
@@ -72,19 +59,16 @@ def clubkonnect_callback(request):
 
             # Handle Fund Reversal on Failure
             if terminal_failure:
-                # 1. Send Cancel Request first as per instructions
-                if purchase.order_id:
-                    client = ClubKonnectClient()
-                    cancel_resp = client.cancel_transaction(purchase.order_id)
-                    logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
-                    
-                    # Update response to include cancel details
-                    purchase.provider_response["cancel_request_response"] = cancel_resp
-                    purchase.save()
+                # 1. Send Cancel Request first (reference is the order_id)
+                client = ClubKonnectClient()
+                cancel_resp = client.cancel_transaction(order_id=purchase.reference)
+                logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
+                
+                # Update response to include cancel details
+                purchase.provider_response["cancel_request_response"] = cancel_resp
+                purchase.save()
 
                 # 2. Reverse funds to user wallet
-                # Only refund if not already refunded (checking status or custom flag)
-                # Here we trust terminal_failure is only set once for this purchase logic-wise
                 logger.info(f"Initiating fund reversal for failed purchase {purchase.reference}")
                 fund_wallet(
                     user_id=purchase.user.id,

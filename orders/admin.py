@@ -255,24 +255,24 @@ class PurchaseAdmin(admin.ModelAdmin):
     
     readonly_fields = [
         "user", "purchase_type", "amount", "beneficiary", 
-        "status", "reference", "order_id", "time", 
+        "status", "reference", "time", 
         "initiator", "initiated_by", "airtime_service",
         "data_variation", "electricity_service", "tv_variation",
         "smile_variation",
-        "status_code", "order_remark", "provider_response"
+        "provider_response"
     ]
     fieldsets = [
         ("Purchase Details", {
             "fields": ("user", "purchase_type", "amount", "beneficiary", "service_name", "time")
         }),
         ("Transaction Status", {
-            "fields": ("status", "reference", "order_id", "initiator", "initiated_by")
+            "fields": ("status", "reference", "initiator", "initiated_by")
         }),
         ("Service Data", {
             "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
         }),
         ("Provider Response", {
-            "fields": ("status_code", "order_remark", "provider_response"),
+            "fields": ("provider_response",),
             "classes": ("collapse",),
         }),
     ]
@@ -289,22 +289,17 @@ class PurchaseAdmin(admin.ModelAdmin):
         failed_count = 0
         
         for purchase in queryset:
-            if not purchase.order_id:
-                self.message_user(request, f"Purchase {purchase.reference} has no OrderID", level='warning')
-                continue
-            
             try:
-                resp = client.query_transaction(order_id=purchase.order_id)
+                # Reference is the OrderID
+                resp = client.query_transaction(order_id=purchase.reference)
                 
                 # Update purchase details
                 purchase.provider_response = resp
-                purchase.status_code = resp.get("statuscode")
-                purchase.order_remark = resp.get("orderremark")
+                status_code = resp.get("statuscode")
 
                 # Map Status Codes
                 terminal_failure = False
-                status_code = purchase.status_code
-
+                
                 if status_code == "200":
                     purchase.status = "success"
                     success_count += 1
@@ -320,8 +315,8 @@ class PurchaseAdmin(admin.ModelAdmin):
                     purchase.save()
 
                     if terminal_failure:
-                        # 1. Send Cancel Request
-                        cancel_resp = client.cancel_transaction(purchase.order_id)
+                        # 1. Send Cancel Request (reference is OrderID)
+                        cancel_resp = client.cancel_transaction(order_id=purchase.reference)
                         purchase.provider_response["cancel_request_response"] = cancel_resp
                         purchase.save()
 
@@ -334,7 +329,7 @@ class PurchaseAdmin(admin.ModelAdmin):
                             initiated_by=request.user
                         )
                 
-                self.message_user(request, f"Updated {purchase.reference}: {purchase.status} ({purchase.order_remark})")
+                self.message_user(request, f"Updated {purchase.reference}: {purchase.status}")
             
             except Exception as e:
                 self.message_user(request, f"Error querying {purchase.reference}: {str(e)}", level='error')
@@ -346,15 +341,11 @@ class PurchaseAdmin(admin.ModelAdmin):
     def cancel_transaction_action(self, request, queryset):
         client = ClubKonnectClient()
         for purchase in queryset:
-            if not purchase.order_id:
-                self.message_user(request, f"Purchase {purchase.id} has no OrderID to cancel", level='warning')
-                continue
-            
-            resp = client.cancel_transaction(order_id=purchase.order_id)
+            resp = client.cancel_transaction(order_id=purchase.reference)
             if resp.get("status") == "success":
-                self.message_user(request, f"Cancelled {purchase.order_id}: {resp.get('message')}")
+                self.message_user(request, f"Cancelled {purchase.reference}: {resp.get('message')}")
             else:
-                self.message_user(request, f"Failed to cancel {purchase.order_id}: {resp.get('message')}", level='error')
+                self.message_user(request, f"Failed to cancel {purchase.reference}: {resp.get('message')}", level='error')
 
     cancel_transaction_action.short_description = "Cancel on ClubKonnect"
 
@@ -427,7 +418,6 @@ class PurchaseAdmin(admin.ModelAdmin):
                             amount=amount,
                             beneficiary=beneficiary,
                             reference=ref,
-                            order_id=resp.get("orderid") if resp.get("status") == "success" else None,
                             status="success" if resp.get("status") == "success" else "failed",
                             initiator="admin",
                             initiated_by=request.user
@@ -459,7 +449,6 @@ class PurchaseAdmin(admin.ModelAdmin):
                             amount=amount,
                             beneficiary=beneficiary,
                             reference=ref,
-                            order_id=resp.get("orderid") if resp.get("status") == "success" else None,
                             status="success" if resp.get("status") == "success" else "failed",
                             initiator="admin",
                             initiated_by=request.user

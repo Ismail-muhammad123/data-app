@@ -154,7 +154,6 @@ class Purchase(models.Model):
     tv_variation = models.ForeignKey(TVVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     smile_variation = models.ForeignKey(SmileVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     reference = models.CharField(max_length=100, unique=True)
-    order_id = models.CharField(max_length=100, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     beneficiary = models.CharField(max_length=20)
     purchased_token = models.CharField(max_length=255, null=True, blank=True)
@@ -162,9 +161,7 @@ class Purchase(models.Model):
     initiator = models.CharField(max_length=10, choices=INITIATOR_CHOICES, default="self")
     initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="initiated_purchases")
     
-    # Provider-specific fields
-    status_code = models.CharField(max_length=10, null=True, blank=True)
-    order_remark = models.CharField(max_length=255, null=True, blank=True)
+    # Provider-specific response data
     provider_response = models.JSONField(default=dict, blank=True)
     
     time = models.DateTimeField(auto_now=True)
