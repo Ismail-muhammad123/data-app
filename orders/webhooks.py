@@ -1,9 +1,32 @@
+import logging
+import json
+from django.http import JsonResponse
+from django.db import transaction as db_transaction
 from .models import Purchase
+from .services.clubkonnect import ClubKonnectClient
+from wallet.utils import fund_wallet
 
+logger = logging.getLogger(__name__)
 
 def clubkonnect_callback(request):
-    data = request.GET or request.POST
+    """
+    Callback handler for ClubKonnect transactions.
+    Supports both query string and JSON body payloads.
+    """
+    if request.method == "POST":
+        try:
+            # Try to parse JSON body if POST
+            data = json.loads(request.body.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # Fallback to POST parameters
+            data = request.POST.dict()
+    else:
+        # GET query string
+        data = request.GET.dict()
 
+    logger.info(f"ClubKonnect callback received: {data}")
+
+    print("Webhook data: ", data)
     order_id = data.get("orderid")
     request_id = data.get("requestid")
     status_code = data.get("statuscode")
@@ -11,24 +34,67 @@ def clubkonnect_callback(request):
     order_remark = data.get("orderremark")
 
     try:
+        # Find the purchase record
         if order_id:
-            purchase = Purchase.objects.get(order_id=order_id)
+            purchase = Purchase.objects.filter(order_id=order_id).first()
         elif request_id:
-            purchase = Purchase.objects.get(reference=request_id)
+            # ClubKonnect sometimes sends their own OrderID as 'requestid' or the original reference
+            purchase = Purchase.objects.filter(reference=request_id).first()
         else:
-            return JsonResponse({"status": "ignored", "message": "No identifier provided"})
+            return JsonResponse({"status": "ignored", "message": "No identifier provided"}, status=400)
 
+        if not purchase:
+            logger.warning(f"Purchase not found for callback: order_id={order_id}, request_id={request_id}")
+            return JsonResponse({"status": "not_found"}, status=404)
+
+        # Update purchase details
+        purchase.provider_response = data
+        purchase.status_code = status_code
+        purchase.order_remark = order_remark
+
+        # Map Status Codes
+        # 200: ORDER_COMPLETED
+        # 100, 101, 102: ORDER_RECEIVED / ORDER_ONHOLD (Pending)
+        # Everything else is usually a terminal failure
+        
+        terminal_failure = False
+        
         if status_code == "200":
             purchase.status = "success"
-        elif status_code in ["100", "101", "102"]: # Pending codes
+        elif status_code in ["100", "101", "102"]:
             purchase.status = "pending"
         else:
             purchase.status = "failed"
+            terminal_failure = True
 
-        purchase.save()
+        with db_transaction.atomic():
+            purchase.save()
 
-    except Purchase.DoesNotExist:
-        return JsonResponse({"status": "not_found"})
+            # Handle Fund Reversal on Failure
+            if terminal_failure:
+                # 1. Send Cancel Request first as per instructions
+                if purchase.order_id:
+                    client = ClubKonnectClient()
+                    cancel_resp = client.cancel_transaction(purchase.order_id)
+                    logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
+                    
+                    # Update response to include cancel details
+                    purchase.provider_response["cancel_request_response"] = cancel_resp
+                    purchase.save()
+
+                # 2. Reverse funds to user wallet
+                # Only refund if not already refunded (checking status or custom flag)
+                # Here we trust terminal_failure is only set once for this purchase logic-wise
+                logger.info(f"Initiating fund reversal for failed purchase {purchase.reference}")
+                fund_wallet(
+                    user_id=purchase.user.id,
+                    amount=purchase.amount,
+                    description=f"Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
+                )
+
+    except Exception as e:
+        logger.exception(f"Error handling ClubKonnect callback: {e}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
     return JsonResponse({"status": "received"})
 

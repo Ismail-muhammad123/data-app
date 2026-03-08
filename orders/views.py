@@ -1,4 +1,5 @@
 import uuid
+from django.db import transaction as db_transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, generics
@@ -141,7 +142,9 @@ class PurchaseDataVariationView(APIView):
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,
-                    status="success"
+                    status="success",
+                    status_code=resp.get("statuscode"),
+                    provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
@@ -211,7 +214,9 @@ class PurchaseAirtimeView(APIView):
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,
-                    status="success"
+                    status="success",
+                    status_code=resp.get("statuscode"),
+                    provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
 
@@ -315,7 +320,9 @@ class PurchaseElectricityView(APIView):
                     order_id=resp.get("orderid"),
                     amount=amount,
                     status="success",
-                    purchased_token=resp.get("metertoken")  # assuming token is returned on success
+                    purchased_token=resp.get("metertoken"),  # assuming token is returned on success
+                    status_code=resp.get("statuscode"),
+                    provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
@@ -394,7 +401,9 @@ class PurchaseTVSubscriptionView(APIView):
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,
-                    status="success"
+                    status="success",
+                    status_code=resp.get("statuscode"),
+                    provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
@@ -466,7 +475,9 @@ class PurchaseSmileSubscriptionView(APIView):
                     reference=reference,
                     order_id=resp.get("orderid"),
                     amount=amount,
-                    status="success"
+                    status="success",
+                    status_code=resp.get("statuscode"),
+                    provider_response=resp
                 )
                 return Response(PurchaseSerializer(transaction).data, status=status.HTTP_201_CREATED)
             else:
@@ -495,4 +506,70 @@ class PurchaseDetailsView(APIView):
             return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = PurchaseSerializer(purchase)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class QueryPurchaseStatusView(APIView):
+    """
+    Endpoint to manually query the final status of a transaction from ClubKonnect.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            purchase = Purchase.objects.get(pk=pk, user=request.user)
+        except Purchase.DoesNotExist:
+            return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not purchase.order_id:
+            return Response({"error": "No order identifier available for this purchase."}, status=status.HTTP_400_BAD_REQUEST)
+
+        client = ClubKonnectClient()
+        try:
+            resp = client.query_transaction(order_id=purchase.order_id)
+            logger.info(f"Manual query for purchase {purchase.reference}: {resp}")
+
+            # Update purchase details
+            purchase.provider_response = resp
+            purchase.status_code = resp.get("statuscode")
+            purchase.order_remark = resp.get("orderremark")
+
+            # Map Status Codes (Same logic as callback)
+            terminal_failure = False
+            status_code = purchase.status_code
+
+            if status_code == "200":
+                purchase.status = "success"
+            elif status_code in ["100", "101", "102"]:
+                # Keep as is or update to pending if it was failed incorrectly
+                purchase.status = "pending"
+            else:
+                # If it was already failed/cancelled, we might not want to double refund.
+                # But for this implementation, we ensure it's terminal failure.
+                if purchase.status != "failed":
+                    purchase.status = "failed"
+                    terminal_failure = True
+
+            with db_transaction.atomic():
+                purchase.save()
+
+                if terminal_failure:
+                    # 1. Send Cancel Request
+                    cancel_resp = client.cancel_transaction(purchase.order_id)
+                    logger.info(f"Cancel request for failed purchase {purchase.reference}: {cancel_resp}")
+                    purchase.provider_response["cancel_request_response"] = cancel_resp
+                    purchase.save()
+
+                    # 2. Reverse funds
+                    logger.info(f"Initiating fund reversal for failed purchase {purchase.reference}")
+                    fund_wallet(
+                        user_id=purchase.user.id,
+                        amount=purchase.amount,
+                        description=f"Refund: Manual query failed {purchase.purchase_type} purchase ({purchase.reference})",
+                    )
+
+            return Response(PurchaseSerializer(purchase).data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(f"Error querying purchase status: {e}")
+            return Response({"error": "Failed to query status from provider."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

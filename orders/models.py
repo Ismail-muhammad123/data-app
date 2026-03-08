@@ -161,6 +161,12 @@ class Purchase(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     initiator = models.CharField(max_length=10, choices=INITIATOR_CHOICES, default="self")
     initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="initiated_purchases")
+    
+    # Provider-specific fields
+    status_code = models.CharField(max_length=10, null=True, blank=True)
+    order_remark = models.CharField(max_length=255, null=True, blank=True)
+    provider_response = models.JSONField(default=dict, blank=True)
+    
     time = models.DateTimeField(auto_now=True)
 
 

@@ -9,6 +9,8 @@ from .services.clubkonnect import ClubKonnectClient
 from django.utils.html import format_html
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
+from django.db import transaction as db_transaction
+from wallet.utils import fund_wallet
 
 
 class ClubKonnectSyncMixin:
@@ -257,6 +259,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         "initiator", "initiated_by", "airtime_service",
         "data_variation", "electricity_service", "tv_variation",
         "smile_variation",
+        "status_code", "order_remark", "provider_response"
     ]
     fieldsets = [
         ("Purchase Details", {
@@ -268,8 +271,12 @@ class PurchaseAdmin(admin.ModelAdmin):
         ("Service Data", {
             "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
         }),
+        ("Provider Response", {
+            "fields": ("status_code", "order_remark", "provider_response"),
+            "classes": ("collapse",),
+        }),
     ]
-    list_filter = ["purchase_type", "status", "initiator", "time", "airtime_service", "data_variation", "electricity_service", "electricity_variation", "tv_variation", "smile_variation"]
+    list_filter = ["purchase_type", "status", "initiator", "time"]
     search_fields = ["user__email", "user__phone_number", "reference", "beneficiary"]
     list_per_page = 100    
     change_list_template = "admin/orders/purchase/change_list.html"
@@ -278,26 +285,63 @@ class PurchaseAdmin(admin.ModelAdmin):
 
     def query_status(self, request, queryset):
         client = ClubKonnectClient()
+        success_count = 0
+        failed_count = 0
+        
         for purchase in queryset:
-            if not purchase.order_id and not purchase.reference:
-                self.message_user(request, f"Purchase {purchase.id} has no OrderID or Reference", level='warning')
+            if not purchase.order_id:
+                self.message_user(request, f"Purchase {purchase.reference} has no OrderID", level='warning')
                 continue
             
-            resp = client.query_transaction(order_id=purchase.order_id, request_id=purchase.reference)
-            if resp.get("status") == "success":
-                status_code = resp.get("statuscode")
+            try:
+                resp = client.query_transaction(order_id=purchase.order_id)
+                
+                # Update purchase details
+                purchase.provider_response = resp
+                purchase.status_code = resp.get("statuscode")
+                purchase.order_remark = resp.get("orderremark")
+
+                # Map Status Codes
+                terminal_failure = False
+                status_code = purchase.status_code
+
                 if status_code == "200":
                     purchase.status = "success"
+                    success_count += 1
                 elif status_code in ["100", "101", "102"]:
                     purchase.status = "pending"
                 else:
-                    purchase.status = "failed"
-                purchase.save()
-                self.message_user(request, f"Updated {purchase.reference}: {resp.get('orderstatus')}")
-            else:
-                self.message_user(request, f"Failed to query {purchase.reference}: {resp.get('message')}", level='error')
+                    if purchase.status != "failed":
+                        purchase.status = "failed"
+                        terminal_failure = True
+                        failed_count += 1
 
-    query_status.short_description = "Check status from ClubKonnect"
+                with db_transaction.atomic():
+                    purchase.save()
+
+                    if terminal_failure:
+                        # 1. Send Cancel Request
+                        cancel_resp = client.cancel_transaction(purchase.order_id)
+                        purchase.provider_response["cancel_request_response"] = cancel_resp
+                        purchase.save()
+
+                        # 2. Reverse funds
+                        fund_wallet(
+                            user_id=purchase.user.id,
+                            amount=purchase.amount,
+                            description=f"Refund: Admin check failed {purchase.purchase_type} purchase ({purchase.reference})",
+                            initiator="admin",
+                            initiated_by=request.user
+                        )
+                
+                self.message_user(request, f"Updated {purchase.reference}: {purchase.status} ({purchase.order_remark})")
+            
+            except Exception as e:
+                self.message_user(request, f"Error querying {purchase.reference}: {str(e)}", level='error')
+
+        self.message_user(request, f"Query completed. Found {success_count} success and {failed_count} terminal failures.")
+
+    query_status.short_description = "Recheck Status"
 
     def cancel_transaction_action(self, request, queryset):
         client = ClubKonnectClient()

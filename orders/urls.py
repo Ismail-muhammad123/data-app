@@ -29,11 +29,16 @@ from orders.views import (
 
         # Purchase History Views
         PurchaseHistoryView, 
-        PurchaseDetailsView 
+        PurchaseDetailsView,
+        QueryPurchaseStatusView 
     )
-
+from .webhooks import clubkonnect_callback
 
 urlpatterns = [
+    # Status & Callback
+    path("purchase-status/<int:pk>/", QueryPurchaseStatusView.as_view(), name="query-purchase-status"),
+    path("clubkonnect-callback/", clubkonnect_callback, name="clubkonnect-callback"),
+
     # Data Services
     path("data-networks/", DataServicesListView.as_view(), name="list-data-networks"),
     path("data-plans/", DataVariationsListView.as_view(), name="list-plans"),
