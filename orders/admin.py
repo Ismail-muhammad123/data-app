@@ -281,7 +281,36 @@ class PurchaseAdmin(admin.ModelAdmin):
     list_per_page = 100    
     change_list_template = "admin/orders/purchase/change_list.html"
 
-    actions = ["query_status", "cancel_transaction_action"]
+    actions = ["query_status", "cancel_transaction_action", "cancel_and_refund"]
+
+    def cancel_and_refund(self, request, queryset):
+        client = ClubKonnectClient()
+        for purchase in queryset:
+            if purchase.status == "failed":
+                self.message_user(request, f"Purchase {purchase.reference} is already failed.", level='warning')
+                continue
+
+            try:
+                cancel_resp = client.cancel_transaction(request_id=purchase.reference)
+                purchase.provider_response["admin_cancel_request"] = cancel_resp
+                
+                with db_transaction.atomic():
+                    purchase.status = "failed"
+                    purchase.save()
+
+                    fund_wallet(
+                        user_id=purchase.user.id,
+                        amount=purchase.amount,
+                        description=f"Refund: Admin cancelled {purchase.purchase_type} purchase ({purchase.reference})",
+                        initiator="admin",
+                        initiated_by=request.user
+                    )
+                
+                self.message_user(request, f"Successfully cancelled and refunded {purchase.reference}")
+            except Exception as e:
+                self.message_user(request, f"Error processing {purchase.reference}: {str(e)}", level='error')
+
+    cancel_and_refund.short_description = "Cancel Purchase and Refund"
 
     def query_status(self, request, queryset):
         client = ClubKonnectClient()
