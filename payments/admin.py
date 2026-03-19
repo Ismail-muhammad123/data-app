@@ -78,7 +78,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
+    
+    def has_delete_permission(self, request, obj = ...):
+        return request.user.is_superuser
 
     def available_balance(self, obj):
         return obj.user.wallet.balance
@@ -89,18 +92,18 @@ class WithdrawalAdmin(admin.ModelAdmin):
         Look up or create a Paystack transfer recipient for this withdrawal.
         Returns the recipient_code string.
         """
-        try:
-            withdrawal_account = withdrawal.user.withdrawal_account
-        except Exception:
-            withdrawal_account = None
+        # try:
+        #     withdrawal_account = withdrawal.user.withdrawal_account
+        # except Exception:
+        #     withdrawal_account = None
 
-        # Try to find a cached recipient via the user's withdrawal account
-        if withdrawal_account:
-            try:
-                cached = withdrawal_account.transfer_recipient
-                return cached.recipient_code
-            except TransferRecipient.DoesNotExist:
-                pass
+        # # Try to find a cached recipient via the user's withdrawal account
+        # if withdrawal_account:
+        #     try:
+        #         cached = withdrawal_account.transfer_recipient
+        #         return cached.recipient_code
+        #     except TransferRecipient.DoesNotExist:
+        #         pass
 
         # Create a new recipient on Paystack
         response = paystack.create_recipient(
@@ -110,56 +113,56 @@ class WithdrawalAdmin(admin.ModelAdmin):
         )
         recipient_code = response["data"]["recipient_code"]
 
-        # Cache it if the user has a withdrawal account
-        if withdrawal_account:
-            TransferRecipient.objects.update_or_create(
-                withdrawal_account=withdrawal_account,
-                defaults={"recipient_code": recipient_code},
-            )
+        # # Cache it if the user has a withdrawal account
+        # if withdrawal_account:
+        #     TransferRecipient.objects.update_or_create(
+        #         withdrawal_account=withdrawal_account,
+        #         defaults={"recipient_code": recipient_code},
+        #     )
 
         return recipient_code
 
-    def approve_withdrawal(self, request, queryset):
-        """Approve withdrawals one by one (single transfers)."""
-        config = SiteConfig.objects.first()
-        charge = config.withdrawal_charge if config else 0
+    # def approve_withdrawal(self, request, queryset):
+    #     """Approve withdrawals one by one (single transfers)."""
+    #     config = SiteConfig.objects.first()
+    #     charge = config.withdrawal_charge if config else 0
         
-        paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+    #     paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
         
-        success_count = 0
-        for withdrawal in queryset.filter(status="PENDING"):
-            try:
-                payout_amount_kobo = int((withdrawal.amount - charge) * 100)
-                if payout_amount_kobo < 10000:
-                    withdrawal.status = "REJECTED"
-                    withdrawal.reason = "Amount after charge is non-positive"
-                    withdrawal.save()
-                    self.message_user(request, f"Withdrawal {withdrawal.reference} rejected: Amount after charge is less than minimum withdrawal amount")
-                    fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
-                    continue
+    #     success_count = 0
+    #     for withdrawal in queryset.filter(status="PENDING"):
+    #         try:
+    #             payout_amount_kobo = int((withdrawal.amount - charge) * 100)
+    #             if payout_amount_kobo < 10000:
+    #                 withdrawal.status = "REJECTED"
+    #                 withdrawal.reason = "Amount after charge is non-positive"
+    #                 withdrawal.save()
+    #                 self.message_user(request, f"Withdrawal {withdrawal.reference} rejected: Amount after charge is less than minimum withdrawal amount")
+    #                 fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
+    #                 continue
 
-                recipient_code = self._get_or_create_recipient(paystack, withdrawal)
+    #             recipient_code = self._get_or_create_recipient(paystack, withdrawal)
 
-                response = paystack.make_payout(
-                    name=withdrawal.account_name,
-                    account_number=withdrawal.account_number,
-                    bank_code=withdrawal.bank_code,
-                    amount=payout_amount_kobo,
-                    reason=f"Withdrawal {withdrawal.reference}",
-                    recipient_code=recipient_code,
-                )
+    #             response = paystack.make_payout(
+    #                 name=withdrawal.account_name,
+    #                 account_number=withdrawal.account_number,
+    #                 bank_code=withdrawal.bank_code,
+    #                 amount=payout_amount_kobo,
+    #                 reason=f"Withdrawal {withdrawal.reference}",
+    #                 recipient_code=recipient_code,
+    #             )
                 
-                withdrawal.status = "APPROVED"
-                withdrawal.transaction_status = "SUCCESS"
-                withdrawal.transfer_code = response.get("data", {}).get("transfer_code")
-                withdrawal.save()
-                success_count += 1
+    #             withdrawal.status = "APPROVED"
+    #             withdrawal.transaction_status = "SUCCESS"
+    #             withdrawal.transfer_code = response.get("data", {}).get("transfer_code")
+    #             withdrawal.save()
+    #             success_count += 1
                 
-            except Exception as e:
-                self.message_user(request, f"Error processing {withdrawal.reference}: {str(e)}", level=messages.ERROR)
+    #         except Exception as e:
+    #             self.message_user(request, f"Error processing {withdrawal.reference}: {str(e)}", level=messages.ERROR)
         
-        self.message_user(request, f"Successfully approved {success_count} withdrawal(s).")
-    approve_withdrawal.short_description = "Approve selected withdrawals (single transfers)"
+    #     self.message_user(request, f"Successfully approved {success_count} withdrawal(s).")
+    # approve_withdrawal.short_description = "Approve selected withdrawals (single transfers)"
 
     def approve_withdrawal_bulk(self, request, queryset):
         """Approve multiple withdrawals via a single Paystack bulk transfer."""
