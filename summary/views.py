@@ -9,7 +9,7 @@ def get_api_wallet_balance():
     if balance and isinstance(balance, dict):
         try:
             balance_amount = balance.get("balance", 0)
-            balance_amount = float(str(balance_amount).replace(',', ''))
+            # balance_amount = float(str(balance_amount).replace(',', ''))
             return balance_amount
         except (TypeError, ValueError):
             return "Not Found"
