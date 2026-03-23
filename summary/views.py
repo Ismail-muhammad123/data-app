@@ -7,14 +7,14 @@ def get_api_wallet_balance():
     balance = client.get_balance()
 
     if balance and isinstance(balance, dict):
-        balance_amount = balance.get("balance", 0)
-        balance_amount = float(balance_amount.replace(',', ''))
         try:
+            balance_amount = balance.get("balance", 0)
+            balance_amount = float(str(balance_amount).replace(',', ''))
             return balance_amount
         except (TypeError, ValueError):
-            return 0.0
+            return "Not Found"
     
-    return 0.0
+    return "Not Found"
 
 def get_paystack_balance():
     secret_key = settings.PAYSTACK_SECRET_KEY
