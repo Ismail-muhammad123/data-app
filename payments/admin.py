@@ -59,13 +59,13 @@ class WithdrawalAdmin(admin.ModelAdmin):
     readonly_fields = ["user", "amount", "account_name", "account_number", "bank_code", "reference", "status", "transaction_status", "transfer_code", "created_at"]
     fieldsets = (
         ("Request Information", {
-            "fields": ("user", "amount", "reference", "created_at")
+            "fields": ("user", "amount", "reference",  "transfer_code", "created_at")
         }),
         ("Destination Account", {
             "fields": ("account_name", "account_number", "bank_code")
         }),
         ("Transaction Status", {
-            "fields": ("status", "transaction_status", "transfer_code")
+            "fields": ("status", "transaction_status",)
         }),
     )
     actions = ["approve_withdrawal", "approve_withdrawal_bulk", "reject_withdrawal"]
@@ -85,6 +85,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
     def available_balance(self, obj):
         return obj.user.wallet.balance
+    
     available_balance.short_description = "Available Balance"
 
     def _get_or_create_recipient(self, paystack, withdrawal):

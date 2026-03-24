@@ -2,7 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from payments.models import Deposit
-from .models import Wallet, WithdrawalAccount
+from .models import VirtualAccount, Wallet, WithdrawalAccount
 from .serializers import (
     VirtualAccountSerializer, WalletSerializer, WalletTransactionSerializer,
     WithdrawalAccountSerializer, ResolveAccountSerializer
@@ -28,7 +28,7 @@ class VirtualAccountDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user.virtual_account
+        return VirtualAccount.objects.filter(user=self.request.user).first()
 
 # Bank List
 class BankListView(APIView):

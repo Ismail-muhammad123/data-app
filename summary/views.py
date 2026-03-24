@@ -5,6 +5,8 @@ from django.conf import settings
 def get_api_wallet_balance():
     client = ClubKonnectClient()
     balance = client.get_balance()
+    print("API Wallet Balance:", balance)  # Debugging statement
+    print("API Wallet Balance Type:", type(balance))  # Debugging statement
 
     if balance and isinstance(balance, dict):
         try:
