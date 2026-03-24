@@ -123,120 +123,120 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
         return recipient_code
 
-    # def approve_withdrawal(self, request, queryset):
-    #     """Approve withdrawals one by one (single transfers)."""
-    #     config = SiteConfig.objects.first()
-    #     charge = config.withdrawal_charge if config else 0
-        
-    #     paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
-        
-    #     success_count = 0
-    #     for withdrawal in queryset.filter(status="PENDING"):
-    #         try:
-    #             payout_amount_kobo = int((withdrawal.amount - charge) * 100)
-    #             if payout_amount_kobo < 10000:
-    #                 withdrawal.status = "REJECTED"
-    #                 withdrawal.reason = "Amount after charge is non-positive"
-    #                 withdrawal.save()
-    #                 self.message_user(request, f"Withdrawal {withdrawal.reference} rejected: Amount after charge is less than minimum withdrawal amount")
-    #                 fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
-    #                 continue
-
-    #             recipient_code = self._get_or_create_recipient(paystack, withdrawal)
-
-    #             response = paystack.make_payout(
-    #                 name=withdrawal.account_name,
-    #                 account_number=withdrawal.account_number,
-    #                 bank_code=withdrawal.bank_code,
-    #                 amount=payout_amount_kobo,
-    #                 reason=f"Withdrawal {withdrawal.reference}",
-    #                 recipient_code=recipient_code,
-    #             )
-                
-    #             withdrawal.status = "APPROVED"
-    #             withdrawal.transaction_status = "SUCCESS"
-    #             withdrawal.transfer_code = response.get("data", {}).get("transfer_code")
-    #             withdrawal.save()
-    #             success_count += 1
-                
-    #         except Exception as e:
-    #             self.message_user(request, f"Error processing {withdrawal.reference}: {str(e)}", level=messages.ERROR)
-        
-    #     self.message_user(request, f"Successfully approved {success_count} withdrawal(s).")
-    # approve_withdrawal.short_description = "Approve selected withdrawals (single transfers)"
-
-    def approve_withdrawal_bulk(self, request, queryset):
-        """Approve multiple withdrawals via a single Paystack bulk transfer."""
+    def approve_withdrawal(self, request, queryset):
+        """Approve withdrawals one by one (single transfers)."""
         config = SiteConfig.objects.first()
         charge = config.withdrawal_charge if config else 0
-
+        
         paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
-
-        pending_withdrawals = queryset.filter(status="PENDING")
-        transfers = []
-        valid_withdrawals = []
-
-        for withdrawal in pending_withdrawals:
-            payout_amount_kobo = int((withdrawal.amount - charge) * 100)
-
-            if payout_amount_kobo < 10000:
-                withdrawal.status = "REJECTED"
-                withdrawal.reason = "Amount after charge is below minimum"
-                withdrawal.save()
-                fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
-                self.message_user(
-                    request,
-                    f"Withdrawal {withdrawal.reference} rejected: amount too low.",
-                    level=messages.WARNING,
-                )
-                continue
-
+        
+        success_count = 0
+        for withdrawal in queryset.filter(status="PENDING"):
             try:
+                payout_amount_kobo = int((withdrawal.amount - charge) * 100)
+                if payout_amount_kobo < 10000:
+                    withdrawal.status = "REJECTED"
+                    withdrawal.reason = "Amount after charge is non-positive"
+                    withdrawal.save()
+                    self.message_user(request, f"Withdrawal {withdrawal.reference} rejected: Amount after charge is less than minimum withdrawal amount")
+                    fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
+                    continue
+
                 recipient_code = self._get_or_create_recipient(paystack, withdrawal)
-            except Exception as e:
-                self.message_user(
-                    request,
-                    f"Failed to create recipient for {withdrawal.reference}: {str(e)}",
-                    level=messages.ERROR,
+
+                response = paystack.make_payout(
+                    name=withdrawal.account_name,
+                    account_number=withdrawal.account_number,
+                    bank_code=withdrawal.bank_code,
+                    amount=payout_amount_kobo,
+                    reason=f"Withdrawal {withdrawal.reference}",
+                    recipient_code=recipient_code,
                 )
-                continue
-
-            transfers.append({
-                "amount": payout_amount_kobo,
-                "recipient": recipient_code,
-                "reference": withdrawal.reference,
-                "reason": f"Withdrawal for {withdrawal.user.phone_number}",
-            })
-            valid_withdrawals.append(withdrawal)
-
-        if not transfers:
-            self.message_user(request, "No valid withdrawals to process.", level=messages.WARNING)
-            return
-
-        try:
-            response = paystack.initiate_bulk_transfer(transfers)
-            logger.info(f"Bulk transfer response: {response}")
-
-            # Mark as APPROVED but transaction_status stays PENDING
-            # until confirmed via webhook (transfer.success / transfer.failed)
-            for withdrawal in valid_withdrawals:
+                
                 withdrawal.status = "APPROVED"
-                withdrawal.transaction_status = "PENDING"
+                withdrawal.transaction_status = "SUCCESS"
+                withdrawal.transfer_code = response.get("data", {}).get("transfer_code")
                 withdrawal.save()
+                success_count += 1
+                
+            except Exception as e:
+                self.message_user(request, f"Error processing {withdrawal.reference}: {str(e)}", level=messages.ERROR)
+        
+        self.message_user(request, f"Successfully approved {success_count} withdrawal(s).")
+    approve_withdrawal.short_description = "Approve selected withdrawals (single transfers)"
 
-            self.message_user(
-                request,
-                f"Bulk transfer initiated for {len(valid_withdrawals)} withdrawal(s). "
-                f"Status will be updated via webhook.",
-            )
-        except Exception as e:
-            logger.error(f"Bulk transfer failed: {str(e)}")
-            self.message_user(
-                request,
-                f"Bulk transfer failed: {str(e)}",
-                level=messages.ERROR,
-            )
-    approve_withdrawal_bulk.short_description = "Approve selected withdrawals (bulk transfer)"
+    # def approve_withdrawal_bulk(self, request, queryset):
+    #     """Approve multiple withdrawals via a single Paystack bulk transfer."""
+    #     config = SiteConfig.objects.first()
+    #     charge = config.withdrawal_charge if config else 0
+
+    #     paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+
+    #     pending_withdrawals = queryset.filter(status="PENDING")
+    #     transfers = []
+    #     valid_withdrawals = []
+
+    #     for withdrawal in pending_withdrawals:
+    #         payout_amount_kobo = int((withdrawal.amount - charge) * 100)
+
+    #         if payout_amount_kobo < 10000:
+    #             withdrawal.status = "REJECTED"
+    #             withdrawal.reason = "Amount after charge is below minimum"
+    #             withdrawal.save()
+    #             fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reference}")
+    #             self.message_user(
+    #                 request,
+    #                 f"Withdrawal {withdrawal.reference} rejected: amount too low.",
+    #                 level=messages.WARNING,
+    #             )
+    #             continue
+
+    #         try:
+    #             recipient_code = self._get_or_create_recipient(paystack, withdrawal)
+    #         except Exception as e:
+    #             self.message_user(
+    #                 request,
+    #                 f"Failed to create recipient for {withdrawal.reference}: {str(e)}",
+    #                 level=messages.ERROR,
+    #             )
+    #             continue
+
+    #         transfers.append({
+    #             "amount": payout_amount_kobo,
+    #             "recipient": recipient_code,
+    #             "reference": withdrawal.reference,
+    #             "reason": f"Withdrawal for {withdrawal.user.phone_number}",
+    #         })
+    #         valid_withdrawals.append(withdrawal)
+
+    #     if not transfers:
+    #         self.message_user(request, "No valid withdrawals to process.", level=messages.WARNING)
+    #         return
+
+    #     try:
+    #         response = paystack.initiate_bulk_transfer(transfers)
+    #         logger.info(f"Bulk transfer response: {response}")
+
+    #         # Mark as APPROVED but transaction_status stays PENDING
+    #         # until confirmed via webhook (transfer.success / transfer.failed)
+    #         for withdrawal in valid_withdrawals:
+    #             withdrawal.status = "APPROVED"
+    #             withdrawal.transaction_status = "PENDING"
+    #             withdrawal.save()
+
+    #         self.message_user(
+    #             request,
+    #             f"Bulk transfer initiated for {len(valid_withdrawals)} withdrawal(s). "
+    #             f"Status will be updated via webhook.",
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Bulk transfer failed: {str(e)}")
+    #         self.message_user(
+    #             request,
+    #             f"Bulk transfer failed: {str(e)}",
+    #             level=messages.ERROR,
+    #         )
+    # approve_withdrawal_bulk.short_description = "Approve selected withdrawals (bulk transfer)"
 
     def reject_withdrawal(self, request, queryset):
         success_count = 0
