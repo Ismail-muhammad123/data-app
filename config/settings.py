@@ -1,7 +1,6 @@
 from pathlib import Path
 import os
 from datetime import timedelta
-import os
 from dotenv import load_dotenv
 import dj_database_url
 import firebase_admin
@@ -59,12 +58,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'django.contrib.humanize',
 
     # 3rd party apps
-    'cloudinary_storage',
-    'cloudinary',
     'drf_spectacular',
     'corsheaders',
     
