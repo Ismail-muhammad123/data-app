@@ -17,7 +17,7 @@ from admin_api.serializers import (
     VTUOverviewResponseSerializer, FetchFromProviderRequestSerializer,
     VariationPriceUpdateSerializer, BulkVariationPriceUpdateSerializer,
     VariationToggleSerializer, ServiceTypeToggleSerializer,
-    ProviderFundingConfigSerializer
+    ProviderFundingConfigSerializer, AvailableVTUProviderSerializer
 )
 from admin_api.permissions import CanManageVTU
 from orders.router import ProviderRouter
@@ -345,6 +345,23 @@ class ServiceTypeToggleView(APIView):
         
         return Response({"status": "SUCCESS", "message": f"Service type {service_type} {'enabled' if active else 'disabled'}."})
 
+class AdminAvailableVTUProvidersView(APIView):
+    """
+    Get the list of all officially supported VTU providers from the registry.
+    Use this to populate dropdowns when adding new provider configurations.
+    """
+    permission_classes = [CanManageVTU]
+
+    @extend_schema(
+        tags=["Admin VTU Config"],
+        summary="List all supported VTU providers from the registry",
+        responses={200: AvailableVTUProviderSerializer(many=True)}
+    )
+    def get(self, request):
+        from orders.providers.registry import AVAILABLE_PROVIDERS
+        data = [{"id": p[0], "name": p[1]} for p in AVAILABLE_PROVIDERS]
+        return Response(data)
+
 @extend_schema_view(
     list=extend_schema(tags=["Admin VTU Config"]),
     retrieve=extend_schema(tags=["Admin VTU Config"]),
@@ -360,7 +377,7 @@ class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     serializer_class = VTUProviderConfigSerializer
     permission_classes = [CanManageVTU]
 
-    @extend_schema(summary="Get list of all supported providers for dropdown selection")
+    @extend_schema(summary="Get list of all supported providers for dropdown selection", responses={200: AvailableVTUProviderSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path='available-providers')
     def available_providers(self, request):
         choices = VTUProviderConfig.PROVIDER_CHOICES

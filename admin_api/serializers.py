@@ -445,6 +445,10 @@ class VTUProviderOverviewSerializer(serializers.ModelSerializer):
             'min_funding_balance', 'auto_funding_enabled'
         ]
 
+class AvailableVTUProviderSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+
 class VTUOverviewResponseSerializer(serializers.Serializer):
     providers = VTUProviderOverviewSerializer(many=True)
     services_summary = serializers.ListField(child=serializers.DictField())

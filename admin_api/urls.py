@@ -32,7 +32,7 @@ from .views import (
     DetectDelayedTransactionsView,
     VTUOverviewView, ProviderBalanceView, FetchFromProviderView,
     VariationUpdatePriceView, BulkVariationUpdatePriceView,
-    VariationToggleView, ServiceTypeToggleView
+    VariationToggleView, ServiceTypeToggleView, AdminAvailableVTUProvidersView
 )
 
 router = DefaultRouter()
@@ -57,8 +57,8 @@ router.register(r'notifications/announcements', AdminAnnouncementViewSet, basena
 router.register(r'notifications/providers', AdminNotificationProviderConfigViewSet, basename='admin-notification-providers')
 
 urlpatterns = [
-    path('', include(router.urls)),
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),
+    path('vtu/available-providers/', AdminAvailableVTUProvidersView.as_view(), name='admin-vtu-available-providers'),
     path('maintenance-mode/', AdminMaintenanceModeView.as_view(), name='admin-maintenance-mode'),
     path('refresh-services/', AdminRefreshServicesView.as_view(), name='admin-refresh-services'),
     path('pause-service/', AdminPauseServiceView.as_view(), name='admin-pause-service'),
@@ -82,4 +82,6 @@ urlpatterns = [
     path('vtu/variations/bulk-update-price/<str:service_type>/', BulkVariationUpdatePriceView.as_view(), name='admin-vtu-bulk-price'),
     path('vtu/variations/<int:pk>/toggle/<str:service_type>/', VariationToggleView.as_view(), name='admin-vtu-variation-toggle'),
     path('vtu/services/<str:service_type>/toggle/', ServiceTypeToggleView.as_view(), name='admin-vtu-service-toggle'),
+
+    path('', include(router.urls)),
 ]
