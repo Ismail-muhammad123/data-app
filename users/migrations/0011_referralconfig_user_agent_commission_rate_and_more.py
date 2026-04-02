@@ -50,6 +50,10 @@ class Migration(migrations.Migration):
             ),
             reverse_code=migrations.RunPython.noop
         ),
+        migrations.RunSQL(
+            sql='DROP INDEX IF EXISTS "users_user_referral_code_b937ce54_like";',
+            reverse_sql='CREATE INDEX IF NOT EXISTS "users_user_referral_code_b937ce54_like" ON "users_user" ("referral_code" varchar_pattern_ops);'
+        ),
         migrations.AlterField(
             model_name='user',
             name='referral_code',
