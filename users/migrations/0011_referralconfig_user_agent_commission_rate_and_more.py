@@ -12,6 +12,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql='DROP INDEX IF EXISTS "users_user_referral_code_b937ce54_like";',
+            reverse_sql='CREATE INDEX IF NOT EXISTS "users_user_referral_code_b937ce54_like" ON "users_user" ("referral_code" varchar_pattern_ops);'
+        ),
+        migrations.RunSQL(
+            sql='ALTER TABLE "users_user" DROP COLUMN IF EXISTS "referral_code";',
+            reverse_sql='ALTER TABLE "users_user" ADD COLUMN IF NOT EXISTS "referral_code" varchar(20);'
+        ),
         migrations.CreateModel(
             name='ReferralConfig',
             fields=[
@@ -49,10 +57,6 @@ class Migration(migrations.Migration):
                 [setattr(u, 'referral_code', f"REF{u.id}{apps.get_model('users', 'User').objects.count() + 1000}") or u.save() for u in User.objects.all()]
             ),
             reverse_code=migrations.RunPython.noop
-        ),
-        migrations.RunSQL(
-            sql='DROP INDEX IF EXISTS "users_user_referral_code_b937ce54_like";',
-            reverse_sql='CREATE INDEX IF NOT EXISTS "users_user_referral_code_b937ce54_like" ON "users_user" ("referral_code" varchar_pattern_ops);'
         ),
         migrations.AlterField(
             model_name='user',
