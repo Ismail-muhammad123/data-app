@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from summary.utils import get_api_wallet_balance, get_paystack_balance, get_termii_balance
+from summary.utils import get_api_wallet_balance, get_paystack_balance
 from wallet.models import Wallet, WalletTransaction
 from payments.models import Deposit, Withdrawal
 from django.db.models import Q, Sum, F, Count, Avg
@@ -113,10 +113,7 @@ class SummaryDashboard(Wallet):
         except Exception:
             reserve_balance = 0.0
 
-        try:
-            sms_balance = get_termii_balance() or 0.0
-        except Exception:
-            sms_balance = 0.0
+        sms_balance = 0.0  # Zoho handles SMS; no balance API needed
 
         # SMART ALERTS
         failed_transactions = Purchase.objects.filter(status="failed").order_by('-time')[:10]
