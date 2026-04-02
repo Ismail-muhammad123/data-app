@@ -104,6 +104,12 @@ services:
         sync: false
       - key: ZOHO_API_KEY
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
   - type: cron
     name: data-app-vtu-automation
