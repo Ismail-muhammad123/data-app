@@ -273,8 +273,15 @@ class VTUProviderConfig(models.Model):
     name = models.CharField(max_length=20, choices=PROVIDER_CHOICES, unique=True)
     is_active = models.BooleanField(default=True)
     
-    # Store settings as JSON
-    config_data = models.JSONField(default=dict, help_text='{"api_key": "...", "public_key": "...", "secret_key": "...", "base_url": "..."}')
+    config_data = models.JSONField(default=dict, help_text='Additional settings for the provider')
+    
+    # Standard Credentials
+    api_key = models.CharField(max_length=500, blank=True, null=True)
+    user_id = models.CharField(max_length=255, blank=True, null=True)
+    session_id = models.CharField(max_length=500, blank=True, null=True)
+    private_key = models.TextField(blank=True, null=True)
+    public_key = models.TextField(blank=True, null=True)
+    base_url = models.URLField(blank=True, null=True)
     
     # Global fallbacks settings (Defaults)
     max_retries = models.PositiveIntegerField(default=3)
@@ -292,6 +299,27 @@ class VTUProviderConfig(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.get_name_display()
+
+    @property
+    def webhook_url(self):
+        """Returns the absolute URL for this provider's webhook."""
+        from django.urls import reverse
+        try:
+            return reverse('vtu-webhook', kwargs={'provider_name': self.name})
+        except:
+            return f"/api/orders/webhook/{self.name}/"
+
+    @property
+    def callback_url(self):
+        """Returns the absolute URL for this provider's callback."""
+        from django.urls import reverse
+        try:
+            return reverse('vtu-callback', kwargs={'provider_name': self.name})
+        except:
+            return f"/api/orders/callback/{self.name}/"
 
     def get_config(self):
         """Returns the config_data with keys always present (even if empty) to avoid KeyErrors."""

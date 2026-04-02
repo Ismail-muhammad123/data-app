@@ -30,12 +30,14 @@ from orders.views import (
         PurchaseBeneficiaryListCreateView,
         PurchaseBeneficiaryDeleteView
     )
-from .webhooks import clubkonnect_callback
+from .webhooks import clubkonnect_callback, vtu_webhook, vtu_callback
 
 urlpatterns = [
     # Status & Callback
-    path("purchase-status/<int:pk>/", QueryPurchaseStatusView.as_view(), name="query-purchase-status"),
+    path("vtu-status/<int:pk>/", QueryPurchaseStatusView.as_view(), name="query-purchase-status"),
     path("clubkonnect-callback/", clubkonnect_callback, name="clubkonnect-callback"),
+    path("webhook/<str:provider_name>/", vtu_webhook, name="vtu-webhook"),
+    path("callback/<str:provider_name>/", vtu_callback, name="vtu-callback"),
 
     # Data Services
     path("data-networks/", DataServicesListView.as_view(), name="list-data-networks"),

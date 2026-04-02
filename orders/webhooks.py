@@ -8,6 +8,20 @@ from wallet.utils import fund_wallet
 
 logger = logging.getLogger(__name__)
 
+def vtu_webhook(request, provider_name):
+    """Generic webhook handler for all VTU providers."""
+    data = json.loads(request.body.decode("utf-8")) if request.method == "POST" else request.GET.dict()
+    logger.info(f"Webhook received from {provider_name}: {data}")
+    # TODO: Route to specific provider processing logic based on provider_name
+    return JsonResponse({"status": "SUCCESS", "message": "Webhook received"})
+
+def vtu_callback(request, provider_name):
+    """Generic callback handler for all VTU providers."""
+    data = request.POST.dict() if request.method == "POST" else request.GET.dict()
+    logger.info(f"Callback received from {provider_name}: {data}")
+    # TODO: Route to specific provider processing logic based on provider_name
+    return JsonResponse({"status": "SUCCESS", "message": "Callback received"})
+
 def clubkonnect_callback(request):
     """
     Callback handler for ClubKonnect transactions.

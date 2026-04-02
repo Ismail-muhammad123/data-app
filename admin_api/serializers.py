@@ -140,10 +140,18 @@ class AdminResetPinRequestSerializer(serializers.Serializer):
     new_pin = serializers.CharField(min_length=4, max_length=6, help_text="New transaction PIN for the user")
 
 
-class VTUProviderConfigSerializer(serializers.ModelSerializer):
+    webhook_url = serializers.ReadOnlyField()
+    callback_url = serializers.ReadOnlyField()
+    
     class Meta:
         model = VTUProviderConfig
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'is_active', 'api_key', 'user_id', 'session_id', 
+            'private_key', 'public_key', 'base_url', 'config_data', 
+            'webhook_url', 'callback_url', 'max_retries', 'auto_refund_on_failure',
+            'account_name', 'bank_name', 'account_number', 'bank_code', 
+            'min_funding_balance', 'auto_funding_enabled'
+        ]
 
 class ServiceFallbackSerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source='provider.get_name_display', read_only=True)
