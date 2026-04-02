@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from admin_api.permissions import IsSuperUserOnly, CanManageNotifications
 from notifications.models import Notification, Announcement, NotificationProviderConfig
 from admin_api.serializers import (
     AdminNotificationSerializer, AdminAnnouncementSerializer,
@@ -18,7 +19,7 @@ User = get_user_model()
 class AdminNotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all().order_by('-created_at')
     serializer_class = AdminNotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanManageNotifications]
 
     @extend_schema(
         summary="Bulk send notification to multiple users",
@@ -57,7 +58,7 @@ class AdminNotificationViewSet(viewsets.ModelViewSet):
 class AdminAnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all().order_by('-created_at')
     serializer_class = AdminAnnouncementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanManageNotifications]
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Notifications"]),

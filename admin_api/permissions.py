@@ -51,6 +51,13 @@ class CanInitiateTransfers(StaffPermissionBase):
         return getattr(request.user.staff_permissions, 'can_initiate_transfers', False)
         
 
+class CanManageNotifications(StaffPermissionBase):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view): return False
+        if request.user.is_superuser: return True
+        return getattr(request.user.staff_permissions, 'can_manage_notifications', False)
+
+
 class IsSuperUserOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.is_superuser
