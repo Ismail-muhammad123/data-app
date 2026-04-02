@@ -94,6 +94,16 @@ services:
         sync: false
       - key: FIREBASE_UNIVERSE_DOMAIN
         sync: false
+      - key: ZOHO_EMAIL_USER
+        sync: false
+      - key: ZOHO_EMAIL_PASSWORD
+        sync: false
+      - key: ZOHO_SMS_SENDER_ID
+        sync: false
+      - key: ZOHO_WHATSAPP_NUMBER
+        sync: false
+      - key: ZOHO_API_KEY
+        sync: false
 
   - type: cron
     name: data-app-vtu-automation

@@ -221,17 +221,26 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
 
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "noreply@yourdomain.com"
+# ----------------------------- Zoho Configurations -----------------------------
 
+ZOHO_EMAIL_USER = os.getenv("ZOHO_EMAIL_USER", "")
+ZOHO_EMAIL_PASSWORD = os.getenv("ZOHO_EMAIL_PASSWORD", "")
+ZOHO_SMS_SENDER_ID = os.getenv("ZOHO_SMS_SENDER_ID", "")
+ZOHO_WHATSAPP_NUMBER = os.getenv("ZOHO_WHATSAPP_NUMBER", "")
+ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "")
 
-# for production
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "smtp.gmail.com"
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = "your_email@gmail.com"
-# EMAIL_HOST_PASSWORD = "your_app_password"
+if PRODUCTION:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = "smtp.zoho.com" # For EU use smtp.zoho.eu
+    EMAIL_PORT = 465
+    EMAIL_USE_SSL = True
+    EMAIL_HOST_USER = ZOHO_EMAIL_USER
+    EMAIL_HOST_PASSWORD = ZOHO_EMAIL_PASSWORD
+    DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
+
 
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
