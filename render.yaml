@@ -28,6 +28,14 @@ services:
         value: "data-app-backend.onrender.com"
       - key: CSRF_TRUSTED_ORIGINS
         value: "https://data-app-backend.onrender.com"
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_FULL_NAME
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
 
       # Core Provider Integration API Keys (You must fill these in the dashboard securely)
       - key: PAYSTACK_SECRET_KEY
