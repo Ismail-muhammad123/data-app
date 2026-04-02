@@ -410,10 +410,6 @@ class AutomationGlobalSettingsSerializer(serializers.Serializer):
     delayed_tx_detection_enabled = serializers.BooleanField()
     delayed_tx_timeout_minutes = serializers.IntegerField(min_value=1)
 
-class AutomationOverviewResponseSerializer(serializers.Serializer):
-    global_settings = AutomationGlobalSettingsSerializer()
-    services = ServiceAutomationConfigSerializer(many=True)
-
 class ServiceAutomationConfigSerializer(serializers.ModelSerializer):
     primary_provider_name = serializers.CharField(source='primary_provider.get_name_display', read_only=True)
     class Meta:
@@ -423,6 +419,10 @@ class ServiceAutomationConfigSerializer(serializers.ModelSerializer):
             'retry_enabled', 'retry_count', 'auto_refund_enabled', 'fallback_enabled',
             'pricing_mode', 'customer_margin', 'agent_margin'
         ]
+
+class AutomationOverviewResponseSerializer(serializers.Serializer):
+    global_settings = AutomationGlobalSettingsSerializer()
+    services = ServiceAutomationConfigSerializer(many=True)
 
 class AdminNotificationOverviewSerializer(serializers.Serializer):
     notifications = AdminNotificationSerializer(many=True)
