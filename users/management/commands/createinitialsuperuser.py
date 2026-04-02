@@ -21,7 +21,6 @@ class Command(BaseCommand):
             User.objects.create_superuser(
                 phone_number=username,
                 password=password,
-                full_name=full_name,
                 email=email if email else None
             )
             self.stdout.write(self.style.SUCCESS(f"Superuser {username} created successfully."))
