@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Deposit, Withdrawal, PaymentGatewayConfig
+from .models import Deposit, Withdrawal, PaystackConfig
 from wallet.utils import debit_wallet, fund_wallet
 from django.conf import settings
 from .utils import PaystackGateway
@@ -107,7 +107,7 @@ class WithdrawalAdmin(admin.ModelAdmin):
         config = SiteConfig.objects.first()
         charge = config.withdrawal_charge if config else 0
         
-        paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+        paystack = PaystackGateway()
         
         success_count = 0
         for withdrawal in queryset.filter(status="PENDING"):
@@ -146,19 +146,12 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
 
 
-@admin.register(PaymentGatewayConfig)
-class PaymentGatewayConfigAdmin(admin.ModelAdmin):
-    list_display = ('gateway', 'is_active', 'use_for_deposits', 'use_for_withdrawals', 'updated_at')
-    list_filter = ('is_active', 'use_for_deposits', 'use_for_withdrawals')
+@admin.register(PaystackConfig)
+class PaystackConfigAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
     fieldsets = (
-        ("Gateway Status", {
-            "fields": ("gateway", "is_active")
-        }),
-        ("API Configuration", {
-            "fields": ("config_data",),
-            "description": 'Enter config in JSON format. e.g. {"secret_key": "...", "public_key": "...", "contract_code": "...", "base_url": "..."}'
-        }),
-        ("Usage Settings", {
-            "fields": ("use_for_deposits", "use_for_withdrawals"),
+        ("Configuration", {
+            "fields": ("name", "public_key", "secret_key", "is_active")
         }),
     )

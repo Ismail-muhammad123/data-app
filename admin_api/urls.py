@@ -9,6 +9,7 @@ from .views import (
     AdminWalletTransactionViewSet,
     AdminDepositViewSet,
     AdminWithdrawalViewSet,
+    AdminPaystackConfigViewSet,
     AdminPurchaseViewSet,
     AdminSupportTicketViewSet,
     AdminVTUProviderConfigViewSet,
@@ -25,7 +26,6 @@ from .views import (
     AdminTransferLogView,
     AdminNotificationViewSet,
     AdminAnnouncementViewSet,
-    AdminNotificationProviderConfigViewSet,
     # New Views
     AutomationConfigView, AutomationGlobalSettingsView, ServiceRetryConfigView,
     ServiceFallbackToggleView, ServiceAutoRefundView, ServicePricingModeView,
@@ -40,6 +40,7 @@ router.register(r'users', AdminUserViewSet, basename='admin-users')
 router.register(r'wallet/transactions', AdminWalletTransactionViewSet, basename='admin-wallet-transactions')
 router.register(r'payments/deposits', AdminDepositViewSet, basename='admin-deposits')
 router.register(r'payments/withdrawals', AdminWithdrawalViewSet, basename='admin-withdrawals')
+router.register(r'settings/paystack', AdminPaystackConfigViewSet, basename='admin-paystack-config')
 router.register(r'purchases', AdminPurchaseViewSet, basename='admin-purchases')
 router.register(r'support', AdminSupportTicketViewSet, basename='admin-support')
 router.register(r'vtu/providers', AdminVTUProviderConfigViewSet, basename='admin-vtu-providers')
@@ -54,7 +55,6 @@ router.register(r'pricing/promos', AdminPromoCodeViewSet, basename='admin-pricin
 router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='admin-transfer-beneficiaries')
 router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
-router.register(r'notifications/providers', AdminNotificationProviderConfigViewSet, basename='admin-notification-providers')
 
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),

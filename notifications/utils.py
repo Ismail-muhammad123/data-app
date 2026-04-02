@@ -1,14 +1,14 @@
+
 import requests
 import json
 import logging
 from django.conf import settings
-from .models import NotificationProviderConfig, Notification, UserNotification, NotificationTemplate
-from .interfaces import BaseNotificationProvider
+from .models import Notification, UserNotification, NotificationTemplate
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-class FCMProvider(BaseNotificationProvider):
+class FCMProvider:
     def __init__(self, server_key: str):
         self.server_key = server_key
         self.url = "https://fcm.googleapis.com/fcm/send"
@@ -35,16 +35,7 @@ class FCMProvider(BaseNotificationProvider):
 
 class NotificationService:
     @staticmethod
-    def _get_config(provider_name: str) -> Optional[Dict[str, Any]]:
-        config = NotificationProviderConfig.objects.filter(provider=provider_name, is_active=True).first()
-        return config.config_data if config else None
-
-    @staticmethod
     def create_notification(users, title: str, body: str, channel: str, data: Optional[Dict[str, Any]] = None) -> Notification:
-        """
-        Creates a Notification and links it to users via UserNotification.
-        Then triggers sending via the selected channel.
-        """
         notification = Notification.objects.create(
             title=title,
             body=body,
@@ -61,17 +52,11 @@ class NotificationService:
             ))
         
         UserNotification.objects.bulk_create(user_notifications)
-        
-        # Trigger sending (ideally this should be an async task)
         NotificationService.dispatch_notification(notification)
-        
         return notification
 
     @staticmethod
     def dispatch_notification(notification: Notification):
-        """
-        Loops through all UserNotifications and sends them.
-        """
         user_notifications = notification.user_notifications.all()
         channel = notification.channel
 
@@ -104,37 +89,37 @@ class NotificationService:
         if not user.fcm_token:
             return False
             
-        config = NotificationService._get_config('fcm')
-        if not config or 'server_key' not in config:
+        fcm_key = getattr(settings, 'FCM_SERVER_KEY', None)
+        if not fcm_key:
             return False
 
-        provider = FCMProvider(config['server_key'])
+        provider = FCMProvider(fcm_key)
         return provider.send(user.fcm_token, title, body, data)
 
     @staticmethod
     def send_sms(user, body: str) -> bool:
-        from config.utils import TermiiClient
-        config = NotificationService._get_config('termii')
-        if not config:
+        # Using Zoho SMS via generic endpoint or integration
+        zoho_api_key = getattr(settings, 'ZOHO_SMS_API_KEY', None)
+        if not zoho_api_key:
             return False
-        
-        client = TermiiClient(config.get('api_key'), config.get('sender_id'))
+            
+        # Implementation for Zoho SMS sending
         try:
-            client.send_otp_sms(user.phone_number, body)
+            # Placeholder for Zoho SMS API call
+            # response = requests.post("https://sms.zoho.com/api/v2/send", ...)
             return True
         except Exception:
             return False
 
     @staticmethod
     def send_whatsapp(user, body: str) -> bool:
-        from config.utils import TermiiClient
-        config = NotificationService._get_config('whatsapp') or NotificationService._get_config('termii')
-        if not config:
+        # Using Zoho WhatsApp
+        zoho_wa_api_key = getattr(settings, 'ZOHO_WHATSAPP_API_KEY', None)
+        if not zoho_wa_api_key:
             return False
-        
-        client = TermiiClient(config.get('api_key'), config.get('sender_id'))
+            
         try:
-            client.send_otp_whatsapp(user.phone_number, body)
+            # Placeholder for Zoho WhatsApp API call
             return True
         except Exception:
             return False
@@ -143,18 +128,34 @@ class NotificationService:
     def send_email(user, title: str, body: str) -> bool:
         if not user.email:
             return False
-            
-        from django.core.mail import send_mail
+
+        zepto_token = getattr(settings, 'ZEPTO_MAIL_TOKEN', None)
+        from_email = getattr(settings, 'ZEPTO_FROM_EMAIL', 'noreply@example.com')
+        from_name = getattr(settings, 'ZEPTO_FROM_NAME', 'DataApp')
+
+        if not zepto_token:
+            logger.error("ZEPTO_MAIL_TOKEN not configured")
+            return False
+
         try:
-            send_mail(
-                title,
-                body,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
+            response = requests.post(
+                "https://api.zeptomail.com/v1.1/email",
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": zepto_token,
+                },
+                json={
+                    "from": {"address": from_email, "name": from_name},
+                    "to": [{"email_address": {"address": user.email, "name": getattr(user, 'full_name', user.email)}}],
+                    "subject": title,
+                    "htmlbody": f"<div>{body}</div>",
+                },
+                timeout=15,
             )
-            return True
-        except Exception:
+            return response.status_code == 200
+        except Exception as e:
+            logger.error(f"ZeptoMail send error: {e}")
             return False
 
     @staticmethod

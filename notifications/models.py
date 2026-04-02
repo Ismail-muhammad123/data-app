@@ -1,28 +1,6 @@
+
 from django.db import models
 from django.conf import settings
-
-class NotificationProviderConfig(models.Model):
-    PROVIDER_CHOICES = [
-        ('fcm', 'Firebase Cloud Messaging'),
-        ('email', 'Email'),
-        ('termii', 'Termii (SMS)'),
-        ('whatsapp', 'WhatsApp'),
-    ]
-
-    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, unique=True)
-    is_active = models.BooleanField(default=True)
-    config_data = models.JSONField(default=dict, help_text='{"api_key": "...", "sender_id": "...", "from_email": "..."}')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Notification Provider Config"
-        verbose_name_plural = "Notification Provider Configs"
-
-    def __str__(self):
-        return self.get_provider_display()
-
 
 class Notification(models.Model):
     CHANNEL_CHOICES = [

@@ -6,10 +6,10 @@ from orders.models import (
     DataVariation, AirtimeNetwork, TVVariation, InternetVariation, 
     EducationVariation, ElectricityVariation, PromoCode
 )
-from payments.models import PaymentGatewayConfig, Deposit, Withdrawal
+from payments.models import PaystackConfig, Deposit, Withdrawal
 from wallet.models import Wallet, WalletTransaction
 from support.models import SupportTicket, TicketMessage
-from notifications.models import Notification, UserNotification, Announcement, NotificationProviderConfig
+from notifications.models import Notification, UserNotification, Announcement
 
 
 # ─── Model Serializers ───
@@ -167,10 +167,12 @@ class ServiceRoutingSerializer(serializers.ModelSerializer):
         model = ServiceRouting
         fields = ["id", "service", "primary_provider", "primary_provider_name", "fallbacks"]
 
-class PaymentGatewayConfigSerializer(serializers.ModelSerializer):
+class AdminPaystackConfigSerializer(serializers.ModelSerializer):
+    webhook_url = serializers.ReadOnlyField()
+    callback_url = serializers.ReadOnlyField()
     class Meta:
-        model = PaymentGatewayConfig
-        fields = '__all__'
+        model = PaystackConfig
+        fields = ["id", "is_active", "public_key", "secret_key", "webhook_url", "callback_url"]
 
 class AdminTransferLogSerializer(serializers.ModelSerializer):
     beneficiary_name = serializers.CharField(source='beneficiary.name', read_only=True)
@@ -240,10 +242,7 @@ class AdminAnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = '__all__'
 
-class AdminNotificationProviderConfigSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotificationProviderConfig
-        fields = '__all__'
+
 
 class AdminReferralConfigSerializer(serializers.ModelSerializer):
     class Meta:

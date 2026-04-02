@@ -1,10 +1,10 @@
 from rest_framework import viewsets, permissions
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from admin_api.permissions import IsSuperUserOnly, CanManageNotifications
-from notifications.models import Notification, Announcement, NotificationProviderConfig
+from notifications.models import Notification, Announcement
 from admin_api.serializers import (
     AdminNotificationSerializer, AdminAnnouncementSerializer,
-    AdminNotificationProviderConfigSerializer, AdminBulkSendNotificationSerializer
+    AdminBulkSendNotificationSerializer
 )
 from notifications.utils import NotificationService
 from django.contrib.auth import get_user_model
@@ -59,11 +59,3 @@ class AdminAnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all().order_by('-created_at')
     serializer_class = AdminAnnouncementSerializer
     permission_classes = [CanManageNotifications]
-
-@extend_schema_view(
-    list=extend_schema(tags=["Admin Notifications"]),
-)
-class AdminNotificationProviderConfigViewSet(viewsets.ModelViewSet):
-    queryset = NotificationProviderConfig.objects.all()
-    serializer_class = AdminNotificationProviderConfigSerializer
-    permission_classes = [IsSuperUserOnly]

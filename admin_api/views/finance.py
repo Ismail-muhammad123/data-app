@@ -3,15 +3,15 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema_view, extend_schema
 import pyotp
-from payments.models import Deposit, Withdrawal
+from payments.models import Deposit, Withdrawal, PaystackConfig
 from wallet.models import WalletTransaction
 from admin_api.serializers import (
     AdminWalletTransactionSerializer, AdminDepositSerializer,
     AdminWithdrawalSerializer, AdminManualAdjustmentRequestSerializer,
     AdminDepositMarkSuccessRequestSerializer, AdminWithdrawalActionRequestSerializer,
-    AdminStatusResponseSerializer, AdminErrorResponseSerializer
+    AdminStatusResponseSerializer, AdminErrorResponseSerializer, AdminPaystackConfigSerializer
 )
-from admin_api.permissions import CanManageWallets, CanManagePayments
+from admin_api.permissions import CanManageWallets, CanManagePayments, IsSuperUserOnly
 from wallet.utils import fund_wallet, debit_wallet
 
 @extend_schema_view(
@@ -150,3 +150,17 @@ class AdminWithdrawalViewSet(viewsets.ModelViewSet):
         fund_wallet(withdrawal.user.id, withdrawal.amount, description=f"Refund: Withdrawal rejected ({withdrawal.reference})", initiator='admin', initiated_by=request.user)
         
         return Response({"status": "REJECTED", "message": "Withdrawal rejected and funds refunded to user."})
+
+@extend_schema_view(
+    list=extend_schema(tags=["Admin Payments"]),
+    retrieve=extend_schema(tags=["Admin Payments"]),
+    create=extend_schema(tags=["Admin Payments"]),
+    update=extend_schema(tags=["Admin Payments"]),
+    partial_update=extend_schema(tags=["Admin Payments"]),
+    destroy=extend_schema(tags=["Admin Payments"]),
+)
+class AdminPaystackConfigViewSet(viewsets.ModelViewSet):
+    """Manage Paystack configuration."""
+    queryset = PaystackConfig.objects.all()
+    serializer_class = AdminPaystackConfigSerializer
+    permission_classes = [IsSuperUserOnly]

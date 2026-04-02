@@ -28,9 +28,7 @@ class PaymentWebhookView(APIView):
     """
     @method_decorator(csrf_exempt)  # since external POST
     def post(self, request, *args, **kwargs):
-        client = PaystackGateway(
-            settings.PAYSTACK_SECRET_KEY
-        )
+        client = PaystackGateway()
         is_verified = None
         is_verified = client.verify_webhook(request.body, request.headers['X-Paystack-Signature'])
     

@@ -58,29 +58,30 @@ class Withdrawal(models.Model):
 
 
 
-class PaymentGatewayConfig(models.Model):
-    GATEWAY_CHOICES = [
-        ('paystack', 'Paystack'),
-        ('flutterwave', 'Flutterwave'),
-        ('monnify', 'Monnify'),
-    ]
 
-    gateway = models.CharField(max_length=20, choices=GATEWAY_CHOICES, unique=True)
+class PaystackConfig(models.Model):
     is_active = models.BooleanField(default=False)
-    
-    # Store settings as JSON to handle different gateway requirements
-    config_data = models.JSONField(default=dict, help_text='{"secret_key": "...", "public_key": "...", "contract_code": "...", "base_url": "..."}')
-    
-    # Usage settings
-    use_for_deposits = models.BooleanField(default=True)
-    use_for_withdrawals = models.BooleanField(default=False)
+    public_key = models.CharField(max_length=255, blank=True, null=True)
+    secret_key = models.CharField(max_length=255, blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Payment Gateway Config"
-        verbose_name_plural = "Payment Gateway Configs"
+        verbose_name = "Paystack Configuration"
+        verbose_name_plural = "Paystack Configuration"
 
     def __str__(self):
-        return f"{self.get_gateway_display()} Config"
+        return "Paystack Config"
+
+    @property
+    def webhook_url(self):
+        from django.conf import settings
+        domain = getattr(settings, 'SITE_DOMAIN', 'https://yourdomain.com')
+        return f"{domain}/payments/webhook/paystack/"
+
+    @property
+    def callback_url(self):
+        from django.conf import settings
+        domain = getattr(settings, 'SITE_DOMAIN', 'https://yourdomain.com')
+        return f"{domain}/payments/callback/paystack/"
