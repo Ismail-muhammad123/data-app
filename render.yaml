@@ -1,0 +1,93 @@
+databases:
+  - name: data-app-db
+    plan: free
+
+services:
+  - type: web
+    name: data-app-backend
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: data-app-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PRODUCTION
+        value: "True"
+      - key: DEBUG
+        value: "False"
+      - key: WEB_CONCURRENCY
+        value: "4"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "data-app-backend.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://data-app-backend.onrender.com"
+
+      # Core Provider Integration API Keys (You must fill these in the dashboard securely)
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: MONNIFY_BASE_URL
+        sync: false
+      - key: MONNIFY_API_KEY
+        sync: false
+      - key: MONNIFY_API_SECRET
+        sync: false
+      - key: MONNIFY_CONTRACT_CODE
+        sync: false
+      - key: MONNIFY_WEBHOOK_SECRET
+        sync: false
+      - key: VTPASS_BASE_URL
+        sync: false
+      - key: VTPASS_API_KEY
+        sync: false
+      - key: VTPASS_API_SECRET
+        sync: false
+      - key: VTPASS_API_PUBLIC_KEY
+        sync: false
+      - key: CLUBKONNECT_USER_ID
+        sync: false
+      - key: CLUBKONNECT_API_KEY
+        sync: false
+      - key: TERMII_API_KEY
+        sync: false
+      - key: TERMII_SENDER_ID
+        sync: false
+      - key: TERMII_EMAIL_CONFIG_ID
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_SMS_NUMBER
+        sync: false
+      - key: TWILIO_WHATSAPP_NUMBER
+        sync: false
+      - key: TWILIO_EMAIL
+        sync: false
+
+  - type: cron
+    name: data-app-vtu-automation
+    env: python
+    plan: free
+    schedule: "*/5 * * * *" # Runs every 5 minutes
+    buildCommand: "./build.sh"
+    startCommand: "python manage.py vtu_automation"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: data-app-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PRODUCTION
+        value: "True"
+      - key: DEBUG
+        value: "False"
