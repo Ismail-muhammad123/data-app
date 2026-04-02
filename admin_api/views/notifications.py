@@ -1,3 +1,5 @@
+from rest_framework import viewsets
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from notifications.models import Notification, Announcement, NotificationProviderConfig
 from admin_api.serializers import (
     AdminNotificationSerializer, AdminAnnouncementSerializer,
