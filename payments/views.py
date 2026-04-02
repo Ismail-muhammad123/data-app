@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from wallet.models import VirtualAccount
 from wallet.utils import fund_wallet
-from .models import Deposit, Withdrawal, TransferRecipient
+from .models import Deposit, Withdrawal
 from .utils import PaystackGateway
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -209,102 +209,7 @@ class PaymentWebhookView(APIView):
 
 
 
-class WithdrawalRequestView(generics.CreateAPIView):
-    serializer_class = WithdrawalSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        user = self.request.user
-        
-        amount = serializer.validated_data['amount']
-        account_name = serializer.validated_data['account_name']
-        account_number = serializer.validated_data['account_number']
-        bank_name = serializer.validated_data['bank_name']
-        bank_code = serializer.validated_data['bank_code']
-        reason = serializer.validated_data.get('reason', f"Withdrawal for {user.phone_number}")
-
-        try:
-            # Debit wallet immediately to hold funds
-            debit_wallet(user.id, amount, "Withdrawal Request")
-        except ValueError as e:
-            raise serializers.ValidationError({"error": str(e)})
-
-        withdrawal = serializer.save(
-            user=user,
-            reference=f"WTH-{uuid.uuid4().hex[:10].upper()}",
-            # account_name, account_number, bank_name, bank_code, amount, and reason are already in validated_data
-        )
-
-        # Check if automatic withdrawal is enabled
-        config = SiteConfig.objects.first()
-        if config and config.automatic_withdrawal:
-            try:
-                charge = config.withdrawal_charge or 0
-                payout_amount_kobo = int((amount - charge) * 100)
-                
-                # Minimum 100 Naira (10000 kobo) after charge
-                if payout_amount_kobo >= 10000:
-                    paystack_client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
-
-                    # Try to look up cached recipient ONLY if it matches user's saved withdrawal account
-                    recipient_code = None
-                    withdrawal_account = None
-                    try:
-                        temp_withdrawal_account = user.withdrawal_account
-                        if (temp_withdrawal_account.account_number == account_number and 
-                            temp_withdrawal_account.bank_code == bank_code):
-                            withdrawal_account = temp_withdrawal_account
-                            try:
-                                recipient_code = withdrawal_account.transfer_recipient.recipient_code
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-                    
-                    response = paystack_client.make_payout(
-                        name=account_name,
-                        account_number=account_number,
-                        bank_code=bank_code,
-                        amount=payout_amount_kobo,
-                        reason=reason,
-                        recipient_code=recipient_code,
-                    )
-                    
-                    if response.get('status'):
-                        withdrawal.status = "APPROVED"
-                        withdrawal.transaction_status = "SUCCESS"
-                        if 'data' in response:
-                            withdrawal.transfer_code = response['data'].get('transfer_code')
-
-                            # Cache the recipient if it was newly created AND matches the user's saved account
-                            if withdrawal_account and not recipient_code and response['data'].get('recipient_code'):
-                                TransferRecipient.objects.update_or_create(
-                                    withdrawal_account=withdrawal_account,
-                                    defaults={"recipient_code": response['data']['recipient_code']},
-                                )
-                            # If no recipient_code in transfer response but we want to cache for future
-                            elif withdrawal_account and not recipient_code:
-                                try:
-                                    r = paystack_client.create_recipient(
-                                        name=account_name,
-                                        account_number=account_number,
-                                        bank_code=bank_code,
-                                    )
-                                    TransferRecipient.objects.update_or_create(
-                                        withdrawal_account=withdrawal_account,
-                                        defaults={"recipient_code": r['data']['recipient_code']},
-                                    )
-                                except Exception:
-                                    pass  # Non-critical — caching failed but transfer succeeded
-
-                        withdrawal.save()
-                else:
-                    logger.warning(f"Automatic withdrawal skipped for {withdrawal.reference}: Amount after charge (₦{payout_amount_kobo/100}) is below minimum ₦100.")
-                    
-            except Exception as e:
-                logger.error(f"Automatic withdrawal failed for {withdrawal.reference}: {str(e)}")
-                # We leave it as PENDING for manual review/processing
-
+# Charge Configuration
 class ChargesConfigView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

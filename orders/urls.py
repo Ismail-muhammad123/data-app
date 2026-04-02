@@ -1,36 +1,34 @@
-# vtpass_integration/urls.py
 from django.urls import path
 
 from orders.views import (
-        # Electricity Services Views
         AirtimeNetworkListView, 
         PurchaseAirtimeView, 
         
-        # Data Services Views
         DataServicesListView, 
         DataVariationsListView, 
         PurchaseDataVariationView, 
         
-        # Verify Customer View
         VerifyCustomerView,
 
-        # Electricity Services Views
         ElectricityServiceListView, 
         PurchaseElectricityView, 
         
-        # TV Services Views
         TVServicesListView,
         TVPackagesListView,
         PurchaseTVSubscriptionView,
 
-        # Smile Services Views
         SmilePackagesListView,
         PurchaseSmileSubscriptionView,
 
-        # Purchase History Views
         PurchaseHistoryView, 
         PurchaseDetailsView,
-        QueryPurchaseStatusView 
+        QueryPurchaseStatusView,
+        EducationServiceListView,
+        EducationVariationListView, 
+        PurchaseEducationView,
+        RepeatPurchaseView,
+        PurchaseBeneficiaryListCreateView,
+        PurchaseBeneficiaryDeleteView
     )
 from .webhooks import clubkonnect_callback
 
@@ -53,7 +51,7 @@ urlpatterns = [
     
     # Electricity Services
     path("electricity-services/", ElectricityServiceListView.as_view(), name="list-electricity-services"),
-    path("buy-electricity/", PurchaseElectricityView.as_view(), name=" purchase-electricity"),
+    path("buy-electricity/", PurchaseElectricityView.as_view(), name="purchase-electricity"),
 
     # Cable & TV Subscription Services
     path("tv-services/", TVServicesListView.as_view(), name="list-tv-services"),
@@ -65,6 +63,16 @@ urlpatterns = [
     path("buy-smile-subscription/", PurchaseSmileSubscriptionView.as_view(), name="purchase-smile-subscription"),
     
     # Purchase History
-    path("purchase-history/", PurchaseHistoryView.as_view(), name="user-transactions"),
-    path("purchase-history/<int:pk>", PurchaseDetailsView.as_view(), name="user-transactions"),
+    path("purchase-history/", PurchaseHistoryView.as_view(), name="user-transactions-list"),
+    path("purchase-history/<int:pk>/", PurchaseDetailsView.as_view(), name="user-transaction-detail"),
+    path("repeat-purchase/", RepeatPurchaseView.as_view(), name="repeat-purchase"),
+
+    # Education Services
+    path("education-services/", EducationServiceListView.as_view(), name="list-education-services"),
+    path("education-plans/", EducationVariationListView.as_view(), name="list-education-plans"),
+    path("buy-education/", PurchaseEducationView.as_view(), name="purchase-education"),
+
+    # Purchase Beneficiaries
+    path("beneficiaries/", PurchaseBeneficiaryListCreateView.as_view(), name="purchase-beneficiary-list-create"),
+    path("beneficiaries/<int:pk>/", PurchaseBeneficiaryDeleteView.as_view(), name="purchase-beneficiary-delete"),
 ]

@@ -1,21 +1,26 @@
 # users/views.py
-from django.contrib.auth import get_user_model, logout
+from django.contrib.auth import get_user_model, logout, authenticate
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import OTP
+from .models import OTP, Referral, Beneficiary
 from .serializers import (
-    ChangePINSerializer,
+    ChangeTransactionPinSerializer,
+    FCMTokenSerializer,
     LoginSerializer,
     PasswordResetSerializer,
     ProfileSerializer,
+    ReferralSerializer,
+    ResetTransactionPinSerializer,
+    SetTransactionPinSerializer,
     SignupSerializer,
-    UpdateProfileSerializer
+    UpdateProfileSerializer,
+    VerifyTransactionPinSerializer,
 )
 from .utils import send_otp_code
-from django.contrib.auth import authenticate
 from django.conf import settings
+from django.db.models import Sum
 
 from rest_framework.decorators import api_view, permission_classes
 from wallet.models import VirtualAccount
@@ -25,9 +30,11 @@ from payments.utils import PaystackGateway
 
 User = get_user_model()
 
-# --------------------
-# Login (Phone + PIN)
-# --------------------
+
+# ──────────────────────────────────────────────
+# Auth
+# ──────────────────────────────────────────────
+
 class LoginView(APIView):
     """Login with phone number and PIN"""
 
@@ -51,10 +58,9 @@ class LoginView(APIView):
             "user": ProfileSerializer(user).data
         })
 
+
 class RefreshTokenView(APIView):
-    """
-    Obtain a new access token using a refresh token.
-    """
+    """Obtain a new access token using a refresh token."""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -67,21 +73,21 @@ class RefreshTokenView(APIView):
             return Response({"access": access_token}, status=status.HTTP_200_OK)
         except Exception:
             return Response({"error": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
-# ---------------------------
-# Signup (Phone + PIN auth)
-# ---------------------------
+
+
 class SignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
 
     def perform_create(self, serializer):
         user = serializer.save(is_active=True)  # wait for OTP verification
-        # send_otp_code(user, "activation")  # se   nd OTP to email/phone/whatsapp
+        # send_otp_code(user, "activation")
+
 
 class ResendActivationCodeView(APIView):
     def post(self, request):
-        identifier = request.data.get("identifier")  # phone/email
-        channel = request.data.get("channel", None)  # default to phone if not specified
+        identifier = request.data.get("identifier")
+        channel = request.data.get("channel", None)
 
         if not identifier:
             return Response({"error": "Phone Number is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -97,9 +103,10 @@ class ResendActivationCodeView(APIView):
         send_otp_code(user, "activation", preferred_channel=channel)
         return Response({"message": "Activation code resent successfully."}, status=status.HTTP_200_OK)
 
+
 class ActivateAccountView(APIView):
     def post(self, request):
-        identifier = request.data.get("identifier")  # phone/email
+        identifier = request.data.get("identifier")
         otp_code = request.data.get("otp")
 
         if not identifier or not otp_code:
@@ -122,24 +129,24 @@ class ActivateAccountView(APIView):
         elif otp.channel in ["sms", "whatsapp"]:
             user.phone_number_verified = True
         user.save()
-        otp.is_used = True          
+        otp.is_used = True
         otp.save()
 
         return Response({"message": "Account activated successfully."}, status=status.HTTP_200_OK)
 
 
-# ----------------------
+# ──────────────────────────────────────────────
 # Profile
-# ----------------------
+# ──────────────────────────────────────────────
+
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # TODO add wallet info, and purchase info
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
 
-    def put(self, request):
+    def post(self, request):
         if request.user.email and request.data.get("email") and request.user.email != request.data.get("email"):
             users = User.objects.filter(email=request.data.get("email"), email_verified=True).exclude(id=request.user.id)
             if users.exists():
@@ -150,13 +157,14 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
-# --------------------------
-# Password Reset (via OTP)
-# --------------------------
+# ──────────────────────────────────────────────
+# Login PIN Management
+# ──────────────────────────────────────────────
+
 class PasswordResetRequestView(APIView):
     def post(self, request):
-        identifier = request.data.get("identifier")  # phone/email
-        identifier = identifier[1:] if identifier and identifier.startswith("0") else identifier  # Remove leading zero if present
+        identifier = request.data.get("identifier")
+        identifier = identifier[1:] if identifier and identifier.startswith("0") else identifier
 
         try:
             user = User.objects.get(phone_number=identifier)
@@ -175,9 +183,6 @@ class PasswordResetConfirmView(APIView):
         return Response({"message": "PIN reset successful"})
 
 
-# ----------------------
-# Change PIN
-# ----------------------
 class ChangePINView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -188,9 +193,120 @@ class ChangePINView(APIView):
         return Response({"message": "PIN changed successfully"})
 
 
-# ----------------------
-# Logout
-# ----------------------
+# ──────────────────────────────────────────────
+# Transaction PIN Management
+# ──────────────────────────────────────────────
+
+class SetTransactionPinView(APIView):
+    """Set the transaction PIN for the first time."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = SetTransactionPinSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_transaction_pin(serializer.validated_data['pin'])
+        return Response({"message": "Transaction PIN set successfully."})
+
+
+class ChangeTransactionPinView(APIView):
+    """Change existing transaction PIN."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangeTransactionPinSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_transaction_pin(serializer.validated_data['new_pin'])
+        return Response({"message": "Transaction PIN changed successfully."})
+
+
+class ResetTransactionPinView(APIView):
+    """Reset transaction PIN via OTP (requires OTP to be requested first)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ResetTransactionPinSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # Mark OTP as used
+        OTP.objects.filter(
+            user=request.user,
+            code=serializer.validated_data['otp_code'],
+            purpose='reset',
+            is_used=False
+        ).update(is_used=True)
+        request.user.set_transaction_pin(serializer.validated_data['new_pin'])
+        return Response({"message": "Transaction PIN reset successfully."})
+
+class RequestTransactionPinResetOTPView(APIView):
+    """Request an OTP to reset the transaction PIN."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        send_otp_code(request.user, "reset")
+        return Response({"message": "OTP sent for transaction PIN reset."})
+
+
+class VerifyTransactionPinView(APIView):
+    """Verify if a transaction PIN is correct."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = VerifyTransactionPinSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        is_valid = request.user.check_transaction_pin(serializer.validated_data['pin'])
+        return Response({"valid": is_valid})
+
+
+# ──────────────────────────────────────────────
+# Referral System
+# ──────────────────────────────────────────────
+
+class ReferralListView(generics.ListAPIView):
+    """List all users referred by the current user."""
+    serializer_class = ReferralSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Referral.objects.filter(referrer=self.request.user)
+
+
+class ReferralStatsView(APIView):
+    """Get referral statistics for the current user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        referrals = Referral.objects.filter(referrer=request.user)
+        total_referrals = referrals.count()
+        total_bonus = referrals.aggregate(total=Sum('bonus_amount'))['total'] or 0
+
+        return Response({
+            "referral_code": request.user.referral_code,
+            "total_referrals": total_referrals,
+            "total_bonus_earned": float(total_bonus),
+        })
+
+
+
+
+# ──────────────────────────────────────────────
+# FCM Token
+# ──────────────────────────────────────────────
+
+class RegisterFCMTokenView(APIView):
+    """Register or update FCM device token for push notifications."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = FCMTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request.user.fcm_token = serializer.validated_data['token']
+        request.user.save(update_fields=['fcm_token'])
+        return Response({"message": "FCM token registered successfully."})
+
+
+# ──────────────────────────────────────────────
+# Account Management
+# ──────────────────────────────────────────────
+
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -205,51 +321,42 @@ class LogoutView(APIView):
         return Response({"message": "Logged out successfully"})
 
 
-# ----------------------
-# Close Account
-# ----------------------
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def close_account(request):
     user = request.user
-    
+
     try:
-        # Close virtual account if it exists
         virtual_account = VirtualAccount.objects.filter(user=user).first()
         if virtual_account:
             client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
             client.close_virtual_account(virtual_account.account_reference)
             virtual_account.status = "CLOSED"
             virtual_account.save()
-        
-        # Deactivate user account
+
         user.is_active = False
         user.save()
-        
+
         return Response({"message": "Account closed successfully"}, status=status.HTTP_200_OK)
-    
+
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ----------------------------------
-# Upgrade account tier
-# ----------------------------------
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def generate_virtual_account(request):
     user = request.user
 
-    # Check if a virtual account already exists
     if hasattr(user, 'virtual_account'):
         return Response({"success": False, "error": "User already has a virtual account"}, status=400)
 
-    # Check if profile is complete enough for Paystack (Email and Names are required)
     if not user.first_name or not user.last_name or not user.email:
-        return Response({"success": False, "error": "User profile information is incomplete. First name, last name, and email are required."}, status=400)   
+        return Response({"success": False, "error": "User profile information is incomplete. First name, last name, and email are required."}, status=400)
 
     try:
         client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
-        
+
         account_res = client.create_virtual_account(
             user.email,
             user.first_name,
@@ -262,9 +369,7 @@ def generate_virtual_account(request):
             return Response({"success": account_res['status'], "message": account_res['message']}, status=200)
         else:
             return Response({"success": False, "error": "Virtual account generation failed due to an unexpected error"}, status=500)
-     
+
     except Exception as e:
         print(e)
         return Response({"success": False, "error": str(e)}, status=500)
-    
-

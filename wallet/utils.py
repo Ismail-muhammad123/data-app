@@ -1,7 +1,7 @@
 from datetime import datetime
 from django.db import transaction
 from payments.models import Deposit
-from wallet.models import Wallet, WalletTransaction  
+from wallet.models import Wallet, WalletTransaction
 import uuid
 
 def fund_wallet(user_id, amount, description="Wallet funded", reference=None, initiator='self', initiated_by=None):
@@ -55,3 +55,5 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
             reference=uuid.uuid4().hex[:10].upper(),
         )
     return wallet.balance
+
+

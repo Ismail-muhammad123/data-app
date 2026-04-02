@@ -3,7 +3,8 @@ from .models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, ElectricityVariation, 
     Purchase, TVService, TVVariation,
-    SmileVariation
+    SmileVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
+    SmileService, EducationService, EducationVariation
 )
 from .services.clubkonnect import ClubKonnectClient
 from django.utils.html import format_html
@@ -34,7 +35,6 @@ class ClubKonnectSyncMixin:
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
     sync_airtime_services.short_description = "Sync Airtime from ClubKonnect"
-
     def sync_data_services(self, request, queryset):
         client = ClubKonnectClient()
         try:
@@ -74,8 +74,9 @@ class ClubKonnectSyncMixin:
 
 @admin.register(DataService)
 class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
-    list_display= ["network_image", "service_name", "service_id", "data_plans_count"]
+    list_display= ["network_image", "service_name", "service_id", "provider", "is_active", "data_plans_count"]
     list_display_links = ["service_name", "network_image"]
+    list_filter = ["provider", "is_active"]
     actions = ["sync_data_services", "sync_all_clubkonnect_services"]
     
     def network_image(self, obj):
@@ -131,9 +132,12 @@ class ElectricityServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
+        "provider",
+        "is_active",
         "variation_count",
     ]
     list_display_links = ["service_name"]
+    list_filter = ["provider", "is_active"]
     list_per_page= 100
     actions = ["sync_electricity_services", "sync_all_clubkonnect_services"]
 
@@ -163,9 +167,12 @@ class TVServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
+        "provider",
+        "is_active",
         "variation_count",
     ]
     list_display_links = ["service_name"]
+    list_filter = ["provider", "is_active"]
     list_per_page= 100
     actions = ["sync_cable_services", "sync_all_clubkonnect_services"]
 
@@ -209,10 +216,17 @@ class TVVariationAdmin(admin.ModelAdmin):
     make_as_active.short_description = "Mark selected plans as active"
 
 
+@admin.register(SmileService)
+class SmileServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+    list_display = ["service_name", "service_id", "provider", "is_active"]
+    list_filter = ["provider", "is_active"]
+    actions = ["sync_smile_services", "sync_all_clubkonnect_services"]
+
 @admin.register(SmileVariation)
-class SmileVariationAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class SmileVariationAdmin(admin.ModelAdmin):
     list_display = [
         "name",
+        "service",
         "variation_id",
         "selling_price",
         "is_active",
@@ -221,7 +235,7 @@ class SmileVariationAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
         "updated_at",
     ]
 
-    list_filter = ["is_active"]
+    list_filter = ["service", "is_active"]
     ordering = ["name", "selling_price"]
     list_per_page = 50
     actions = ["make_as_active", "sync_smile_services", "sync_all_clubkonnect_services"]
@@ -249,6 +263,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         "amount",
         "beneficiary",
         "status",
+        "provider",
         "initiator",
         "time",
     ]
@@ -258,25 +273,24 @@ class PurchaseAdmin(admin.ModelAdmin):
         "status", "reference", "time", 
         "initiator", "initiated_by", "airtime_service",
         "data_variation", "electricity_service", "tv_variation",
-        "smile_variation",
-        "provider_response"
+        "smile_variation", "provider", "provider_response"
     ]
     fieldsets = [
         ("Purchase Details", {
             "fields": ("user", "purchase_type", "amount", "beneficiary", "service_name", "time")
         }),
         ("Transaction Status", {
-            "fields": ("status", "reference", "initiator", "initiated_by")
+            "fields": ("status", "reference", "provider", "initiator", "initiated_by")
         }),
         ("Service Data", {
             "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
         }),
-        ("Provider Response", {
+        ("API Response", {
             "fields": ("provider_response",),
-            "classes": ("collapse",),
+            "classes": ("collapse",)
         }),
     ]
-    list_filter = ["purchase_type", "status", "initiator", "time"]
+    list_filter = ["purchase_type", "status", "provider", "initiator", "time"]
     search_fields = ["user__email", "user__phone_number", "reference", "beneficiary"]
     list_per_page = 100    
     change_list_template = "admin/orders/purchase/change_list.html"
@@ -512,10 +526,13 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
         "network_image",
         "service_name", 
         "service_id", 
+        "provider",
+        "is_active",
         "sales_count",
     ]
 
     list_display_links = ["network_image","service_name"]
+    list_filter = ["provider", "is_active"]
     actions = ["sync_airtime_services", "sync_all_clubkonnect_services"]
 
     def network_image(self, obj):
@@ -535,3 +552,35 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     sales_count.short_description = "Sales"
 
     list_per_page= 100
+# ─── VTU Routing Admin ───
+
+class ServiceFallbackInline(admin.TabularInline):
+    model = ServiceFallback
+    extra = 1
+
+@admin.register(VTUProviderConfig)
+class VTUProviderConfigAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'max_retries', 'auto_refund_on_failure', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    fieldsets = (
+        ("Provider Status", {
+            "fields": ("name", "is_active")
+        }),
+        ("API Configuration", {
+            "fields": ("config_data",),
+            "description": 'Enter config in JSON format. E.g. {"api_key": "...", "public_key": "...", "secret_key": "...", "base_url": "..."}'
+        }),
+        ("Failover Behavior", {
+            "fields": ("max_retries", "auto_refund_on_failure"),
+        }),
+    )
+
+@admin.register(ServiceRouting)
+class ServiceRoutingAdmin(admin.ModelAdmin):
+    list_display = ('service', 'primary_provider_name')
+    inlines = [ServiceFallbackInline]
+    
+    def primary_provider_name(self, obj):
+        return obj.primary_provider.get_name_display() if obj.primary_provider else "None"
+    primary_provider_name.short_description = "Primary Provider"

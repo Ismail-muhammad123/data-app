@@ -30,6 +30,7 @@ class Wallet(models.Model):
         return f"{self.user.full_name}'s wallet"
 
 
+
 class WalletTransaction(models.Model):
     TRANSACTION_TYPE_CHOICES = [
         ('credit', 'Credit'),
@@ -58,14 +59,30 @@ class WalletTransaction(models.Model):
         return f"{self.transaction_type} of {self.amount} on {self.timestamp.date()} for {self.user.email}"
 
 
-class WithdrawalAccount(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="withdrawal_account")
+
+
+class TransferBeneficiary(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="transfer_beneficiaries")
     bank_name = models.CharField(max_length=100)
     bank_code = models.CharField(max_length=10)
     account_number = models.CharField(max_length=20)
     account_name = models.CharField(max_length=200)
+    nickname = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Transfer Beneficiary"
+        verbose_name_plural = "Transfer Beneficiaries"
+        unique_together = ('user', 'bank_code', 'account_number')
 
     def __str__(self):
-        return f"{self.user.phone_number} - {self.bank_name} - {self.account_number}"
+        return f"{self.nickname or self.account_name} ({self.bank_name})"
+
+class BonusConfig(models.Model):
+    service_type = models.CharField(max_length=50, unique=True, help_text="e.g. referral_deposit, referral_purchase")
+    bonus_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    bonus_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.service_type

@@ -13,6 +13,9 @@ urlpatterns = [
     path('api/wallet/', include("wallet.urls")),
     path('api/payment/', include("payments.urls")),
     path('api/orders/', include("orders.urls")),
+    path('api/summary/', include("summary.urls")),
+    path('api/admin/', include("admin_api.urls")),
+    path('api/support/', include("support.urls")),
     
     # SWAGGER
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

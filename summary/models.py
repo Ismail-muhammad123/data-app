@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from summary.views import get_api_wallet_balance, get_paystack_balance, get_termii_balance
+from summary.utils import get_api_wallet_balance, get_paystack_balance, get_termii_balance
 from wallet.models import Wallet, WalletTransaction
 from payments.models import Deposit, Withdrawal
 from django.db.models import Q
@@ -104,6 +104,7 @@ class SummaryDashboard(Wallet):
             "vtu_funding_bank_name": config.vtu_funding_bank_name if config else "",
             "vtu_funding_account_number": config.vtu_funding_account_number if config else "",
             "vtu_funding_account_name": config.vtu_funding_account_name if config else "",
+            "withdrawals_enabled": config.withdrawals_enabled if config else True,
         }
 
         return {
@@ -138,6 +139,7 @@ class SiteConfig(models.Model):
     withdrawal_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     crediting_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     automatic_withdrawal = models.BooleanField(default=False, help_text="If enabled, withdrawals will be processed automatically via Paystack.")
+    withdrawals_enabled = models.BooleanField(default=True, help_text="Global toggle to enable or disable user withdrawals.")
     
     # VTU API Funding Details (The bank account to move money to for VTU funding)
     vtu_funding_bank_name = models.CharField(max_length=100, blank=True, null=True)

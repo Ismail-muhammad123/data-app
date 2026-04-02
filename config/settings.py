@@ -71,6 +71,9 @@ INSTALLED_APPS = [
     'wallet',
     'payments',
     'summary',
+    'notifications',
+    'admin_api',
+    'support',
 ]
 
 
@@ -330,7 +333,6 @@ JAZZMIN_SETTINGS = {
         "users.User": "fas fa-user-friends",
         "users.Group": "fas fa-users",
         "wallet.Wallet": "fas fa-wallet",
-        "wallet.WithdrawalAccount": "fas fa-university",
         "wallet.VirtualAccount": "fas fa-id-card",
         "wallet.WalletTransaction": "fas fa-exchange-alt",
         "payments.Deposit": "fas fa-money-bill-wave",

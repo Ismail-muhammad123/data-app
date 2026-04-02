@@ -1,5 +1,9 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.hashers import make_password, check_password as django_check_password
 from django.db import models
+import uuid
+import string
+import random
 
 
 country_phone_codes = {
@@ -221,6 +225,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         (i[1], f"{i[0]} ({i[1]})") for i in country_phone_codes.items()
     ]
 
+    ROLE_CHOICES = [
+        ('customer', 'Customer'),
+        ('agent', 'Agent/Reseller'),
+        ('staff', 'Staff'),
+    ]
+
     first_name=models.CharField(max_length=225, blank=True, null=True)
     last_name=models.CharField(max_length=225, blank=True, null=True)
     middle_name=models.CharField(max_length=225, blank=True, null=True)
@@ -240,10 +250,71 @@ class User(AbstractBaseUser, PermissionsMixin):
     closed_at = models.DateTimeField(blank=True, null=True)
     closed_reason = models.TextField(blank=True, null=True)
 
+    # ─── User Level / Role ───
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+    agent_commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.00,
+        help_text="Default commission rate (%) for agent transactions."
+    )
+    upgraded_at = models.DateTimeField(null=True, blank=True)
+    upgraded_by = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='upgraded_users'
+    )
+
+    # ─── Referral ───
+    referral_code = models.CharField(max_length=20, unique=True, blank=True, db_index=True)
+
+    # ─── Transaction PIN (separate from login PIN) ───
+    transaction_pin = models.CharField(max_length=128, blank=True, null=True)
+    transaction_pin_set = models.BooleanField(default=False)
+
+    # ─── KYC Status (Shortcut) ───
+    is_kyc_verified = models.BooleanField(default=False)
+
+    # ─── Two-Factor Authentication ───
+    two_factor_enabled = models.BooleanField(default=False)
+    two_factor_secret = models.CharField(max_length=64, blank=True)
+
+    # ─── FCM Push Notification Token ───
+    fcm_token = models.TextField(blank=True, null=True)
+
+    # ─── Profile Picture ───
+    profile_picture_url = models.URLField(blank=True, null=True)
+
+    # ─── Referral Earnings (Simplified from Points) ───
+    referral_earnings_count = models.PositiveIntegerField(default=0)
+    referral_earnings_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
 
     objects = UserManager()
+
+    @staticmethod
+    def _generate_referral_code():
+        """Generate a unique 8-char alphanumeric referral code."""
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(random.choices(chars, k=8))
+            if not User.objects.filter(referral_code=code).exists():
+                return code
+
+    def save(self, *args, **kwargs):
+        if not self.referral_code:
+            self.referral_code = self._generate_referral_code()
+        super().save(*args, **kwargs)
+
+    def set_transaction_pin(self, raw_pin):
+        """Hash and store the transaction PIN."""
+        self.transaction_pin = make_password(raw_pin)
+        self.transaction_pin_set = True
+        self.save(update_fields=['transaction_pin', 'transaction_pin_set'])
+
+    def check_transaction_pin(self, raw_pin):
+        """Verify a raw PIN against the stored hash."""
+        if not self.transaction_pin:
+            return False
+        return django_check_password(raw_pin, self.transaction_pin)
 
     @property
     def full_name(self):
@@ -271,3 +342,137 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"{self.user.phone_number} - {self.purpose} OTP"
+
+
+class Referral(models.Model):
+    """Tracks referral relationships between users."""
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referrals_made')
+    referred = models.OneToOneField(User, on_delete=models.CASCADE, related_name='referred_by_rel')
+    bonus_paid = models.BooleanField(default=False)
+    bonus_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.referrer.phone_number} → {self.referred.phone_number}"
+
+
+class ReferralConfig(models.Model):
+    """Admin-configurable referral commission settings (singleton)."""
+    COMMISSION_TYPE_CHOICES = [
+        ('percentage', 'Percentage of Sale'),
+        ('flat', 'Flat Amount'),
+    ]
+    COMMISSION_MODE_CHOICES = [
+        ('signup', 'One-time on Signup'),
+        ('recurring', 'Recurring on Every Purchase'),
+    ]
+
+    is_active = models.BooleanField(default=True, help_text="Enable/disable the referral program.")
+    commission_type = models.CharField(max_length=20, choices=COMMISSION_TYPE_CHOICES, default='flat')
+    commission_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=100.00,
+        help_text="If percentage: e.g. 5.00 means 5%. If flat: e.g. 100.00 means ₦100."
+    )
+    commission_mode = models.CharField(
+        max_length=20, choices=COMMISSION_MODE_CHOICES, default='signup',
+        help_text="'signup' = bonus when referred user signs up. 'recurring' = bonus on each purchase."
+    )
+    min_purchase_for_recurring = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Minimum purchase amount to trigger recurring referral bonus."
+    )
+    max_referral_bonus_per_user = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Max total bonus a referrer can earn from one referred user. 0 = unlimited."
+    )
+
+    class Meta:
+        verbose_name = "Referral Configuration"
+        verbose_name_plural = "Referral Configuration"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and ReferralConfig.objects.exists():
+            return  # Singleton
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Referral Config ({self.get_commission_type_display()} - {self.get_commission_mode_display()})"
+
+
+class Beneficiary(models.Model):
+    """Saved beneficiaries for quick repeat transactions."""
+    SERVICE_TYPES = [
+        ('airtime', 'Airtime'),
+        ('data', 'Data'),
+        ('electricity', 'Electricity'),
+        ('tv', 'TV'),
+        ('education', 'Education'),
+        ('smile', 'Smile'),
+        ('transfer', 'Wallet Transfer'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='beneficiaries')
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPES)
+    identifier = models.CharField(max_length=50, help_text="Phone, meter number, smartcard, account number, etc.")
+    nickname = models.CharField(max_length=100, blank=True)
+    metadata = models.JSONField(
+        default=dict, blank=True,
+        help_text='Extra info, e.g. {"network":"mtn", "bank_code":"044", "bank_name":"Access Bank"}'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'service_type', 'identifier')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        label = self.nickname or self.identifier
+        return f"{self.user.phone_number} - {self.get_service_type_display()}: {label}"
+
+class StaffPermission(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_permissions")
+    can_manage_users = models.BooleanField(default=False)
+    can_manage_wallets = models.BooleanField(default=False)
+    can_manage_vtu = models.BooleanField(default=False)
+    can_manage_payments = models.BooleanField(default=False)
+    can_manage_notifications = models.BooleanField(default=False)
+    can_manage_site_config = models.BooleanField(default=False)
+    can_initiate_transfers = models.BooleanField(default=False) # Admin account transfers
+
+    class Meta:
+        verbose_name = "Staff Permission"
+        verbose_name_plural = "Staff Permissions"
+
+    def __str__(self):
+        return f"Permissions for {self.user.phone_number}"
+
+class KYC(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kyc')
+    id_type = models.CharField(max_length=50) # e.g. NIN, BVN, Passport, Driver's License
+    id_number = models.CharField(max_length=50) # The specific number on the ID
+    id_image_url = models.URLField()
+    face_image_url = models.URLField()
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    remarks = models.TextField(blank=True, null=True) # Rejection reason or approval notes
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_kycs')
+    
+    time_accepted = models.DateTimeField(null=True, blank=True)
+    time_rejected = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"KYC for {self.user.phone_number} ({self.status})"
+
+    class Meta:
+        verbose_name_plural = "KYC Records"
