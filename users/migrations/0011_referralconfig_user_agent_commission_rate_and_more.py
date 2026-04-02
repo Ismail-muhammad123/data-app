@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='referral_code',
-            field=models.CharField(blank=True, db_index=True, max_length=20, null=True),
+            field=models.CharField(blank=True, db_index=False, max_length=20, null=True),
         ),
         migrations.RunPython(
             code=lambda apps, schema_editor: (
@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='user',
             name='referral_code',
-            field=models.CharField(blank=True, db_index=True, max_length=20, unique=True, default=''),
+            field=models.CharField(blank=True, db_index=False, max_length=20, unique=True, default=''),
             preserve_default=False,
         ),
         migrations.AddField(
@@ -128,5 +128,9 @@ class Migration(migrations.Migration):
                 'ordering': ['-created_at'],
                 'unique_together': {('user', 'service_type', 'identifier')},
             },
+        ),
+        migrations.RunSQL(
+            sql='CREATE INDEX IF NOT EXISTS "users_user_referral_code_b937ce54_like" ON "users_user" ("referral_code" varchar_pattern_ops);',
+            reverse_sql='DROP INDEX IF EXISTS "users_user_referral_code_b937ce54_like";'
         ),
     ]
