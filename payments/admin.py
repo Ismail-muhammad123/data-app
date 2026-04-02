@@ -148,10 +148,10 @@ class WithdrawalAdmin(admin.ModelAdmin):
 
 @admin.register(PaystackConfig)
 class PaystackConfigAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active', 'updated_at')
+    list_display = ('__str__', 'is_active', 'updated_at')
     list_filter = ('is_active',)
     fieldsets = (
         ("Configuration", {
-            "fields": ("name", "public_key", "secret_key", "is_active")
+            "fields": ("public_key", "secret_key", "is_active")
         }),
     )
