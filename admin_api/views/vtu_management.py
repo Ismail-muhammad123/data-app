@@ -359,6 +359,12 @@ class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     serializer_class = VTUProviderConfigSerializer
     permission_classes = [CanManageVTU]
 
+    @extend_schema(summary="Get list of all supported providers for dropdown selection")
+    @action(detail=False, methods=['get'], url_path='available-providers')
+    def available_providers(self, request):
+        choices = VTUProviderConfig.PROVIDER_CHOICES
+        return Response([{"id": c[0], "name": c[1]} for c in choices])
+
     @extend_schema(summary="Update provider funding configuration")
     @action(detail=True, methods=['post'], url_path='funding-config')
     def set_funding_config(self, request, pk=None):

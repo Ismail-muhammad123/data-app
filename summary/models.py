@@ -103,9 +103,20 @@ class SummaryDashboard(Wallet):
             bill_success_rate = (bill_tx.filter(status='success').count() / bill_tx.count()) * 100
 
         # PROVIDER BALANCES
-        vtu_balance = get_api_wallet_balance() or 0.0
-        reserve_balance = get_paystack_balance() or 0.0
-        sms_balance = get_termii_balance() or 0.0
+        try:
+            vtu_balance = get_api_wallet_balance() or 0.0
+        except Exception:
+            vtu_balance = 0.0
+
+        try:
+            reserve_balance = get_paystack_balance() or 0.0
+        except Exception:
+            reserve_balance = 0.0
+
+        try:
+            sms_balance = get_termii_balance() or 0.0
+        except Exception:
+            sms_balance = 0.0
 
         # SMART ALERTS
         failed_transactions = Purchase.objects.filter(status="failed").order_by('-time')[:10]

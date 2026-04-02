@@ -156,7 +156,6 @@ class ProfileView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-
 # ──────────────────────────────────────────────
 # Login PIN Management
 # ──────────────────────────────────────────────
@@ -182,7 +181,6 @@ class PasswordResetConfirmView(APIView):
         serializer.save()
         return Response({"message": "PIN reset successful"})
 
-
 class ChangePINView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -191,7 +189,6 @@ class ChangePINView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "PIN changed successfully"})
-
 
 # ──────────────────────────────────────────────
 # Transaction PIN Management

@@ -7,11 +7,18 @@ import pprint
 logger = logging.getLogger(__name__)
 
 class ClubKonnectClient:
-    def __init__(self):
-        self.base_url = settings.CLUBKONNECT_BASE_URL
-        self.user_id = settings.CLUBKONNECT_USER_ID
-        self.api_key = settings.CLUBKONNECT_API_KEY
-        self.timeout = settings.CLUBKONNECT_TIMEOUT
+    def __init__(self, config=None):
+        from orders.models import VTUProviderConfig
+        if config is None:
+            provider = VTUProviderConfig.objects.filter(name='clubkonnect', is_active=True).first()
+            cfg_data = provider.get_config() if provider else {}
+        else:
+            cfg_data = config
+
+        self.base_url = cfg_data.get('base_url') or getattr(settings, 'CLUBKONNECT_BASE_URL', "")
+        self.user_id = cfg_data.get('user_id') or getattr(settings, 'CLUBKONNECT_USER_ID', "")
+        self.api_key = cfg_data.get('api_key') or getattr(settings, 'CLUBKONNECT_API_KEY', "")
+        self.timeout = getattr(settings, 'CLUBKONNECT_TIMEOUT', 30)
 
     def _get_params(self, **kwargs):
         params = {

@@ -304,6 +304,12 @@ class VTUProviderConfig(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def get_config(self):
+        """Returns the config_data with keys always present (even if empty) to avoid KeyErrors."""
+        default_keys = ['api_key', 'public_key', 'secret_key', 'base_url', 'user_id', 'wallet_id']
+        config = self.config_data or {}
+        return {key: config.get(key, '') for key in default_keys}
+
     class Meta:
         verbose_name = "VTU Provider Config"
         verbose_name_plural = "VTU Provider Configs"

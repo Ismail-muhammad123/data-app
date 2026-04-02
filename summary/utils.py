@@ -5,21 +5,25 @@ from payments.utils import PaystackGateway
 from config.utils import TermiiClient
 
 def get_api_wallet_balance():
-    client = ClubKonnectClient()
-    balance = client.get_balance()
-  
-    if balance and isinstance(balance, dict):
-        try:
+    from orders.services.clubkonnect import ClubKonnectClient
+    try:
+        client = ClubKonnectClient()
+        balance = client.get_balance()
+      
+        if balance and isinstance(balance, dict):
             balance_amount = balance.get("balance", 0)
             balance_amount = float(str(balance_amount).replace(',', ''))
             return balance_amount
-        except (TypeError, ValueError):
-            return 0.0
+    except Exception:
+        return 0.0
     
     return 0.0
 
 def get_paystack_balance():
-    secret_key = settings.PAYSTACK_SECRET_KEY
+    from payments.models import PaymentGatewayConfig
+    config = PaymentGatewayConfig.objects.filter(name='paystack', is_active=True).first()
+    secret_key = config.secret_key if config else getattr(settings, 'PAYSTACK_SECRET_KEY', None)
+    
     if not secret_key:
         return 0.0
     
@@ -41,13 +45,18 @@ def get_paystack_balance():
         return 0.0
 
 def get_termii_balance():
-    if not settings.TERMII_API_KEY:
+    from notifications.models import NotificationProviderConfig
+    config = NotificationProviderConfig.objects.filter(provider_type='sms', is_active=True).first()
+    api_key = config.config_data.get('api_key') if config else getattr(settings, 'TERMII_API_KEY', None)
+    sender_id = config.config_data.get('sender_id') if config else getattr(settings, 'TERMII_SENDER_ID', None)
+
+    if not api_key:
         return 0.0
     
-    client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
+    client = TermiiClient(api_key, sender_id)
     try:
         data = client.get_balance()
-        if "balance" in data:
+        if data and "balance" in data:
             return float(data["balance"])
         return 0.0
     except Exception:
