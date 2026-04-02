@@ -3,8 +3,10 @@ from django.contrib.auth import get_user_model
 from summary.utils import get_api_wallet_balance, get_paystack_balance, get_termii_balance
 from wallet.models import Wallet, WalletTransaction
 from payments.models import Deposit, Withdrawal
-from django.db.models import Q
-from orders.models import DataService, DataVariation, AirtimeNetwork, Purchase
+from django.db.models import Q, Sum, F, Count, Avg
+from django.utils import timezone
+from datetime import timedelta
+from orders.models import DataService, DataVariation, AirtimeNetwork, Purchase, VTUProviderConfig
 
 User = get_user_model()
 
@@ -22,78 +24,126 @@ class SummaryDashboard(Wallet):
 
     @classmethod
     def summary(cls, start=None, end=None):
-        
-        wallets_transactions = WalletTransaction.objects.all()
-        purchases = Purchase.objects.all()
-        deposits = Deposit.objects.all()
-        withdrawals = Withdrawal.objects.all()
-
+        now = timezone.now()
+        today = now.date()
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
 
         # USERS
         total_users = User.objects.count()
-        active_users = User.objects.filter(is_active=True).count()
+        active_users_today = User.objects.filter(last_login__date=today).count()
+        active_users_total = User.objects.filter(is_active=True).count()
         verified_users = User.objects.filter(is_active=True, is_staff=False).count()
         unverified_users = User.objects.filter(is_active=False).count()
 
-        # Date filtering
+        # Date filtering for transactions
+        filtered_purchases = Purchase.objects.filter(status="success")
         if start:
-            wallets_transactions = wallets_transactions.filter(timestamp__gte=start)
-            purchases = purchases.filter(time__gte=start)
+            filtered_purchases = filtered_purchases.filter(time__gte=start)
+        if end:
+            filtered_purchases = filtered_purchases.filter(time__lte=end)
+
+        total_wallet_balance = float(Wallet.objects.aggregate(Sum("balance"))["balance__sum"] or 0)
+        
+        # SALES SUMMARY
+        total_transaction_volume = float(filtered_purchases.aggregate(Sum("amount"))["amount__sum"] or 0)
+        
+        # PROFIT CALCULATION (Simplified: only for data which has cost_price)
+        def calculate_profit(qs):
+            # Only DataVariation has cost_price in the model
+            data_profit = qs.filter(purchase_type='data', data_variation__isnull=False).annotate(
+                p=F('amount') - F('data_variation__cost_price')
+            ).aggregate(Sum('p'))['p__sum'] or 0
+            # For others, we might need a different logic, but let's stick to this for now
+            return float(data_profit)
+
+        daily_profit = calculate_profit(Purchase.objects.filter(status="success", time__date=today))
+        weekly_profit = calculate_profit(Purchase.objects.filter(status="success", time__gte=week_ago))
+        monthly_profit = calculate_profit(Purchase.objects.filter(status="success", time__gte=month_ago))
+
+        # SERVICE HEALTH INDICATORS
+        networks = ['mtn', 'glo', 'airtel', '9mobile']
+        health_indicators = {}
+        for nw in networks:
+            # Better logic: Filter by service name in the foreign key
+            nw_purchases = Purchase.objects.filter(
+                Q(airtime_service__service_name__icontains=nw) | 
+                Q(data_variation__service__service_name__icontains=nw)
+            ).order_by('-time')[:20]
+            
+            if not nw_purchases.exists():
+                health_indicators[nw] = "🟢" # Assume green if no recent tx
+            else:
+                success_count = nw_purchases.filter(status="success").count()
+                rate = success_count / nw_purchases.count()
+                if rate >= 0.9: health_indicators[nw] = "🟢"
+                elif rate >= 0.5: health_indicators[nw] = "🟡"
+                else: health_indicators[nw] = "🔴"
+
+        # PROVIDER PERFORMANCES
+        provider_performances = VTUProviderConfig.objects.filter(is_active=True).annotate(
+            total_tx=Count('purchases'),
+            success_tx=Count('purchases', filter=Q(purchases__status='success')),
+        )
+        perf_data = []
+        for p in provider_performances:
+            rate = (p.success_tx / p.total_tx * 100) if p.total_tx > 0 else 100
+            perf_data.append({
+                "name": p.get_name_display(),
+                "is_active": p.is_active,
+                "success_rate": round(rate, 2),
+                "total_transactions": p.total_tx
+            })
+
+        # Bill payment system health
+        bill_services = ['electricity', 'tv', 'education', 'smile']
+        bill_tx = Purchase.objects.filter(purchase_type__in=bill_services)
+        bill_success_rate = 0
+        if bill_tx.exists():
+            bill_success_rate = (bill_tx.filter(status='success').count() / bill_tx.count()) * 100
+
+        # PROVIDER BALANCES
+        vtu_balance = get_api_wallet_balance() or 0.0
+        reserve_balance = get_paystack_balance() or 0.0
+        sms_balance = get_termii_balance() or 0.0
+
+        # SMART ALERTS
+        failed_transactions = Purchase.objects.filter(status="failed").order_by('-time')[:10]
+        failed_data = [{
+            "id": f.id,
+            "ref": f.reference,
+            "type": f.purchase_type,
+            "amount": float(f.amount),
+            "beneficiary": f.beneficiary,
+            "time": f.time.isoformat(),
+            "error": f.remarks
+        } for f in failed_transactions]
+
+        low_balance_alerts = []
+        if vtu_balance < 5000: low_balance_alerts.append("Low VTU Provider Balance")
+        if sms_balance < 1000: low_balance_alerts.append("Low SMS Provider Balance")
+
+        # DEPOSITS & WITHDRAWALS
+        deposits = Deposit.objects.all()
+        withdrawals = Withdrawal.objects.all()
+        if start:
             deposits = deposits.filter(timestamp__gte=start)
             withdrawals = withdrawals.filter(created_at__gte=start)
-
         if end:
-            wallets_transactions = wallets_transactions.filter(timestamp__lte=end)
-            purchases = purchases.filter(time__lte=end)
             deposits = deposits.filter(timestamp__lte=end)
             withdrawals = withdrawals.filter(created_at__lte=end)
 
-        total_wallet_balance = float(Wallet.objects.aggregate(models.Sum("balance"))["balance__sum"] or 0)
-        wallet_debits = float(wallets_transactions.filter(Q(transaction_type="purchase") | Q(transaction_type="withdrawal")).aggregate(models.Sum("amount"))["amount__sum"] or 0)
-        wallet_credits = float(wallets_transactions.filter(Q(transaction_type="deposit") | Q(transaction_type="reversal")).aggregate(models.Sum("amount"))["amount__sum"] or 0)
-
-        # SALES SUMMARY
-        total_purchases = float(purchases.aggregate(models.Sum("amount"))["amount__sum"] or 0)
-        data_purchases = float(purchases.filter(purchase_type='data').aggregate(models.Sum("amount"))["amount__sum"] or 0)
-        airtime_purchases = float(purchases.filter(purchase_type='airtime').aggregate(models.Sum("amount"))["amount__sum"] or 0)
-
-        data_services = DataService.objects.all()
-        airtime_networks = AirtimeNetwork.objects.all()
-
-        airtime_sales = {}
-        for i in airtime_networks:
-            airtime_sales[i.service_name] = float(purchases.filter(airtime_service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
-
-        data_sales = {}
-        for i in data_services:
-            data_sales[i.service_name] = float(purchases.filter(data_variation__service=i).aggregate(models.Sum("amount"))["amount__sum"] or 0)
-
-        # API WALLET BALANCE (VTU)
-        vtu_balance = get_api_wallet_balance() or 0.0
-        
-        # PAYSTACK BALANCE (RESERVE)
-        reserve_balance = get_paystack_balance() or 0.0
-
-        # TERMII BALANCE
-        termii_balance = get_termii_balance() or 0.0
-
-        # TOTAL SYSTEM FUNDS
-        total_system_funds = vtu_balance + reserve_balance + termii_balance
-        
-        # DEPOSITS
         deposits_summary = { 
-            "total_amount": float(deposits.filter(status="SUCCESS").aggregate(models.Sum("amount"))["amount__sum"] or 0),
+            "total_amount": float(deposits.filter(status="SUCCESS").aggregate(Sum("amount"))["amount__sum"] or 0),
+            "success_count": deposits.filter(status="SUCCESS").count(),
             "pending_count": deposits.filter(status="PENDING").count(),
             "failed_count": deposits.filter(status="FAILED").count(),
-            "success_count": deposits.filter(status="SUCCESS").count(),
         }
 
-        # WITHDRAWALS
         withdrawals_summary = {
-            "total_amount": float(withdrawals.filter(status="APPROVED").aggregate(models.Sum("amount"))["amount__sum"] or 0),
-            "pending_count": withdrawals.filter(status="PENDING").count(),
+            "total_amount": float(withdrawals.filter(status="APPROVED").aggregate(Sum("amount"))["amount__sum"] or 0),
             "approved_count": withdrawals.filter(status="APPROVED").count(),
-            "rejected_count": withdrawals.filter(status="REJECTED").count(),
+            "pending_count": withdrawals.filter(status="PENDING").count(),
         }
 
         config = SiteConfig.objects.first()
@@ -101,38 +151,51 @@ class SummaryDashboard(Wallet):
             "withdrawal_charge": float(config.withdrawal_charge) if config else 0,
             "crediting_charge": float(config.crediting_charge) if config else 0,
             "automatic_withdrawal": config.automatic_withdrawal if config else False,
-            "vtu_funding_bank_name": config.vtu_funding_bank_name if config else "",
-            "vtu_funding_account_number": config.vtu_funding_account_number if config else "",
-            "vtu_funding_account_name": config.vtu_funding_account_name if config else "",
             "withdrawals_enabled": config.withdrawals_enabled if config else True,
+            "maintenance_mode": config.maintenance_mode if config else False,
+            "services_status": {
+                "airtime": config.airtime_active if config else True,
+                "data": config.data_active if config else True,
+                "tv": config.tv_active if config else True,
+                "electricity": config.electricity_active if config else True,
+                "education": config.education_active if config else True,
+            }
         }
 
         return {
-            "users": {
-                "total": total_users,
-                "active": active_users,
-                "verified": verified_users,
-                "unverified": unverified_users,
+            "business_metrics": {
+                "total_users": total_users,
+                "active_users_today": active_users_today,
+                "total_wallet_balance": total_wallet_balance,
+                "total_transaction_volume": total_transaction_volume,
+                "profit": {
+                    "today": daily_profit,
+                    "weekly": weekly_profit,
+                    "monthly": monthly_profit,
+                }
             },
-            "wallet": {
-                "balance": total_wallet_balance,
-                "debits": wallet_debits,
-                "credits": wallet_credits,
+            "service_health": {
+                "network_status": health_indicators,
+                "provider_performances": perf_data,
+                "bill_system_success_rate": round(bill_success_rate, 2),
             },
-            "sales": {
-                "total": total_purchases,
-                "data": data_purchases,
-                "airtime": airtime_purchases,
-                "data_summary": data_sales,
-                "airtime_summary": airtime_sales,
+            "provider_balances": {
+                "vtu": vtu_balance,
+                "payment_gateway": reserve_balance,
+                "sms": sms_balance,
             },
-            "deposits": deposits_summary,
-            "withdrawals": withdrawals_summary,
-            "api_wallet_balance": vtu_balance,
-            "reserve_balance": reserve_balance,
-            "termii_balance": termii_balance,
-            "total_system_funds": total_system_funds,
-            "config": config_data,
+            "alerts": {
+                "failed_transactions": failed_data,
+                "low_balance_warnings": low_balance_alerts,
+            },
+            "quick_actions": {
+                "maintenance_mode": config_data["maintenance_mode"],
+                "services": config_data["services_status"],
+            },
+            "finances": {
+                "deposits": deposits_summary,
+                "withdrawals": withdrawals_summary,
+            }
         }
 
 class SiteConfig(models.Model):
@@ -145,6 +208,14 @@ class SiteConfig(models.Model):
     vtu_funding_bank_name = models.CharField(max_length=100, blank=True, null=True)
     vtu_funding_account_number = models.CharField(max_length=20, blank=True, null=True)
     vtu_funding_account_name = models.CharField(max_length=100, blank=True, null=True)
+
+    # Maintenance and health
+    maintenance_mode = models.BooleanField(default=False)
+    airtime_active = models.BooleanField(default=True)
+    data_active = models.BooleanField(default=True)
+    tv_active = models.BooleanField(default=True)
+    electricity_active = models.BooleanField(default=True)
+    education_active = models.BooleanField(default=True)
     
     class Meta:
         verbose_name = "Site Configuration"

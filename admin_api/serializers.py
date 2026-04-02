@@ -30,20 +30,115 @@ class KYCSerializer(serializers.ModelSerializer):
         model = KYC
         fields = '__all__'
 
-class AdminUserSerializer(serializers.ModelSerializer):
-    staff_permissions = StaffPermissionSerializer(required=False)
-    wallet_balance = serializers.DecimalField(source='wallet.balance', max_digits=12, decimal_places=2, read_only=True)
-    kyc = KYCSerializer(read_only=True)
-    
+class AdminUserListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for the user list endpoint."""
+    wallet_balance = serializers.DecimalField(source='wallet.balance', max_digits=12, decimal_places=2, read_only=True, default=0)
+
     class Meta:
         model = User
         fields = [
-            "id", "phone_number", "first_name", "last_name", "email", "role", 
-            "is_active", "is_verified", "is_kyc_verified", "is_staff", 
-            "is_superuser", "referral_code", "wallet_balance",
-            "referral_earnings_count", "referral_earnings_amount",
-            "staff_permissions", "kyc"
+            "id", "phone_number", "first_name", "last_name", "email", "role",
+            "is_active", "is_verified", "is_kyc_verified", "is_staff",
+            "is_closed", "referral_code", "wallet_balance", "created_at",
         ]
+
+
+class AdminUserDetailSerializer(serializers.ModelSerializer):
+    """Full detail serializer for a single user view."""
+    staff_permissions = StaffPermissionSerializer(required=False, read_only=True)
+    wallet_balance = serializers.DecimalField(source='wallet.balance', max_digits=12, decimal_places=2, read_only=True, default=0)
+    kyc = KYCSerializer(read_only=True)
+    virtual_account = serializers.SerializerMethodField()
+    beneficiaries = serializers.SerializerMethodField()
+    purchase_beneficiaries = serializers.SerializerMethodField()
+    transfer_beneficiaries = serializers.SerializerMethodField()
+    recent_transactions = serializers.SerializerMethodField()
+    recent_purchases = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "phone_number", "first_name", "last_name", "middle_name", "email",
+            "phone_country_code", "role", "agent_commission_rate",
+            "is_active", "is_verified", "is_kyc_verified", "is_staff", "is_superuser",
+            "is_closed", "closed_at", "closed_reason",
+            "referral_code", "referral_earnings_count", "referral_earnings_amount",
+            "transaction_pin_set", "two_factor_enabled", "profile_picture_url",
+            "wallet_balance", "kyc", "staff_permissions", "virtual_account",
+            "beneficiaries", "purchase_beneficiaries", "transfer_beneficiaries",
+            "recent_transactions", "recent_purchases",
+            "created_at", "upgraded_at",
+        ]
+
+    def get_virtual_account(self, obj):
+        from wallet.models import VirtualAccount
+        try:
+            va = obj.virtual_account
+            return {
+                "account_number": va.account_number,
+                "bank_name": va.bank_name,
+                "account_name": va.account_name,
+            }
+        except VirtualAccount.DoesNotExist:
+            return None
+
+    def get_beneficiaries(self, obj):
+        from users.models import Beneficiary
+        return list(obj.beneficiaries.values("id", "service_type", "identifier", "nickname")[:20])
+
+    def get_purchase_beneficiaries(self, obj):
+        from orders.models import PurchaseBeneficiary
+        return list(obj.purchase_beneficiaries.values("id", "service_type", "identifier", "nickname")[:20])
+
+    def get_transfer_beneficiaries(self, obj):
+        from wallet.models import TransferBeneficiary
+        return list(obj.transfer_beneficiaries.values("id", "bank_name", "account_number", "account_name", "nickname")[:20])
+
+    def get_recent_transactions(self, obj):
+        txs = obj.wallet_transactions.order_by('-timestamp')[:15]
+        return [{
+            "id": t.id, "type": t.transaction_type, "amount": float(t.amount),
+            "balance_after": float(t.balance_after), "description": t.description,
+            "reference": t.reference, "timestamp": t.timestamp.isoformat(),
+        } for t in txs]
+
+    def get_recent_purchases(self, obj):
+        purchases = obj.purchases.order_by('-time')[:15]
+        return [{
+            "id": p.id, "type": p.purchase_type, "amount": float(p.amount),
+            "beneficiary": p.beneficiary, "status": p.status,
+            "reference": p.reference, "time": p.time.isoformat(),
+        } for p in purchases]
+
+
+class AdminCreateUserRequestSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(help_text="User phone number (unique)")
+    first_name = serializers.CharField(required=False, help_text="First name")
+    last_name = serializers.CharField(required=False, help_text="Last name")
+    email = serializers.EmailField(required=False, help_text="Email address")
+    password = serializers.CharField(help_text="Login password/PIN")
+    role = serializers.ChoiceField(choices=['customer', 'agent', 'staff'], default='customer', help_text="User role")
+    is_active = serializers.BooleanField(default=True)
+
+
+class AdminSetRoleRequestSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=['customer', 'agent', 'staff'], help_text="New role for the user")
+    commission_rate = serializers.FloatField(required=False, default=0.0, help_text="Agent commission rate (only for agent role)")
+
+
+class AdminSetPermissionsRequestSerializer(serializers.Serializer):
+    can_manage_users = serializers.BooleanField(required=False, default=False)
+    can_manage_wallets = serializers.BooleanField(required=False, default=False)
+    can_manage_vtu = serializers.BooleanField(required=False, default=False)
+    can_manage_payments = serializers.BooleanField(required=False, default=False)
+    can_manage_notifications = serializers.BooleanField(required=False, default=False)
+    can_manage_site_config = serializers.BooleanField(required=False, default=False)
+    can_initiate_transfers = serializers.BooleanField(required=False, default=False)
+
+
+class AdminResetPinRequestSerializer(serializers.Serializer):
+    new_pin = serializers.CharField(min_length=4, max_length=6, help_text="New transaction PIN for the user")
+
 
 class VTUProviderConfigSerializer(serializers.ModelSerializer):
     class Meta:
@@ -213,23 +308,84 @@ class AdminInitiateTransferRequestSerializer(serializers.Serializer):
 
 # ─── Admin Action Response Serializers ───
 
+class AdminPauseServiceRequestSerializer(serializers.Serializer):
+    service = serializers.ChoiceField(
+        choices=['airtime', 'data', 'tv', 'electricity', 'education'],
+        help_text="Service to pause or resume"
+    )
+    active = serializers.BooleanField(help_text="Set to true to resume, false to pause")
+
+
 class AdminStatusResponseSerializer(serializers.Serializer):
     status = serializers.CharField(help_text="Status of the operation e.g. 'SUCCESS', 'REJECTED'")
     message = serializers.CharField(help_text="Human-readable result message")
 
 class AdminDashboardStatsResponseSerializer(serializers.Serializer):
-    class UserStatsSerializer(serializers.Serializer):
-        total = serializers.IntegerField(help_text="Total registered users")
+    class BusinessMetricsSerializer(serializers.Serializer):
+        total_users = serializers.IntegerField()
+        active_users_today = serializers.IntegerField()
+        total_wallet_balance = serializers.FloatField()
+        total_transaction_volume = serializers.FloatField()
+        
+        class ProfitSerializer(serializers.Serializer):
+            today = serializers.FloatField()
+            weekly = serializers.FloatField()
+            monthly = serializers.FloatField()
+        profit = ProfitSerializer()
+
+    class ServiceHealthSerializer(serializers.Serializer):
+        network_status = serializers.DictField(child=serializers.CharField())
+        
+        class ProviderPerformanceSerializer(serializers.Serializer):
+            name = serializers.CharField()
+            is_active = serializers.BooleanField()
+            success_rate = serializers.FloatField()
+            total_transactions = serializers.IntegerField()
+        provider_performances = ProviderPerformanceSerializer(many=True)
+        bill_system_success_rate = serializers.FloatField()
+
+    class ProviderBalancesSerializer(serializers.Serializer):
+        vtu = serializers.FloatField()
+        payment_gateway = serializers.FloatField()
+        sms = serializers.FloatField()
+
+    class AlertsSerializer(serializers.Serializer):
+        class FailedTransactionSerializer(serializers.Serializer):
+            id = serializers.IntegerField()
+            ref = serializers.CharField()
+            type = serializers.CharField()
+            amount = serializers.FloatField()
+            beneficiary = serializers.CharField()
+            time = serializers.DateTimeField()
+            error = serializers.CharField(allow_null=True)
+        failed_transactions = FailedTransactionSerializer(many=True)
+        low_balance_warnings = serializers.ListField(child=serializers.CharField())
+
+    class QuickActionsSerializer(serializers.Serializer):
+        maintenance_mode = serializers.BooleanField()
+        services = serializers.DictField(child=serializers.BooleanField())
 
     class FinanceStatsSerializer(serializers.Serializer):
-        total_deposits = serializers.DecimalField(max_digits=15, decimal_places=2, help_text="Sum of all successful deposits")
+        class DepositStatsSerializer(serializers.Serializer):
+            total_amount = serializers.FloatField()
+            success_count = serializers.IntegerField()
+            pending_count = serializers.IntegerField()
+            failed_count = serializers.IntegerField()
+        
+        class WithdrawalStatsSerializer(serializers.Serializer):
+            total_amount = serializers.FloatField()
+            approved_count = serializers.IntegerField()
+            pending_count = serializers.IntegerField()
+            
+        deposits = DepositStatsSerializer()
+        withdrawals = WithdrawalStatsSerializer()
 
-    class TransactionStatsSerializer(serializers.Serializer):
-        total = serializers.IntegerField(help_text="Total number of purchases")
-
-    users = UserStatsSerializer()
+    business_metrics = BusinessMetricsSerializer()
+    service_health = ServiceHealthSerializer()
+    provider_balances = ProviderBalancesSerializer()
+    alerts = AlertsSerializer()
+    quick_actions = QuickActionsSerializer()
     finances = FinanceStatsSerializer()
-    transactions = TransactionStatsSerializer()
 
 class AdminErrorResponseSerializer(serializers.Serializer):
     error = serializers.CharField(help_text="Error message")

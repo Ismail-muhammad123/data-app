@@ -1,7 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    AdminDashboardStatsView, 
+    AdminDashboardStatsView,
+    AdminMaintenanceModeView,
+    AdminRefreshServicesView,
+    AdminPauseServiceView,
     AdminUserViewSet, 
     AdminWalletTransactionViewSet,
     AdminDepositViewSet,
@@ -21,7 +24,6 @@ from .views import (
     AdminInitiateTransferView,
     AdminTransferLogView,
     AdminNotificationLogViewSet,
-    AdminAnnouncementViewSet,
     AdminAnnouncementViewSet,
     AdminNotificationProviderConfigViewSet
 )
@@ -49,6 +51,9 @@ router.register(r'notifications/providers', AdminNotificationProviderConfigViewS
 
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),
+    path('maintenance-mode/', AdminMaintenanceModeView.as_view(), name='admin-maintenance-mode'),
+    path('refresh-services/', AdminRefreshServicesView.as_view(), name='admin-refresh-services'),
+    path('pause-service/', AdminPauseServiceView.as_view(), name='admin-pause-service'),
     path('transfer/initiate/', AdminInitiateTransferView.as_view(), name='admin-transfer-initiate'),
     path('transfer/logs/', AdminTransferLogView.as_view(), name='admin-transfer-logs'),
     path('', include(router.urls)),

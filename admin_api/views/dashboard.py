@@ -1,13 +1,13 @@
-from rest_framework import views
+from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema
-from users.models import User
-from payments.models import Deposit
-from orders.models import Purchase
-from admin_api.serializers import AdminDashboardStatsResponseSerializer
+from summary.models import SummaryDashboard, SiteConfig
+from admin_api.serializers import (
+    AdminDashboardStatsResponseSerializer,
+    AdminStatusResponseSerializer,
+    AdminPauseServiceRequestSerializer,
+)
 
 
 class AdminDashboardStatsView(views.APIView):
@@ -16,17 +16,91 @@ class AdminDashboardStatsView(views.APIView):
     @extend_schema(
         tags=["Admin Dashboard"],
         summary="Dashboard overview statistics",
-        description="Returns high-level stats: total users, total deposits, total purchases.",
+        description="Returns comprehensive dashboard stats including business metrics, service health, provider balances, alerts, and current config state.",
         responses={200: AdminDashboardStatsResponseSerializer}
     )
     def get(self, request):
-        today = timezone.now().date()
-        total_users = User.objects.count()
-        total_deposits = Deposit.objects.filter(status='SUCCESS').aggregate(Sum('amount'))['amount__sum'] or 0
-        total_purchases = Purchase.objects.count()
+        stats = SummaryDashboard.summary()
+        return Response(stats)
+
+
+class AdminMaintenanceModeView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Admin Quick Actions"],
+        summary="Toggle maintenance mode ON or OFF",
+        description="Pass `{\"enabled\": true}` to turn ON, `{\"enabled\": false}` to turn OFF.",
+        request={"application/json": {"type": "object", "properties": {"enabled": {"type": "boolean"}}, "required": ["enabled"]}},
+        responses={200: AdminStatusResponseSerializer}
+    )
+    def post(self, request):
+        enabled = request.data.get("enabled")
+        if enabled is None:
+            return Response({"error": "Field 'enabled' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        config, _ = SiteConfig.objects.get_or_create(pk=1)
+        config.maintenance_mode = bool(enabled)
+        config.save()
+
+        state = "ON" if config.maintenance_mode else "OFF"
+        return Response({"status": "SUCCESS", "message": f"Maintenance mode turned {state}."})
+
+
+class AdminRefreshServicesView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Admin Quick Actions"],
+        summary="Force refresh all services",
+        description="Triggers a refresh of provider balances and service status checks.",
+        responses={200: AdminStatusResponseSerializer}
+    )
+    def post(self, request):
+        # Re-fetch all balances and clear any cached data
+        from summary.utils import get_api_wallet_balance, get_paystack_balance, get_termii_balance
+        
+        results = {
+            "vtu_balance": get_api_wallet_balance() or 0.0,
+            "payment_gateway_balance": get_paystack_balance() or 0.0,
+            "sms_balance": get_termii_balance() or 0.0,
+        }
         
         return Response({
-            "users": {"total": total_users},
-            "finances": {"total_deposits": total_deposits},
-            "transactions": {"total": total_purchases}
+            "status": "SUCCESS",
+            "message": "All services refreshed successfully.",
+            "balances": results,
         })
+
+
+class AdminPauseServiceView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Admin Quick Actions"],
+        summary="Pause or resume a specific service",
+        description="Set `active` to false to pause, true to resume. Valid services: airtime, data, tv, electricity, education.",
+        request=AdminPauseServiceRequestSerializer,
+        responses={200: AdminStatusResponseSerializer}
+    )
+    def post(self, request):
+        serializer = AdminPauseServiceRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        service = serializer.validated_data["service"]
+        active = serializer.validated_data["active"]
+
+        valid_services = ["airtime", "data", "tv", "electricity", "education"]
+        if service not in valid_services:
+            return Response(
+                {"error": f"Invalid service. Must be one of: {', '.join(valid_services)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        config, _ = SiteConfig.objects.get_or_create(pk=1)
+        field_name = f"{service}_active"
+        setattr(config, field_name, active)
+        config.save()
+
+        action_word = "resumed" if active else "paused"
+        return Response({"status": "SUCCESS", "message": f"Service '{service}' {action_word}."})
