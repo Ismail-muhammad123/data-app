@@ -352,6 +352,7 @@ class ServiceTypeToggleView(APIView):
     update=extend_schema(tags=["Admin VTU Config"]),
     partial_update=extend_schema(tags=["Admin VTU Config"]),
     destroy=extend_schema(tags=["Admin VTU Config"]),
+    available_providers=extend_schema(tags=["Admin VTU Config"], summary="Get list of all supported providers for dropdown selection"),
 )
 class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     """Manage VTU provider configurations (API keys, base URLs, etc.)."""
@@ -381,6 +382,7 @@ class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     update=extend_schema(tags=["Admin VTU Config"]),
     partial_update=extend_schema(tags=["Admin VTU Config"]),
     destroy=extend_schema(tags=["Admin VTU Config"]),
+    available_providers=extend_schema(tags=["Admin VTU Config"], summary="Get list of all supported providers for dropdown selection"),
 )
 class AdminServiceRoutingViewSet(viewsets.ModelViewSet):
     """Manage service routing (primary provider & fallback chain per service type)."""

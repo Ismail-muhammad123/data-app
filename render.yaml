@@ -1,14 +1,9 @@
-databases:
-  - name: data-app-db
-    plan: free
-
 services:
   - type: web
     name: data-app-backend
     env: python
-    plan: free
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn config.wsgi:application"
+    buildCommand: ./build.sh
+    startCommand: gunicorn config.wsgi:application
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -16,95 +11,29 @@ services:
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
-      - key: PYTHON_VERSION
-        value: 3.10.12
-      - key: PRODUCTION
-        value: "True"
+      - key: WEB_CONCURRENCY
+        value: 4
       - key: DEBUG
         value: "False"
-      - key: WEB_CONCURRENCY
-        value: "4"
-      - key: DJANGO_ALLOWED_HOSTS
-        value: "data-app-backend.onrender.com"
-      - key: CSRF_TRUSTED_ORIGINS
-        value: "https://data-app-backend.onrender.com"
-      - key: DJANGO_SUPERUSER_USERNAME
-        sync: false
-      - key: DJANGO_SUPERUSER_PASSWORD
-        sync: false
-      - key: DJANGO_SUPERUSER_FULL_NAME
-        sync: false
-      - key: DJANGO_SUPERUSER_EMAIL
-        sync: false
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: 3.10.12
 
-      # Core Provider Integration API Keys (You must fill these in the dashboard securely)
-      - key: PAYSTACK_SECRET_KEY
-        sync: false
-      # Firebase & Zoho credentials remain for core messaging
-      - key: FIREBASE_TYPE
-        sync: false
-      - key: FIREBASE_PROJECT_ID
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY_ID
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY
-        sync: false
-      - key: FIREBASE_CLIENT_EMAIL
-        sync: false
-      - key: FIREBASE_CLIENT_ID
-        sync: false
-      - key: FIREBASE_AUTH_URI
-        sync: false
-      - key: FIREBASE_TOKEN_URI
-        sync: false
-      - key: FIREBASE_AUTH_PROVIDER_X509_CERT_URL
-        sync: false
-      - key: FIREBASE_CLIENT_X509_CERT_URL
-        sync: false
-      - key: FIREBASE_UNIVERSE_DOMAIN
-        sync: false
-      - key: ZOHO_EMAIL_USER
-        sync: false
-      - key: ZOHO_MAIL_API_URL
-        sync: false
-      - key: ZOHO_SMS_SENDER_ID
-        sync: false
-      - key: ZOHO_WHATSAPP_NUMBER
-        sync: false
-      - key: ZOHO_API_KEY
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-      - key: DJANGO_SUPERUSER_USERNAME
-        sync: false
-      - key: DJANGO_SUPERUSER_PASSWORD
-        sync: false
-      - key: DJANGO_SUPERUSER_FULL_NAME
-        sync: false
-      - key: DJANGO_SUPERUSER_EMAIL
-        sync: false
+  - type: cron
+    name: vtu-automation-job
+    env: python
+    schedule: "*/5 * * * *"
+    buildCommand: ./build.sh
+    startCommand: python manage.py vtu_automation
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: data-app-db
+          property: connectionString
+      - key: DEBUG
+        value: "False"
 
-#   - type: cron
-#     name: data-app-vtu-automation
-#     env: python
-#     plan: free
-#     schedule: "*/5 * * * *" # Runs every 5 minutes
-#     buildCommand: "./build.sh"
-#     startCommand: "python manage.py vtu_automation"
-#     envVars:
-#       - key: DATABASE_URL
-#         fromDatabase:
-#           name: data-app-db
-#           property: connectionString
-#       - key: SECRET_KEY
-#         generateValue: true
-#       - key: PYTHON_VERSION
-#         value: 3.10.12
-#       - key: PRODUCTION
-#         value: "True"
-#       - key: DEBUG
-#         value: "False"
+databases:
+  - name: data-app-db
+    plan: free
