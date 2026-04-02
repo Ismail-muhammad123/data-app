@@ -24,26 +24,51 @@ class NotificationProviderConfig(models.Model):
         return self.get_provider_display()
 
 
-class NotificationLog(models.Model):
+class Notification(models.Model):
     CHANNEL_CHOICES = [
-        ('push', 'Push'),
+        ('fcm', 'Push (FCM)'),
         ('email', 'Email'),
         ('sms', 'SMS'),
+        ('whatsapp', 'WhatsApp'),
     ]
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notification_logs")
-    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
     title = models.CharField(max_length=255)
     body = models.TextField()
-    status = models.CharField(max_length=20, default="SENT") # SENT, FAILED
-    error_message = models.TextField(null=True, blank=True)
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
+    
+    # Metadata for deep linking or extra info
+    data = models.JSONField(default=dict, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.channel} to {self.user.phone_number}: {self.title}"
+        return f"{self.get_channel_display()}: {self.title}"
+
+class UserNotification(models.Model):
+    STATUS_CHOICES = [
+        ('SENT', 'Sent'),
+        ('FAILED', 'Failed'),
+        ('PENDING', 'Pending'),
+    ]
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="user_notifications")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="SENT")
+    error_message = models.TextField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('notification', 'user')
+
+    def __str__(self):
+        return f"Notification for {self.user.phone_number}: {self.notification.title}"
 
 
 class NotificationTemplate(models.Model):

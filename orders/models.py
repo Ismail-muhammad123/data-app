@@ -263,23 +263,12 @@ class Purchase(models.Model):
         return f"{self.purchase_type} purchase to {self.beneficiary}"
 
 
+from .providers.registry import AVAILABLE_PROVIDERS
+
 class VTUProviderConfig(models.Model):
-    PROVIDER_CHOICES = [
-        ('vtpass', 'VTPass'),
-        ('clubkonnect', 'ClubKonnect'),
-        ('payflex', 'Payflex'),
-        ('alrahuz', 'Alrahuz'),
-        ('mobilenig', 'MobileNIG'),
-        ('otapay', 'Otapay'),
-        ('arewaglobal', 'Arewa Global'),
-        ('mightydata', 'MightyData'),
-        ('smedata', 'SMEDATA.NG'),
-        ('mobilevtu', 'MobileVTU'),
-        ('aimtoget', 'Aimtoget'),
-        ('nata', 'Nata API'),
-        ('amigo', 'Amigo'),
-        ('vtuorg', 'vtu.org'),
-    ]
+    """Configuration for each VTU API provider."""
+    
+    PROVIDER_CHOICES = AVAILABLE_PROVIDERS
 
     name = models.CharField(max_length=20, choices=PROVIDER_CHOICES, unique=True)
     is_active = models.BooleanField(default=True)

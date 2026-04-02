@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import OTP, Referral, Beneficiary
+from .utils import send_otp_code
+from notifications.models import UserNotification
 from .serializers import (
     ChangeTransactionPinSerializer,
     FCMTokenSerializer,
@@ -17,8 +19,9 @@ from .serializers import (
     SignupSerializer,
     UpdateProfileSerializer,
     VerifyTransactionPinSerializer,
+    UserNotificationSerializer,
+    ChangePINSerializer,
 )
-from .utils import send_otp_code
 from django.conf import settings
 from django.db.models import Sum
 
@@ -298,6 +301,40 @@ class RegisterFCMTokenView(APIView):
         request.user.fcm_token = serializer.validated_data['token']
         request.user.save(update_fields=['fcm_token'])
         return Response({"message": "FCM token registered successfully."})
+
+from django.utils import timezone
+from rest_framework.decorators import action
+
+class NotificationListView(generics.ListAPIView):
+    """List all notifications for the current user."""
+    serializer_class = UserNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return UserNotification.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def post(self, request, *args, **kwargs):
+        """Mark a notification or all notifications as read."""
+        action_type = request.data.get("action")
+        
+        if action_type == "mark_read":
+            notification_id = request.data.get("notification_id")
+            if not notification_id:
+                return Response({"error": "notification_id is required"}, status=400)
+            
+            updated = UserNotification.objects.filter(
+                user=request.user, id=notification_id
+            ).update(is_read=True, read_at=timezone.now())
+            
+            return Response({"message": "Marked as read" if updated else "Not found"})
+            
+        elif action_type == "mark_all_read":
+            UserNotification.objects.filter(
+                user=request.user, is_read=False
+            ).update(is_read=True, read_at=timezone.now())
+            return Response({"message": "All notifications marked as read"})
+
+        return Response({"error": "Invalid action"}, status=400)
 
 
 # ──────────────────────────────────────────────

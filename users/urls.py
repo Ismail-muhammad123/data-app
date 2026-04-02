@@ -26,6 +26,8 @@ from .views import (
     ReferralStatsView,
     # FCM
     RegisterFCMTokenView,
+    # Notifications
+    NotificationListView,
 )
 
 urlpatterns = [
@@ -58,6 +60,8 @@ urlpatterns = [
 
     # ─── FCM Token ───
     path("register-fcm-token/", RegisterFCMTokenView.as_view(), name="register-fcm-token"),
+    # ─── Notifications ───
+    path("notifications/", NotificationListView.as_view(), name="notification-list"),
 
     # ─── Account Management ───
     path("close-account/", close_account, name="close-account"),

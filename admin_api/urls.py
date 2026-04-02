@@ -23,7 +23,7 @@ from .views import (
     AdminBeneficiaryViewSet,
     AdminInitiateTransferView,
     AdminTransferLogView,
-    AdminNotificationLogViewSet,
+    AdminNotificationViewSet,
     AdminAnnouncementViewSet,
     AdminNotificationProviderConfigViewSet,
     # New Views
@@ -52,7 +52,7 @@ router.register(r'pricing/education', AdminEducationVariationViewSet, basename='
 router.register(r'pricing/electricity', AdminElectricityVariationViewSet, basename='admin-pricing-electricity')
 router.register(r'pricing/promos', AdminPromoCodeViewSet, basename='admin-pricing-promos')
 router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='admin-transfer-beneficiaries')
-router.register(r'notifications/logs', AdminNotificationLogViewSet, basename='admin-notifications-logs')
+router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
 router.register(r'notifications/providers', AdminNotificationProviderConfigViewSet, basename='admin-notification-providers')
 

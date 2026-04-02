@@ -72,13 +72,13 @@ class SummaryDashboard(Wallet):
             ).order_by('-time')[:20]
             
             if not nw_purchases.exists():
-                health_indicators[nw] = "🟢" # Assume green if no recent tx
+                health_indicators[nw] = "EXCELLENT" # Assume green if no recent tx
             else:
                 success_count = nw_purchases.filter(status="success").count()
                 rate = success_count / nw_purchases.count()
-                if rate >= 0.9: health_indicators[nw] = "🟢"
-                elif rate >= 0.5: health_indicators[nw] = "🟡"
-                else: health_indicators[nw] = "🔴"
+                if rate >= 0.9: health_indicators[nw] = "EXCELLENT"
+                elif rate >= 0.5: health_indicators[nw] = "DEGRADED"
+                else: health_indicators[nw] = "POOR"
 
         # PROVIDER PERFORMANCES
         provider_performances = VTUProviderConfig.objects.filter(is_active=True).annotate(

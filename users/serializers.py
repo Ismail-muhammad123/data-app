@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, OTP, Referral, ReferralConfig
+from notifications.models import UserNotification, Notification
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -217,6 +218,19 @@ class ReferralSerializer(serializers.ModelSerializer):
 
 class VerifyTransactionPinSerializer(serializers.Serializer):
     pin = serializers.CharField(min_length=4, max_length=4)
+
+# ─── Notification Serializers ───
+
+class UserNotificationSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source='notification.title', read_only=True)
+    body = serializers.CharField(source='notification.body', read_only=True)
+    channel = serializers.CharField(source='notification.channel', read_only=True)
+    data = serializers.JSONField(source='notification.data', read_only=True)
+    
+    class Meta:
+        model = UserNotification
+        fields = ['id', 'title', 'body', 'channel', 'data', 'is_read', 'read_at', 'created_at']
+        read_only_fields = fields
 
 # ─── FCM Token Serializer ───
 
