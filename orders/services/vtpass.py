@@ -34,14 +34,14 @@
 #     return vtpass_post("/api/pay", payload)
 
 
-# # 🔹 Smile Internet Purchase
-# def buy_smile(account_number: str, variation_code: str, amount: float):
+# # 🔹 Internet Internet Purchase
+# def buy_internet(account_number: str, variation_code: str, amount: float):
 #     """
-#     Smile internet requires account_number and bundle variation.
+#     Internet internet requires account_number and bundle variation.
 #     """
 #     payload = {
 #         "request_id": generate_request_id(),
-#         "serviceID": "smile-direct",
+#         "serviceID": "internet-direct",
 #         "billersCode": account_number,
 #         "variation_code": variation_code,
 #         "amount": amount,

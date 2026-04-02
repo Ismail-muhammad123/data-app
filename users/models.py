@@ -410,7 +410,7 @@ class Beneficiary(models.Model):
         ('electricity', 'Electricity'),
         ('tv', 'TV'),
         ('education', 'Education'),
-        ('smile', 'Smile'),
+        ('internet', 'Internet'),
         ('transfer', 'Wallet Transfer'),
         ('bank_transfer', 'Bank Transfer'),
     ]

@@ -8,7 +8,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--service',
             type=str,
-            help='Specify a service to sync (airtime, data, cable, electricity, smile)',
+            help='Specify a service to sync (airtime, data, cable, electricity, internet)',
         )
 
     def handle(self, *args, **options):
@@ -25,8 +25,8 @@ class Command(BaseCommand):
                     client.sync_cable()
                 elif service == 'electricity':
                     client.sync_electricity()
-                elif service == 'smile':
-                    client.sync_smile()
+                elif service == 'internet':
+                    client.sync_internet()
                 else:
                     self.stdout.write(self.style.ERROR(f"Unknown service: {service}"))
                     return

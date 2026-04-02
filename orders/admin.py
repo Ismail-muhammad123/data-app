@@ -3,8 +3,8 @@ from .models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, ElectricityVariation, 
     Purchase, TVService, TVVariation,
-    SmileVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
-    SmileService, EducationService, EducationVariation
+    InternetVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
+    InternetService, EducationService, EducationVariation
 )
 from .services.clubkonnect import ClubKonnectClient
 from django.utils.html import format_html
@@ -62,14 +62,14 @@ class ClubKonnectSyncMixin:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
     sync_electricity_services.short_description = "Sync Electricity from ClubKonnect"
 
-    def sync_smile_services(self, request, queryset):
+    def sync_internet_services(self, request, queryset):
         client = ClubKonnectClient()
         try:
-            count = client.sync_smile()
-            self.message_user(request, f"Successfully synced {count} smile packages")
+            count = client.sync_internet()
+            self.message_user(request, f"Successfully synced {count} internet packages")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_smile_services.short_description = "Sync Smile from ClubKonnect"
+    sync_internet_services.short_description = "Sync Internet from ClubKonnect"
 
 
 @admin.register(DataService)
@@ -216,14 +216,14 @@ class TVVariationAdmin(admin.ModelAdmin):
     make_as_active.short_description = "Mark selected plans as active"
 
 
-@admin.register(SmileService)
-class SmileServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+@admin.register(InternetService)
+class InternetServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display = ["service_name", "service_id", "provider", "is_active"]
     list_filter = ["provider", "is_active"]
-    actions = ["sync_smile_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_internet_services", "sync_all_clubkonnect_services"]
 
-@admin.register(SmileVariation)
-class SmileVariationAdmin(admin.ModelAdmin):
+@admin.register(InternetVariation)
+class InternetVariationAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "service",
@@ -238,12 +238,12 @@ class SmileVariationAdmin(admin.ModelAdmin):
     list_filter = ["service", "is_active"]
     ordering = ["name", "selling_price"]
     list_per_page = 50
-    actions = ["make_as_active", "sync_smile_services", "sync_all_clubkonnect_services"]
+    actions = ["make_as_active", "sync_internet_services", "sync_all_clubkonnect_services"]
 
     def sales_count(self, obj):
         from django.urls import reverse
         count = obj.sales.count()
-        url = reverse('admin:orders_purchase_changelist') + f'?smile_variation__id__exact={obj.id}'
+        url = reverse('admin:orders_purchase_changelist') + f'?internet_variation__id__exact={obj.id}'
         return format_html('<a href="{}">{} Purchases</a>', url, count)
     sales_count.short_description = "Purchases"
 
@@ -273,7 +273,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         "status", "reference", "time", 
         "initiator", "initiated_by", "airtime_service",
         "data_variation", "electricity_service", "tv_variation",
-        "smile_variation", "provider", "provider_response"
+        "internet_variation", "provider", "provider_response"
     ]
     fieldsets = [
         ("Purchase Details", {
@@ -283,7 +283,7 @@ class PurchaseAdmin(admin.ModelAdmin):
             "fields": ("status", "reference", "provider", "initiator", "initiated_by")
         }),
         ("Service Data", {
-            "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "smile_variation")
+            "fields": ("airtime_service", "data_variation", "electricity_service", "tv_variation", "internet_variation")
         }),
         ("API Response", {
             "fields": ("provider_response",),
@@ -399,8 +399,8 @@ class PurchaseAdmin(admin.ModelAdmin):
             return obj.electricity_service.service_name
         elif obj.tv_variation:
             return obj.tv_variation.service.service_name
-        elif obj.smile_variation:
-            return "Smile Subscription"
+        elif obj.internet_variation:
+            return "Internet Subscription"
         elif obj.data_variation:
             return obj.data_variation.service.service_name
         return "-"

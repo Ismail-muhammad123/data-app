@@ -96,7 +96,7 @@ class SummaryDashboard(Wallet):
             })
 
         # Bill payment system health
-        bill_services = ['electricity', 'tv', 'education', 'smile']
+        bill_services = ['electricity', 'tv', 'education', 'internet']
         bill_tx = Purchase.objects.filter(purchase_type__in=bill_services)
         bill_success_rate = 0
         if bill_tx.exists():

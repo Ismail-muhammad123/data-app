@@ -3,7 +3,7 @@ from users.models import User, StaffPermission, ReferralConfig, KYC
 from admin_api.models import AdminBeneficiary, AdminTransferLog
 from orders.models import (
     VTUProviderConfig, ServiceRouting, ServiceFallback, Purchase, 
-    DataVariation, AirtimeNetwork, TVVariation, SmileVariation, 
+    DataVariation, AirtimeNetwork, TVVariation, InternetVariation, 
     EducationVariation, ElectricityVariation, PromoCode
 )
 from payments.models import PaymentGatewayConfig, Deposit, Withdrawal
@@ -247,9 +247,9 @@ class AdminTVVariationSerializer(serializers.ModelSerializer):
         model = TVVariation
         fields = '__all__'
 
-class AdminSmileVariationSerializer(serializers.ModelSerializer):
+class AdminInternetVariationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SmileVariation
+        model = InternetVariation
         fields = '__all__'
 
 class AdminEducationVariationSerializer(serializers.ModelSerializer):
@@ -291,7 +291,7 @@ class AdminWithdrawalActionRequestSerializer(serializers.Serializer):
 
 class AdminCreatePurchaseRequestSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(help_text="User ID to initiate purchase for")
-    purchase_type = serializers.ChoiceField(choices=['data', 'airtime', 'electricity', 'tv', 'smile', 'education'], help_text="Type of purchase")
+    purchase_type = serializers.ChoiceField(choices=['data', 'airtime', 'electricity', 'tv', 'internet', 'education'], help_text="Type of purchase")
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, help_text="Purchase amount")
     beneficiary = serializers.CharField(help_text="Beneficiary phone/meter/smartcard number")
     action = serializers.CharField(help_text="Action name e.g. 'buy_data', 'buy_airtime'")
@@ -429,7 +429,7 @@ class VTUOverviewResponseSerializer(serializers.Serializer):
 
 class FetchFromProviderRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
-    service_type = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'smile', 'education'])
+    service_type = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'internet', 'education'])
 
 class VariationPriceUpdateSerializer(serializers.Serializer):
     selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)

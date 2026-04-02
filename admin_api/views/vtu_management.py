@@ -7,8 +7,8 @@ from users.models import User
 from orders.models import (
     Purchase, VTUProviderConfig, ServiceRouting, 
     DataVariation, AirtimeNetwork, TVVariation, 
-    SmileVariation, EducationVariation, ElectricityVariation,
-    DataService, TVService, ElectricityService, SmileService, EducationService
+    InternetVariation, EducationVariation, ElectricityVariation,
+    DataService, TVService, ElectricityService, InternetService, EducationService
 )
 from admin_api.serializers import (
     AdminPurchaseSerializer, VTUProviderConfigSerializer,
@@ -151,7 +151,7 @@ class VTUOverviewView(APIView):
             p_dict['balance'] = balance
             provider_data.append(p_dict)
             
-        services_list = ['airtime', 'data', 'tv', 'electricity', 'smile', 'education']
+        services_list = ['airtime', 'data', 'tv', 'electricity', 'internet', 'education']
         summary = []
         
         for st in services_list:
@@ -178,7 +178,7 @@ class VTUOverviewView(APIView):
     def _get_variation_count(self, service_type):
         models_map = {
             'data': DataVariation, 'airtime': AirtimeNetwork, 'tv': TVVariation,
-            'electricity': ElectricityVariation, 'smile': SmileVariation, 'education': EducationVariation
+            'electricity': ElectricityVariation, 'internet': InternetVariation, 'education': EducationVariation
         }
         model = models_map.get(service_type)
         return model.objects.count() if model else 0
@@ -229,7 +229,7 @@ class FetchFromProviderView(APIView):
              elif service_type == 'airtime': client.sync_airtime()
              elif service_type == 'tv': client.sync_cable()
              elif service_type == 'electricity': client.sync_electricity()
-             elif service_type == 'smile': client.sync_smile()
+             elif service_type == 'internet': client.sync_internet()
         else:
              # Fallback to generic implementation methods if they support sync
              impl = ProviderRouter.get_provider_implementation(provider.name)
@@ -251,7 +251,7 @@ class VariationUpdatePriceView(APIView):
     def post(self, request, pk, service_type):
         models_map = {
             'data': DataVariation, 'tv': TVVariation,
-            'smile': SmileVariation, 'education': EducationVariation
+            'internet': InternetVariation, 'education': EducationVariation
         }
         model = models_map.get(service_type)
         if not model: return Response({"error": "Invalid service type"}, status=400)
@@ -278,7 +278,7 @@ class BulkVariationUpdatePriceView(APIView):
     def post(self, request, service_type):
         models_map = {
             'data': DataVariation, 'tv': TVVariation,
-            'smile': SmileVariation, 'education': EducationVariation
+            'internet': InternetVariation, 'education': EducationVariation
         }
         model = models_map.get(service_type)
         if not model: return Response({"error": "Invalid service type"}, status=400)
@@ -307,7 +307,7 @@ class VariationToggleView(APIView):
     def post(self, request, pk, service_type):
         models_map = {
             'data': DataVariation, 'airtime': AirtimeNetwork, 'tv': TVVariation,
-            'electricity': ElectricityVariation, 'smile': SmileVariation, 'education': EducationVariation
+            'electricity': ElectricityVariation, 'internet': InternetVariation, 'education': EducationVariation
         }
         model = models_map.get(service_type)
         variation = model.objects.get(pk=pk)

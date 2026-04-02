@@ -158,7 +158,7 @@ class ClubKonnectProvider(BaseVTUProvider):
             {"type": "data", "endpoint": "/DataPlans.asp"},
             {"type": "cable", "endpoint": "/CableTVPackages.asp"},
             {"type": "electricity", "endpoint": "/ElectricityCompanies.asp"},
-            {"type": "smile", "endpoint": "/SmilePackages.asp"},
+            {"type": "internet", "endpoint": "/SmilePackages.asp"},
         ]
 
     def get_airtime_networks(self) -> List[Dict[str, Any]]:
@@ -179,7 +179,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get("/ElectricityCompanies.asp", {})
         return res if isinstance(res, list) else res.get('content', [])
 
-    def get_smile_packages(self) -> List[Dict[str, Any]]:
+    def get_internet_packages(self) -> List[Dict[str, Any]]:
         res = self._get("/SmilePackages.asp", {})
         return res if isinstance(res, list) else res.get('content', [])
 

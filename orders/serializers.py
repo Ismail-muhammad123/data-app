@@ -3,7 +3,7 @@ from .models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, ElectricityVariation, 
     Purchase, TVService, TVVariation,
-    SmileVariation, PromoCode, EducationService, EducationVariation,
+    InternetVariation, PromoCode, EducationService, EducationVariation,
     PurchaseBeneficiary
 )
 
@@ -88,24 +88,24 @@ class TVVariationSerializer(serializers.ModelSerializer):
             return float(obj.cost_price + routing.agent_margin)
         return float(obj.agent_price)
 
-class SmileVariationSerializer(serializers.ModelSerializer):
+class InternetVariationSerializer(serializers.ModelSerializer):
     selling_price = serializers.SerializerMethodField()
     agent_price = serializers.SerializerMethodField()
 
     class Meta:
-        model = SmileVariation
+        model = InternetVariation
         fields = ["id", "name", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
 
     def get_selling_price(self, obj):
         from .models import ServiceRouting
-        routing = ServiceRouting.objects.filter(service='smile').first()
+        routing = ServiceRouting.objects.filter(service='internet').first()
         if routing and routing.pricing_mode == 'fixed_margin' and routing.customer_margin > 0:
             return float(obj.cost_price + routing.customer_margin)
         return float(obj.selling_price)
 
     def get_agent_price(self, obj):
         from .models import ServiceRouting
-        routing = ServiceRouting.objects.filter(service='smile').first()
+        routing = ServiceRouting.objects.filter(service='internet').first()
         if routing and routing.pricing_mode == 'fixed_margin' and routing.agent_margin > 0:
             return float(obj.cost_price + routing.agent_margin)
         return float(obj.agent_price)
@@ -117,7 +117,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "id", "purchase_type", "reference", "amount", "beneficiary", 
             "status", "initiator", "time", "remarks",
             "airtime_service", "data_variation", "electricity_service", 
-            "electricity_variation", "tv_variation", "smile_variation", 
+            "electricity_variation", "tv_variation", "internet_variation", 
             "education_variation"
         ]
 
@@ -183,9 +183,9 @@ class TVPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     subscription_type = serializers.CharField(max_length=50, help_text="Subscription type e.g. 'renew'")
     variation_id = serializers.CharField(max_length=50, help_text="TV package variation ID")
 
-class SmilePurchaseRequestSerializer(BasePurchaseRequestSerializer):
-    plan_id = serializers.IntegerField(help_text="ID of the Smile variation/plan")
-    phone_number = serializers.CharField(help_text="Beneficiary Smile account phone number")
+class InternetPurchaseRequestSerializer(BasePurchaseRequestSerializer):
+    plan_id = serializers.IntegerField(help_text="ID of the Internet variation/plan")
+    phone_number = serializers.CharField(help_text="Beneficiary Internet sub account phone number")
 
 class EducationPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     service_id = serializers.CharField(help_text="Education service ID e.g. 'waec', 'neco'")
@@ -199,9 +199,9 @@ class VerifyCustomerRequestSerializer(serializers.Serializer):
     service_id = serializers.CharField(help_text="Service ID for the provider e.g. 'dstv', 'ikedc-postpaid'")
     customer_id = serializers.CharField(help_text="Customer identifier e.g. smartcard number or meter number")
     purchase_type = serializers.ChoiceField(
-        choices=['tv', 'electricity', 'smile'], 
+        choices=['tv', 'electricity', 'internet'], 
         default='tv',
-        help_text="Type of verification: 'tv', 'electricity', or 'smile'"
+        help_text="Type of verification: 'tv', 'electricity', or 'internet'"
     )
 
 class VerifyCustomerResponseSerializer(serializers.Serializer):

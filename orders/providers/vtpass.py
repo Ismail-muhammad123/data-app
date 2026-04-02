@@ -195,8 +195,8 @@ class VTPassProvider(BaseVTUProvider):
         res = self._get("/services?identifier=electricity")
         return res.get('content', [{}])[0].get('services', [])
 
-    def get_smile_packages(self) -> List[Dict[str, Any]]:
-        res = self._get("/service-variations?serviceID=smile-direct")
+    def get_internet_packages(self) -> List[Dict[str, Any]]:
+        res = self._get("/service-variations?serviceID=internet-direct")
         return res.get('content', {}).get('varations', [])
 
     def get_education_services(self) -> List[Dict[str, Any]]:

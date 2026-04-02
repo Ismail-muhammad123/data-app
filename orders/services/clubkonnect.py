@@ -206,13 +206,13 @@ class ClubKonnectClient:
             logger.error(f"ClubKonnect electricity verification error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def buy_smile(self, plan_id, phone, request_id, callback_url=None):
+    def buy_internet(self, plan_id, phone, request_id, callback_url=None):
         """
-        Purchase Smile Data bundle.
+        Purchase Internet Data bundle.
         """
-        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['buy_smile']}"
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['buy_internet']}"
         params = self._get_params(
-            MobileNetwork="smile-direct",
+            MobileNetwork="internet-direct",
             DataPlan=plan_id,
             MobileNumber=phone,
             RequestID=request_id
@@ -225,16 +225,16 @@ class ClubKonnectClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            logger.error(f"ClubKonnect Smile purchase error: {e}")
+            logger.error(f"ClubKonnect Internet purchase error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def verify_smile(self, accountID):
+    def verify_internet(self, accountID):
         """
-        Verify Smile account.
+        Verify Internet sub account.
         """
-        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_smile']}"
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['verify_internet']}"
         params = self._get_params(
-            MobileNetwork="smile-direct",
+            MobileNetwork="internet-direct",
             MobileNumber=accountID
         )
 
@@ -246,21 +246,21 @@ class ClubKonnectClient:
                 "Customer_Name": data.get("Customer_Name", "")
             }
         except Exception as e:
-            logger.error(f"ClubKonnect Smile verification error: {e}")
+            logger.error(f"ClubKonnect Internet verification error: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_smile_packages(self):
+    def get_internet_packages(self):
         """
-        Fetch all Smile packages.
+        Fetch all Internet sub packages.
         """
-        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['smile_packages']}"
+        url = f"{self.base_url}{settings.CLUBKONNECT_ENDPOINTS['internet_packages']}"
         params = self._get_params()
         try:
             response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            logger.error(f"ClubKonnect error fetching smile packages: {e}")
+            logger.error(f"ClubKonnect error fetching internet packages: {e}")
             return {}
 
     def sync_airtime(self):
@@ -384,19 +384,19 @@ class ClubKonnectClient:
         print(f"Synced {electricity_count} electricity variations")
         return electricity_count
 
-    def sync_smile(self):
-        from orders.models import SmileVariation
-        print("Syncing Smile Packages...")
-        smile_resp = self.get_smile_packages()
-        smile_networks = smile_resp.get("MOBILE_NETWORK") or {}
-        smile_count = 0
-        for network_name, network_list in smile_networks.items():
+    def sync_internet(self):
+        from orders.models import InternetVariation
+        print("Syncing Internet Packages...")
+        internet_resp = self.get_internet_packages()
+        internet_networks = internet_resp.get("MOBILE_NETWORK") or {}
+        internet_count = 0
+        for network_name, network_list in internet_networks.items():
             if not network_list: continue
             net_info = network_list[0]
             products = net_info.get("PRODUCT") or []
             
             for product in products:
-                # Smile response uses PACKAGE_ID, PACKAGE_NAME, etc.
+                # Internet response uses PACKAGE_ID, PACKAGE_NAME, etc.
                 variation_id = product.get("PACKAGE_ID") or product.get("PRODUCT_ID")
                 name = product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME")
                 amount = product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0
@@ -404,7 +404,7 @@ class ClubKonnectClient:
                 if not variation_id or not name:
                     continue
 
-                SmileVariation.objects.update_or_create(
+                InternetVariation.objects.update_or_create(
                     variation_id=variation_id,
                     defaults={
                         "name": name,
@@ -412,9 +412,9 @@ class ClubKonnectClient:
                         "is_active": True
                     }
                 )
-                smile_count += 1
-        print(f"Synced {smile_count} smile packages")
-        return smile_count
+                internet_count += 1
+        print(f"Synced {internet_count} internet packages")
+        return internet_count
 
     def query_transaction(self, order_id=None, request_id=None):
         """
@@ -468,7 +468,7 @@ class ClubKonnectClient:
         self.sync_data()
         self.sync_cable()
         self.sync_electricity()
-        self.sync_smile()
+        self.sync_internet()
         
         return True
 

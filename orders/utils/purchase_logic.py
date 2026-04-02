@@ -6,7 +6,7 @@ import logging
 from wallet.utils import debit_wallet, fund_wallet
 from orders.models import (
     Purchase, PromoCode, PurchasePromoUsed, VTUProviderConfig,
-    DataService, AirtimeNetwork, ElectricityService, TVService, SmileService, EducationService, ServiceRouting
+    DataService, AirtimeNetwork, ElectricityService, TVService, InternetService, EducationService, ServiceRouting
 )
 from orders.router import ProviderRouter
 from notifications.utils import NotificationService
@@ -82,7 +82,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
         if 'data_variation' in kwargs: purchase.data_variation = kwargs['data_variation']
         if 'electricity_service' in kwargs: purchase.electricity_service = kwargs['electricity_service']
         if 'tv_variation' in kwargs: purchase.tv_variation = kwargs['tv_variation']
-        if 'smile_variation' in kwargs: purchase.smile_variation = kwargs['smile_variation']
+        if 'internet_variation' in kwargs: purchase.internet_variation = kwargs['internet_variation']
         if 'education_variation' in kwargs: purchase.education_variation = kwargs['education_variation']
         if res.get('token'): purchase.purchased_token = res['token']
         

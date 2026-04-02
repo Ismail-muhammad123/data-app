@@ -16,7 +16,7 @@ from .views import (
     AdminDataVariationViewSet,
     AdminTVVariationViewSet,
     AdminAirtimeNetworkViewSet,
-    AdminSmileVariationViewSet,
+    AdminInternetVariationViewSet,
     AdminEducationVariationViewSet,
     AdminElectricityVariationViewSet,
     AdminPromoCodeViewSet,
@@ -47,7 +47,7 @@ router.register(r'vtu/routings', AdminServiceRoutingViewSet, basename='admin-vtu
 router.register(r'pricing/data', AdminDataVariationViewSet, basename='admin-pricing-data')
 router.register(r'pricing/tv', AdminTVVariationViewSet, basename='admin-pricing-tv')
 router.register(r'pricing/airtime', AdminAirtimeNetworkViewSet, basename='admin-pricing-airtime')
-router.register(r'pricing/smile', AdminSmileVariationViewSet, basename='admin-pricing-smile')
+router.register(r'pricing/internet', AdminInternetVariationViewSet, basename='admin-pricing-internet')
 router.register(r'pricing/education', AdminEducationVariationViewSet, basename='admin-pricing-education')
 router.register(r'pricing/electricity', AdminElectricityVariationViewSet, basename='admin-pricing-electricity')
 router.register(r'pricing/promos', AdminPromoCodeViewSet, basename='admin-pricing-promos')

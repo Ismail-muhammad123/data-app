@@ -1,12 +1,12 @@
 from rest_framework import viewsets
 from drf_spectacular.utils import extend_schema
 from orders.models import (
-    DataVariation, AirtimeNetwork, TVVariation, SmileVariation, 
+    DataVariation, AirtimeNetwork, TVVariation, InternetVariation, 
     EducationVariation, ElectricityVariation, PromoCode
 )
 from admin_api.serializers import (
     AdminDataVariationSerializer, AdminAirtimeNetworkSerializer,
-    AdminTVVariationSerializer, AdminSmileVariationSerializer,
+    AdminTVVariationSerializer, AdminInternetVariationSerializer,
     AdminEducationVariationSerializer, AdminElectricityVariationSerializer,
     AdminPromoCodeSerializer
 )
@@ -31,9 +31,9 @@ class AdminAirtimeNetworkViewSet(viewsets.ModelViewSet):
     permission_classes = [CanManageVTU]
 
 @extend_schema(tags=["Admin Pricing & Plans"])
-class AdminSmileVariationViewSet(viewsets.ModelViewSet):
-    queryset = SmileVariation.objects.all()
-    serializer_class = AdminSmileVariationSerializer
+class AdminInternetVariationViewSet(viewsets.ModelViewSet):
+    queryset = InternetVariation.objects.all()
+    serializer_class = AdminInternetVariationSerializer
     permission_classes = [CanManageVTU]
 
 @extend_schema(tags=["Admin Pricing & Plans"])

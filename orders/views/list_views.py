@@ -3,13 +3,13 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from orders.models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, TVService, TVVariation, 
-    SmileVariation, EducationService, EducationVariation,
+    InternetVariation, EducationService, EducationVariation,
     ServiceRouting
 )
 from orders.serializers import (
     DataServiceSerializer, DataVariationSerializer,
     AirtimeNetworkSerializer, TVServiceSerializer,
-    TVVariationSerializer, SmileVariationSerializer,
+    TVVariationSerializer, InternetVariationSerializer,
     EducationServiceSerializer, EducationVariationSerializer,
     ElectricityServiceSerializer
 )
@@ -95,17 +95,17 @@ class TVPackagesListView(generics.ListAPIView):
         return TVVariation.objects.filter(is_active=True, service__service_id=service_id)
 
 
-@extend_schema(tags=["Orders - Smile"])
-class SmilePackagesListView(generics.ListAPIView):
-    """List available Smile data packages."""
-    serializer_class = SmileVariationSerializer
+@extend_schema(tags=["Orders - Internet"])
+class InternetPackagesListView(generics.ListAPIView):
+    """List available Internet data packages."""
+    serializer_class = InternetVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='smile').first()
+        routing = ServiceRouting.objects.filter(service='internet').first()
         if routing and routing.primary_provider:
-            return SmileVariation.objects.filter(service__provider=routing.primary_provider, is_active=True)
-        return SmileVariation.objects.filter(is_active=True)
+            return InternetVariation.objects.filter(service__provider=routing.primary_provider, is_active=True)
+        return InternetVariation.objects.filter(is_active=True)
 
 
 @extend_schema(tags=["Orders - Education"])

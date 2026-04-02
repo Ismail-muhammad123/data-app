@@ -17,8 +17,8 @@ from orders.views import (
         TVPackagesListView,
         PurchaseTVSubscriptionView,
 
-        SmilePackagesListView,
-        PurchaseSmileSubscriptionView,
+        InternetPackagesListView,
+        PurchaseInternetSubscriptionView,
 
         PurchaseHistoryView, 
         PurchaseDetailsView,
@@ -58,9 +58,9 @@ urlpatterns = [
     path("tv-packages/", TVPackagesListView.as_view(), name="list-tv-packages"),
     path("buy-tv-subscription/", PurchaseTVSubscriptionView.as_view(), name="purchase-tv-subscription"),
 
-    # Smile Services
-    path("smile-packages/", SmilePackagesListView.as_view(), name="list-smile-packages"),
-    path("buy-smile-subscription/", PurchaseSmileSubscriptionView.as_view(), name="purchase-smile-subscription"),
+    # Internet Services
+    path("internet-packages/", InternetPackagesListView.as_view(), name="list-internet-packages"),
+    path("buy-internet-subscription/", PurchaseInternetSubscriptionView.as_view(), name="purchase-internet-subscription"),
     
     # Purchase History
     path("purchase-history/", PurchaseHistoryView.as_view(), name="user-transactions-list"),

@@ -27,8 +27,8 @@ class VerifyCustomerView(APIView):
 
     @extend_schema(
         tags=["Orders - Verification"],
-        summary="Verify a customer (TV, Electricity, Smile)",
-        description="Validate a customer's smartcard number, meter number, or Smile account before purchase.",
+        summary="Verify a customer (TV, Electricity, Internet)",
+        description="Validate a customer's smartcard number, meter number, or Internet sub account before purchase.",
         request=VerifyCustomerRequestSerializer,
         responses={
             200: VerifyCustomerResponseSerializer,
@@ -46,7 +46,7 @@ class VerifyCustomerView(APIView):
         try:
             if purchase_type == 'tv': action = 'verify_tv'
             elif purchase_type == 'electricity': action = 'verify_electricity'
-            elif purchase_type == 'smile': action = 'verify_smile'
+            elif purchase_type == 'internet': action = 'verify_internet'
             else: action = 'verify_tv'
 
             kwargs = {'tv_id': service_id, 'smart_card_number': customer_id, 'disco_id': service_id, 'meter_number': customer_id, 'accountID': customer_id}

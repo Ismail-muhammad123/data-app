@@ -48,8 +48,8 @@ This document defines the endpoints used by the mobile application for users and
 - **Buy Electricity**: `POST` `/api/orders/buy-electricity/`
 - **Buy TV Sub**: `POST` `/api/orders/buy-tv-subscription/`
 
-### Smile & Education
-- **Buy Smile**: `POST` `/api/orders/buy-smile-subscription/`
+### Internet & Education
+- **Buy Internet**: `POST` `/api/orders/buy-internet-subscription/`
 - **Buy Education Pin**: `POST` `/api/orders/buy-education/` (WAEC/NECO).
 
 ### Order Utilities

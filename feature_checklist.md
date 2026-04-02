@@ -33,7 +33,7 @@ This checklist tracks the implementation status of all core modules and features
 - [x] **Pay TV**: Cable subscriptions (DSTV, GOTV, Startimes).
 - [x] **Electricity**: Prepaid/Postpaid token generation for all DisCos (IKEDC, EKEDC, etc.).
 - [x] **Educational PINs**: Exam pin purchases (WAEC, NECO, JAMB).
-- [x] **Smile & Internet**: specialized broadband top-ups.
+- [x] **Internet & Internet**: specialized broadband top-ups.
 
 ## 🌉 4. Provider Routing & Failover
 - [x] **Generic Provider Interface**: Standardized 14+ VTU APIs (ClubKonnect, VTPass, HQDATA, etc.).

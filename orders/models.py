@@ -16,7 +16,7 @@ class PurchaseBeneficiary(models.Model):
         ('electricity', 'Electricity'),
         ('tv', 'TV Subscription'),
         ('education', 'Education'),
-        ('smile', 'Smile Subscription'),
+        ('internet', 'Internet Subscription'),
     ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchase_beneficiaries")
     service_type = models.CharField(max_length=20, choices=PURCHASE_TYPES)
@@ -138,19 +138,19 @@ class TVVariation(models.Model):
     def __str__(self):
         return self.name
 
-class SmileService(models.Model):
-    service_name = models.CharField(max_length=100, default="Smile")
+class InternetService(models.Model):
+    service_name = models.CharField(max_length=100, default="Internet Subscription")
     service_id = models.CharField(max_length=100)
-    provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='smile_services')
+    provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='internet_services')
     image_url = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.service_name
 
-class SmileVariation(models.Model):
+class InternetVariation(models.Model):
     name = models.CharField(max_length=255)   
-    service = models.ForeignKey(SmileService, on_delete=models.CASCADE, related_name="variations", null=True)
+    service = models.ForeignKey(InternetService, on_delete=models.CASCADE, related_name="variations", null=True)
     variation_id = models.CharField(max_length=100)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -162,8 +162,8 @@ class SmileVariation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Smile Variation"
-        verbose_name_plural = "Smile Variations"
+        verbose_name = "Internet Variation"
+        verbose_name_plural = "Internet Variations"
 
     def __str__(self):
         return self.name
@@ -218,7 +218,7 @@ class Purchase(models.Model):
         ('airtime', 'Airtime'),
         ('electricity', 'Electricity'),
         ('tv', 'TV Subscription'),
-        ('smile', 'Smile Subscription'),
+        ('internet', 'Internet Subscription'),
         ('education', 'Education'),
     )
 
@@ -240,7 +240,7 @@ class Purchase(models.Model):
     electricity_service = models.ForeignKey(ElectricityService, on_delete=models.SET_NULL, null=True, related_name="sales")
     electricity_variation = models.ForeignKey(ElectricityVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     tv_variation = models.ForeignKey(TVVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
-    smile_variation = models.ForeignKey(SmileVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
+    internet_variation = models.ForeignKey(InternetVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     education_variation = models.ForeignKey(EducationVariation, on_delete=models.SET_NULL, null=True, related_name="sales")
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -318,7 +318,7 @@ class ServiceRouting(models.Model):
         ('data', 'Data'),
         ('electricity', 'Electricity'),
         ('tv', 'Cable TV'),
-        ('smile', 'Smile'),
+        ('internet', 'Internet Sub'),
         ('education', 'Education'),
     ]
 

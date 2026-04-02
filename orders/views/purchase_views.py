@@ -6,12 +6,12 @@ from rest_framework import status, permissions
 from drf_spectacular.utils import extend_schema
 from orders.models import (
     DataVariation, AirtimeNetwork, ElectricityVariation, 
-    TVVariation, SmileVariation, Purchase, EducationVariation
+    TVVariation, InternetVariation, Purchase, EducationVariation
 )
 from orders.serializers import (
     DataPurchaseRequestSerializer, AirtimePurchaseRequestSerializer,
     ElectricityPurchaseRequestSerializer, TVPurchaseRequestSerializer,
-    SmilePurchaseRequestSerializer, EducationPurchaseRequestSerializer,
+    InternetPurchaseRequestSerializer, EducationPurchaseRequestSerializer,
     PurchaseSerializer, RepeatPurchaseRequestSerializer, ErrorResponseSerializer
 )
 from orders.utils.purchase_logic import process_vtu_purchase
@@ -246,18 +246,18 @@ class PurchaseTVSubscriptionView(APIView):
         return Response(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data, status=status.HTTP_201_CREATED)
 
 
-class PurchaseSmileSubscriptionView(APIView):
+class PurchaseInternetSubscriptionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
-        tags=["Orders - Smile"],
-        summary="Purchase Smile data subscription",
-        description="Buy a Smile data package for a specified phone number.",
-        request=SmilePurchaseRequestSerializer,
+        tags=["Orders - Internet"],
+        summary="Purchase Internet data subscription",
+        description="Buy a Internet data package for a specified phone number.",
+        request=InternetPurchaseRequestSerializer,
         responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
     def post(self, request):
-        serializer = SmilePurchaseRequestSerializer(data=request.data)
+        serializer = InternetPurchaseRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         user = request.user
@@ -270,32 +270,32 @@ class PurchaseSmileSubscriptionView(APIView):
         promo_code = serializer.validated_data.get("promo_code")
 
         try:
-            plan = SmileVariation.objects.get(id=plan_id, is_active=True)
-        except SmileVariation.DoesNotExist:
-            return Response({"error": "Invalid Smile Package."}, status=status.HTTP_400_BAD_REQUEST)
+            plan = InternetVariation.objects.get(id=plan_id, is_active=True)
+        except InternetVariation.DoesNotExist:
+            return Response({"error": "Invalid Internet Package."}, status=status.HTTP_400_BAD_REQUEST)
 
         amount = plan.agent_price if user.role == 'agent' else plan.selling_price
 
         reference = generate_request_id()
         result = process_vtu_purchase(
             user=user,
-            purchase_type="smile",
+            purchase_type="internet",
             amount=amount,
             beneficiary=phone_number,
-            action="buy_smile",
+            action="buy_internet",
             promo_code_str=promo_code,
-            service_name="Smile Subscription",
+            service_name="Internet Subscription",
             reference=reference,
             plan_id=plan.variation_id,
             phone=phone_number,
-            smile_variation=plan
+            internet_variation=plan
         )
 
         if result['status'] == "FAILED":
-             NotificationService.send_push(user, "Smile Subscription Failed", "Your Smile subscription was unsuccessful. Funds have been refunded.")
+             NotificationService.send_push(user, "Internet Subscription Failed", "Your Internet subscription was unsuccessful. Funds have been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
-        NotificationService.send_push(user, "Smile Subscription Successful", f"Your Smile subscription for {phone_number} was successful.")
+        NotificationService.send_push(user, "Internet Subscription Successful", f"Your Internet subscription for {phone_number} was successful.")
         return Response(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data, status=status.HTTP_201_CREATED)
 
 
@@ -381,7 +381,7 @@ class RepeatPurchaseView(APIView):
             'airtime': 'buy_airtime',
             'electricity': 'buy_electricity',
             'tv': 'buy_tv',
-            'smile': 'buy_smile',
+            'internet': 'buy_internet',
             'education': 'buy_education'
         }
         
@@ -408,9 +408,9 @@ class RepeatPurchaseView(APIView):
             kwargs['disco_id'] = old_purchase.electricity_variation.service.service_id
             kwargs['plan_id'] = old_purchase.electricity_variation.variation_id
             kwargs['meter_number'] = old_purchase.beneficiary
-        if old_purchase.smile_variation:
-            kwargs['smile_variation'] = old_purchase.smile_variation
-            kwargs['plan_id'] = old_purchase.smile_variation.variation_id
+        if old_purchase.internet_variation:
+            kwargs['internet_variation'] = old_purchase.internet_variation
+            kwargs['plan_id'] = old_purchase.internet_variation.variation_id
         if old_purchase.education_variation:
             kwargs['education_variation'] = old_purchase.education_variation
             kwargs['variation_id'] = old_purchase.education_variation.variation_id

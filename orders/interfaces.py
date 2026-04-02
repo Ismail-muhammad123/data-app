@@ -99,9 +99,9 @@ class BaseVTUProvider(ABC):
         pass
 
     @abstractmethod
-    def get_smile_packages(self) -> List[Dict[str, Any]]:
+    def get_internet_packages(self) -> List[Dict[str, Any]]:
         """
-        Fetch available Smile variations from the provider API.
+        Fetch available Internet variations from the provider API.
         """
         pass
 

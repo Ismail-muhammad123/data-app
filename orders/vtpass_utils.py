@@ -41,12 +41,12 @@ def get_api_auth_header(methosd="POST"):
 
 def buy_data_plan(service_id, phone_number, amount, request_id, variation_code):
     """
-    Purchase Airtime, Data, or Smile plan.
+    Purchase Airtime, Data, or Internet plan.
     Docs: https://vtpass.com/documentation
     """
     url = f"{VTPASS_BASE_URL}/pay"
     payload = {
-        "serviceID": service_id,   # e.g., "mtn-data", "glo-airtime", "smile-direct"
+        "serviceID": service_id,   # e.g., "mtn-data", "glo-airtime", "internet-direct"
         "phone": phone_number,
         "amount": str(amount),
         "billersCode": phone_number,  # for data plans, this is usually the same as phone number

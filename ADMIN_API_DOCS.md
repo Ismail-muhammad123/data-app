@@ -665,7 +665,7 @@ Initiate a purchase on behalf of a user.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `user_id` | integer | Yes | User to purchase for |
-| `purchase_type` | string | Yes | `data`, `airtime`, `electricity`, `tv`, `smile`, `education` |
+| `purchase_type` | string | Yes | `data`, `airtime`, `electricity`, `tv`, `internet`, `education` |
 | `amount` | decimal | Yes | Amount in Naira |
 | `beneficiary` | string | Yes | Phone/meter/smartcard number |
 | `action` | string | Yes | Action name e.g. `buy_data`, `buy_airtime` |
@@ -825,7 +825,7 @@ Fetch available services and variations from a provider's API and save them to t
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `provider_id` | integer | Yes | ID of the VTU provider |
-| `service_type` | string | Yes | `airtime`, `data`, `tv`, `electricity`, `smile`, `education` |
+| `service_type` | string | Yes | `airtime`, `data`, `tv`, `electricity`, `internet`, `education` |
 
 ---
 
@@ -833,7 +833,7 @@ Fetch available services and variations from a provider's API and save them to t
 
 Update the selling price and agent price for a specific variation.
 
-**URL Parameters:** `pk` (variation ID), `service_type` (`data`, `tv`, `smile`, `education`)
+**URL Parameters:** `pk` (variation ID), `service_type` (`data`, `tv`, `internet`, `education`)
 
 **Request:**
 ```json
@@ -849,7 +849,7 @@ Update the selling price and agent price for a specific variation.
 
 Bulk update prices for multiple variations in a single atomic operation.
 
-**URL Parameters:** `service_type` (`data`, `tv`, `smile`, `education`)
+**URL Parameters:** `service_type` (`data`, `tv`, `internet`, `education`)
 
 **Request:**
 ```json
@@ -868,7 +868,7 @@ Bulk update prices for multiple variations in a single atomic operation.
 
 Enable or disable a specific variation (plan/package).
 
-**URL Parameters:** `pk` (variation ID), `service_type` (`data`, `airtime`, `tv`, `electricity`, `smile`, `education`)
+**URL Parameters:** `pk` (variation ID), `service_type` (`data`, `airtime`, `tv`, `electricity`, `internet`, `education`)
 
 **Request:**
 ```json
@@ -899,7 +899,7 @@ Full CRUD for all service variations and promo codes. All require **`CanManageVT
 | Data Variations | `/api/admin/pricing/data/` | All `DataVariation` fields |
 | TV Variations | `/api/admin/pricing/tv/` | All `TVVariation` fields |
 | Airtime Networks | `/api/admin/pricing/airtime/` | All `AirtimeNetwork` fields |
-| Smile Variations | `/api/admin/pricing/smile/` | All `SmileVariation` fields |
+| Internet Variations | `/api/admin/pricing/internet/` | All `InternetVariation` fields |
 | Education Variations | `/api/admin/pricing/education/` | All `EducationVariation` fields |
 | Electricity Variations | `/api/admin/pricing/electricity/` | All `ElectricityVariation` fields |
 | Promo Codes | `/api/admin/pricing/promos/` | All `PromoCode` fields |
@@ -975,7 +975,7 @@ Update global automation toggles.
 
 Configure retry behavior for a specific service type.
 
-**URL Parameter:** `service` — e.g. `data`, `airtime`, `tv`, `electricity`, `smile`, `education`
+**URL Parameter:** `service` — e.g. `data`, `airtime`, `tv`, `electricity`, `internet`, `education`
 
 **Request:**
 ```json
@@ -1194,7 +1194,7 @@ Sync services and variations from the ClubKonnect provider.
 | `--service data` | Sync data plans only |
 | `--service cable` | Sync TV/cable packages only |
 | `--service electricity` | Sync electricity services only |
-| `--service smile` | Sync Smile packages only |
+| `--service internet` | Sync Internet sub packages only |
 | _(no flag)_ | Sync all services |
 
 ---

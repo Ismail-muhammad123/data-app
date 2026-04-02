@@ -161,7 +161,7 @@ class GenericLocalProvider(BaseVTUProvider):
             return response.json()
         except: return []
 
-    def get_smile_packages(self) -> List[Dict[str, Any]]:
+    def get_internet_packages(self) -> List[Dict[str, Any]]:
         return []
 
     def get_education_services(self) -> List[Dict[str, Any]]:

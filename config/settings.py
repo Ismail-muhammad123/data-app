@@ -289,10 +289,10 @@ CLUBKONNECT_ENDPOINTS = {
     "query": "/APIQueryV1.asp",
     "cancel": "/APICancelV1.asp",
 
-    # Smile
-    "verify_smile": "/APIVerifySmileV1.asp",
-    "buy_smile": "/APISmileV1.asp",
-    "smile_packages": "/APISmilePackagesV2.asp",
+    # Internet
+    "verify_internet": "/APIVerifySmileV1.asp",
+    "buy_internet": "/APISmileV1.asp",
+    "internet_packages": "/APISmilePackagesV2.asp",
 
     # Cable
     "buy_cable": "/APICableTVV1.asp",
@@ -344,7 +344,7 @@ JAZZMIN_SETTINGS = {
         "orders.ElectricityVariation": "fas fa-plug",
         "orders.TVService": "fas fa-tv",
         "orders.TVVariation": "fas fa-satellite-dish",
-        "orders.SmileVariation": "fas fa-smile",
+        "orders.InternetVariation": "fas fa-internet",
         "orders.AirtimeNetwork": "fas fa-phone",
         "summary.SummaryDashboard": "fas fa-chart-pie",
         "summary.SiteConfig": "fas fa-cogs",
