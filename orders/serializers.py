@@ -23,9 +23,26 @@ class PurchaseBeneficiarySerializer(serializers.ModelSerializer):
 
 class DataVariationSerializer(serializers.ModelSerializer):
     service = DataServiceSerializer(read_only=True)
+    selling_price = serializers.SerializerMethodField()
+    agent_price = serializers.SerializerMethodField()
+
     class Meta:
         model = DataVariation
         fields = ["id", "name", "service", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
+
+    def get_selling_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='data').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.customer_margin > 0:
+            return float(obj.cost_price + routing.customer_margin)
+        return float(obj.selling_price)
+
+    def get_agent_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='data').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.agent_margin > 0:
+            return float(obj.cost_price + routing.agent_margin)
+        return float(obj.agent_price)
 
 class AirtimeNetworkSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,14 +67,48 @@ class TVServiceSerializer(serializers.ModelSerializer):
 
 class TVVariationSerializer(serializers.ModelSerializer):
     service = TVServiceSerializer(read_only=True)
+    selling_price = serializers.SerializerMethodField()
+    agent_price = serializers.SerializerMethodField()
+
     class Meta:
         model = TVVariation
         fields = ["id", "name", "service", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
 
+    def get_selling_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='tv').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.customer_margin > 0:
+            return float(obj.cost_price + routing.customer_margin)
+        return float(obj.selling_price)
+
+    def get_agent_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='tv').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.agent_margin > 0:
+            return float(obj.cost_price + routing.agent_margin)
+        return float(obj.agent_price)
+
 class SmileVariationSerializer(serializers.ModelSerializer):
+    selling_price = serializers.SerializerMethodField()
+    agent_price = serializers.SerializerMethodField()
+
     class Meta:
         model = SmileVariation
         fields = ["id", "name", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
+
+    def get_selling_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='smile').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.customer_margin > 0:
+            return float(obj.cost_price + routing.customer_margin)
+        return float(obj.selling_price)
+
+    def get_agent_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='smile').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.agent_margin > 0:
+            return float(obj.cost_price + routing.agent_margin)
+        return float(obj.agent_price)
 
 class PurchaseSerializer(serializers.ModelSerializer):
     class Meta:
@@ -82,9 +133,26 @@ class EducationServiceSerializer(serializers.ModelSerializer):
 
 class EducationVariationSerializer(serializers.ModelSerializer):
     service = EducationServiceSerializer(read_only=True)
+    selling_price = serializers.SerializerMethodField()
+    agent_price = serializers.SerializerMethodField()
+
     class Meta:
         model = EducationVariation
         fields = ["id", "name", "service", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
+
+    def get_selling_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='education').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.customer_margin > 0:
+            return float(obj.cost_price + routing.customer_margin)
+        return float(obj.selling_price)
+
+    def get_agent_price(self, obj):
+        from .models import ServiceRouting
+        routing = ServiceRouting.objects.filter(service='education').first()
+        if routing and routing.pricing_mode == 'fixed_margin' and routing.agent_margin > 0:
+            return float(obj.cost_price + routing.agent_margin)
+        return float(obj.agent_price)
 
 
 # ─── Purchase Request Serializers ───

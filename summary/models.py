@@ -209,6 +209,13 @@ class SiteConfig(models.Model):
     vtu_funding_account_number = models.CharField(max_length=20, blank=True, null=True)
     vtu_funding_account_name = models.CharField(max_length=100, blank=True, null=True)
 
+    # Global Automation settings
+    auto_retry_enabled = models.BooleanField(default=True)
+    auto_refund_enabled = models.BooleanField(default=True)
+    notify_admin_on_failure = models.BooleanField(default=True)
+    delayed_tx_detection_enabled = models.BooleanField(default=True)
+    delayed_tx_timeout_minutes = models.PositiveIntegerField(default=15)
+
     # Maintenance and health
     maintenance_mode = models.BooleanField(default=False)
     airtime_active = models.BooleanField(default=True)

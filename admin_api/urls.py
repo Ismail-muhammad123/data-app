@@ -25,7 +25,14 @@ from .views import (
     AdminTransferLogView,
     AdminNotificationLogViewSet,
     AdminAnnouncementViewSet,
-    AdminNotificationProviderConfigViewSet
+    AdminNotificationProviderConfigViewSet,
+    # New Views
+    AutomationConfigView, AutomationGlobalSettingsView, ServiceRetryConfigView,
+    ServiceFallbackToggleView, ServiceAutoRefundView, ServicePricingModeView,
+    DetectDelayedTransactionsView,
+    VTUOverviewView, ProviderBalanceView, FetchFromProviderView,
+    VariationUpdatePriceView, BulkVariationUpdatePriceView,
+    VariationToggleView, ServiceTypeToggleView
 )
 
 router = DefaultRouter()
@@ -56,5 +63,24 @@ urlpatterns = [
     path('pause-service/', AdminPauseServiceView.as_view(), name='admin-pause-service'),
     path('transfer/initiate/', AdminInitiateTransferView.as_view(), name='admin-transfer-initiate'),
     path('transfer/logs/', AdminTransferLogView.as_view(), name='admin-transfer-logs'),
+    
+    # Automation
+    path('automation/config/', AutomationConfigView.as_view(), name='admin-automation-config'),
+    path('automation/global-settings/', AutomationGlobalSettingsView.as_view(), name='admin-automation-global'),
+    path('automation/service/<str:service>/retry/', ServiceRetryConfigView.as_view(), name='admin-service-retry'),
+    path('automation/service/<str:service>/fallback/', ServiceFallbackToggleView.as_view(), name='admin-service-fallback'),
+    path('automation/service/<str:service>/auto-refund/', ServiceAutoRefundView.as_view(), name='admin-service-auto-refund'),
+    path('automation/service/<str:service>/pricing-mode/', ServicePricingModeView.as_view(), name='admin-service-pricing-mode'),
+    path('automation/detect-delayed/', DetectDelayedTransactionsView.as_view(), name='admin-detect-delayed'),
+
+    # VTU Control Panel
+    path('vtu/overview/', VTUOverviewView.as_view(), name='admin-vtu-overview'),
+    path('vtu/providers/<int:pk>/balance/', ProviderBalanceView.as_view(), name='admin-provider-balance'),
+    path('vtu/fetch-from-provider/', FetchFromProviderView.as_view(), name='admin-vtu-fetch'),
+    path('vtu/variations/<int:pk>/update-price/<str:service_type>/', VariationUpdatePriceView.as_view(), name='admin-vtu-variation-price'),
+    path('vtu/variations/bulk-update-price/<str:service_type>/', BulkVariationUpdatePriceView.as_view(), name='admin-vtu-bulk-price'),
+    path('vtu/variations/<int:pk>/toggle/<str:service_type>/', VariationToggleView.as_view(), name='admin-vtu-variation-toggle'),
+    path('vtu/services/<str:service_type>/toggle/', ServiceTypeToggleView.as_view(), name='admin-vtu-service-toggle'),
+
     path('', include(router.urls)),
 ]

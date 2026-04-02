@@ -308,6 +308,9 @@ class AdminInitiateTransferRequestSerializer(serializers.Serializer):
 
 # ─── Admin Action Response Serializers ───
 
+class AdminErrorResponseSerializer(serializers.Serializer):
+    error = serializers.CharField(help_text="Error message")
+
 class AdminPauseServiceRequestSerializer(serializers.Serializer):
     service = serializers.ChoiceField(
         choices=['airtime', 'data', 'tv', 'electricity', 'education'],
@@ -387,5 +390,75 @@ class AdminDashboardStatsResponseSerializer(serializers.Serializer):
     quick_actions = QuickActionsSerializer()
     finances = FinanceStatsSerializer()
 
-class AdminErrorResponseSerializer(serializers.Serializer):
-    error = serializers.CharField(help_text="Error message")
+# ─── Automation & VTU Management Serializers ───
+
+class AutomationGlobalSettingsSerializer(serializers.Serializer):
+    auto_retry_enabled = serializers.BooleanField()
+    auto_refund_enabled = serializers.BooleanField()
+    notify_admin_on_failure = serializers.BooleanField()
+    delayed_tx_detection_enabled = serializers.BooleanField()
+    delayed_tx_timeout_minutes = serializers.IntegerField(min_value=1)
+
+class ServiceAutomationConfigSerializer(serializers.ModelSerializer):
+    primary_provider_name = serializers.CharField(source='primary_provider.get_name_display', read_only=True)
+    class Meta:
+        model = ServiceRouting
+        fields = [
+            'id', 'service', 'primary_provider', 'primary_provider_name',
+            'retry_enabled', 'retry_count', 'auto_refund_enabled', 'fallback_enabled',
+            'pricing_mode', 'customer_margin', 'agent_margin'
+        ]
+
+class AutomationOverviewResponseSerializer(serializers.Serializer):
+    global_settings = AutomationGlobalSettingsSerializer()
+    services = ServiceAutomationConfigSerializer(many=True)
+
+class VTUProviderOverviewSerializer(serializers.ModelSerializer):
+    balance = serializers.FloatField(required=False)
+    class Meta:
+        model = VTUProviderConfig
+        fields = [
+            'id', 'name', 'is_active', 'balance', 'account_name', 
+            'bank_name', 'account_number', 'bank_code', 
+            'min_funding_balance', 'auto_funding_enabled'
+        ]
+
+class VTUOverviewResponseSerializer(serializers.Serializer):
+    providers = VTUProviderOverviewSerializer(many=True)
+    services_summary = serializers.ListField(child=serializers.DictField())
+
+class FetchFromProviderRequestSerializer(serializers.Serializer):
+    provider_id = serializers.IntegerField()
+    service_type = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'smile', 'education'])
+
+class VariationPriceUpdateSerializer(serializers.Serializer):
+    selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    agent_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class BulkVariationPriceItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    agent_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class BulkVariationPriceUpdateSerializer(serializers.Serializer):
+    variations = BulkVariationPriceItemSerializer(many=True)
+
+class VariationToggleSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
+
+class ServiceTypeToggleSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
+
+class ServiceRetryConfigSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    count = serializers.IntegerField(min_value=0, max_value=10)
+
+class ServicePricingModeSerializer(serializers.Serializer):
+    mode = serializers.ChoiceField(choices=['fixed_margin', 'defined'])
+    customer_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    agent_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+class ProviderFundingConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VTUProviderConfig
+        fields = ['account_name', 'bank_name', 'account_number', 'bank_code', 'min_funding_balance', 'auto_funding_enabled']

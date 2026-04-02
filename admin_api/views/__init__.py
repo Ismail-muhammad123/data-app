@@ -6,3 +6,4 @@ from .pricing import *
 from .support import *
 from .notifications import *
 from .transfers import *
+from .automation import *

@@ -88,6 +88,7 @@ class ElectricityVariation(models.Model):
     max_amount = models.CharField(max_length=10, default="200000")
     discount = models.CharField(max_length=10, default="0")
     agent_discount = models.CharField(max_length=10, default="0")
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Amount the provider charges the platform")
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='general')
 
     is_active = models.BooleanField(default=True)
@@ -119,6 +120,7 @@ class TVVariation(models.Model):
     name = models.CharField(max_length=255)   
     service = models.ForeignKey(TVService, on_delete=models.CASCADE, related_name="variations", null=True)
     variation_id = models.CharField(max_length=100)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Amount the provider charges the platform")
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     agent_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='general')
@@ -150,6 +152,7 @@ class SmileVariation(models.Model):
     name = models.CharField(max_length=255)   
     service = models.ForeignKey(SmileService, on_delete=models.CASCADE, related_name="variations", null=True)
     variation_id = models.CharField(max_length=100)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     agent_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='general')
@@ -200,6 +203,7 @@ class EducationVariation(models.Model):
     service = models.ForeignKey(EducationService, on_delete=models.CASCADE, related_name='variations')
     name = models.CharField(max_length=255)
     variation_id = models.CharField(max_length=100)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     agent_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='general')
@@ -283,10 +287,20 @@ class VTUProviderConfig(models.Model):
     # Store settings as JSON
     config_data = models.JSONField(default=dict, help_text='{"api_key": "...", "public_key": "...", "secret_key": "...", "base_url": "..."}')
     
-    # Global fallbacks settings
+    # Global fallbacks settings (Defaults)
     max_retries = models.PositiveIntegerField(default=3)
     auto_refund_on_failure = models.BooleanField(default=True)
     
+    # Funding Information
+    account_name = models.CharField(max_length=255, blank=True, null=True)
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
+    account_number = models.CharField(max_length=20, blank=True, null=True)
+    bank_code = models.CharField(max_length=10, blank=True, null=True)
+    
+    # Auto-funding settings
+    min_funding_balance = models.DecimalField(max_digits=12, decimal_places=2, default=5000)
+    auto_funding_enabled = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -311,6 +325,21 @@ class ServiceRouting(models.Model):
     service = models.CharField(max_length=20, choices=SERVICE_CHOICES, unique=True)
     primary_provider = models.ForeignKey(VTUProviderConfig, on_delete=models.SET_NULL, null=True, related_name='primary_for_services')
     
+    # Automation & Routing
+    retry_enabled = models.BooleanField(default=True)
+    retry_count = models.PositiveIntegerField(default=2)
+    auto_refund_enabled = models.BooleanField(default=True)
+    fallback_enabled = models.BooleanField(default=True) # Switch to alternative providers
+    
+    # Pricing Mode
+    pricing_mode = models.CharField(
+        max_length=20, 
+        choices=[('fixed_margin', 'Fixed Margin'), ('defined', 'Defined Pricing')], 
+        default='defined'
+    )
+    customer_margin = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Fixed amount/percentage to add to cost for users")
+    agent_margin = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Fixed amount/percentage to add to cost for agents")
+
     # Fallback chain (ordered list of provider IDs or names)
     # We can use a many-to-many relationship with an through model to maintain order
     fallbacks = models.ManyToManyField(VTUProviderConfig, through='ServiceFallback', related_name='fallback_for_services')
