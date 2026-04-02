@@ -230,34 +230,11 @@ DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 
 
-MONNIFY_BASE_URL=os.getenv("MONNIFY_BASE_URL")
-MONNIFY_API_KEY=os.getenv("MONNIFY_API_KEY")
-MONNIFY_API_SECRET=os.getenv("MONNIFY_API_SECRET")
-MONNIFY_CONTRACT_CODE=os.getenv("MONNIFY_CONTRACT_CODE")
-MONNIFY_WEBHOOK_SECRET=os.getenv("MONNIFY_WEBHOOK_SECRET")
+# Payment & Notification credentials will be configured via Admin Dashboard
 
 
 
-VTPASS_BASE_URL = ""
-VTPASS_USERNAME = ""
-VTPASS_PASSWORD = ""
-VTPASS_BASE_URL = os.getenv("VTPASS_BASE_URL")
-VTPASS_API_KEY = os.getenv("VTPASS_API_KEY") or ""
-VTPASS_API_SECRET = os.getenv("VTPASS_API_SECRET") or ""
-VTPASS_API_PUBLIC_KEY = os.getenv("VTPASS_API_PUBLIC_KEY") or ""
-
-
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_SMS_NUMBER = os.getenv("TWILIO_SMS_NUMBER")         # e.g., +1234567890
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER") # e.g., whatsapp:+1234567890
-TWILIO_EMAIL = os.getenv("TWILIO_EMAIL")                   # Twilio SendGrid or Mail API
-
-
-
-TERMII_API_KEY = os.getenv("TERMII_API_KEY")
-TERMII_SENDER_ID = os.getenv("TERMII_SENDER_ID")
-TERMII_EMAIL_CONFIG_ID = os.getenv("TERMII_EMAIL_CONFIG_ID")
+# Provider & SMS credentials moved to database config
 
 # ----------------------------- Firebase Configuration -----------------------------
 
@@ -287,10 +264,6 @@ if FIREBASE_CREDS.get("project_id"):
 # ----------------------------- ClubKonnect Configuration -----------------------------
 
 CLUBKONNECT_BASE_URL = "https://www.nellobytesystems.com"
-
-CLUBKONNECT_USER_ID = os.getenv("CLUBKONNECT_USER_ID", "")
-CLUBKONNECT_API_KEY = os.getenv("CLUBKONNECT_API_KEY", "")
-
 CLUBKONNECT_TIMEOUT = 30
 
 # Endpoints

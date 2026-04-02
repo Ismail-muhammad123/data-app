@@ -32,44 +32,7 @@ services:
       # Core Provider Integration API Keys (You must fill these in the dashboard securely)
       - key: PAYSTACK_SECRET_KEY
         sync: false
-      - key: MONNIFY_BASE_URL
-        sync: false
-      - key: MONNIFY_API_KEY
-        sync: false
-      - key: MONNIFY_API_SECRET
-        sync: false
-      - key: MONNIFY_CONTRACT_CODE
-        sync: false
-      - key: MONNIFY_WEBHOOK_SECRET
-        sync: false
-      - key: VTPASS_BASE_URL
-        sync: false
-      - key: VTPASS_API_KEY
-        sync: false
-      - key: VTPASS_API_SECRET
-        sync: false
-      - key: VTPASS_API_PUBLIC_KEY
-        sync: false
-      - key: CLUBKONNECT_USER_ID
-        sync: false
-      - key: CLUBKONNECT_API_KEY
-        sync: false
-      - key: TERMII_API_KEY
-        sync: false
-      - key: TERMII_SENDER_ID
-        sync: false
-      - key: TERMII_EMAIL_CONFIG_ID
-        sync: false
-      - key: TWILIO_ACCOUNT_SID
-        sync: false
-      - key: TWILIO_AUTH_TOKEN
-        sync: false
-      - key: TWILIO_SMS_NUMBER
-        sync: false
-      - key: TWILIO_WHATSAPP_NUMBER
-        sync: false
-      - key: TWILIO_EMAIL
-        sync: false
+      # Firebase & Zoho credentials remain for core messaging
       - key: FIREBASE_TYPE
         sync: false
       - key: FIREBASE_PROJECT_ID
