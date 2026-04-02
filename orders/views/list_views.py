@@ -3,13 +3,13 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from orders.models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, TVService, TVVariation, 
-    InternetVariation, EducationService, EducationVariation,
+    InternetService, InternetVariation, EducationService, EducationVariation,
     ServiceRouting
 )
 from orders.serializers import (
     DataServiceSerializer, DataVariationSerializer,
     AirtimeNetworkSerializer, TVServiceSerializer,
-    TVVariationSerializer, InternetVariationSerializer,
+    TVVariationSerializer, InternetServiceSerializer, InternetVariationSerializer,
     EducationServiceSerializer, EducationVariationSerializer,
     ElectricityServiceSerializer
 )
@@ -96,15 +96,28 @@ class TVPackagesListView(generics.ListAPIView):
 
 
 @extend_schema(tags=["Orders - Internet"])
-class InternetPackagesListView(generics.ListAPIView):
-    """List available Internet data packages."""
-    serializer_class = InternetVariationSerializer
+class InternetServicesListView(generics.ListAPIView):
+    """List available Internet services (Smile, Spectranet, etc.)."""
+    serializer_class = InternetServiceSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         routing = ServiceRouting.objects.filter(service='internet').first()
         if routing and routing.primary_provider:
-            return InternetVariation.objects.filter(service__provider=routing.primary_provider, is_active=True)
+            return InternetService.objects.filter(provider=routing.primary_provider, is_active=True)
+        return InternetService.objects.filter(is_active=True)
+
+
+@extend_schema(tags=["Orders - Internet"])
+class InternetPackagesListView(generics.ListAPIView):
+    """List available Internet data packages. Filter by service_id query param."""
+    serializer_class = InternetVariationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        service_id = self.request.query_params.get("service_id")
+        if service_id:
+            return InternetVariation.objects.filter(service__service_id=service_id, is_active=True)
         return InternetVariation.objects.filter(is_active=True)
 
 

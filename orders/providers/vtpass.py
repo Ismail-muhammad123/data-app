@@ -131,6 +131,48 @@ class VTPassProvider(BaseVTUProvider):
             "raw_response": res
         }
 
+    def handle_webhook(self, data: Dict[str, Any]) -> bool:
+        """Processes VTpass webhook notifications."""
+        from orders.models import Purchase, VTUProviderConfig
+        from wallet.utils import fund_wallet
+
+        request_id = data.get("requestId")
+        status_ = data.get("content", {}).get("transactions", {}).get("status")
+        
+        logger.info(f"VTPass Webhook Processing: requestId={request_id}, status={status_}")
+        
+        try:
+            purchase = Purchase.objects.filter(reference=request_id).first()
+            if not purchase:
+                logger.warning(f"VTPass Webhook: Purchase not found for reference {request_id}")
+                return False
+
+            purchase.provider_response = data
+            
+            if status_ == "delivered":
+                purchase.status = "success"
+                purchase.save()
+            elif status_ in ["failed", "reversed"]:
+                self._handle_async_failure(purchase, f"VTPass reported: {status_}")
+            
+            return True
+        except Exception as e:
+            logger.error(f"VTPass Webhook Error: {e}")
+            return False
+
+    def handle_callback(self, data: Dict[str, Any]) -> bool:
+        """Processes VTpass callback redirects."""
+        logger.info(f"VTPass Callback Processing: {data}")
+        return True
+
+    def _handle_async_failure(self, purchase, error_msg):
+        """Internal failure handling delegating to common logic."""
+        purchase.last_error = error_msg
+        purchase.save()
+        
+        from orders.utils.purchase_logic import handle_vtu_async_failure
+        handle_vtu_async_failure(purchase)
+
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         payload = {
             "billersCode": meter_number,

@@ -6,19 +6,86 @@ import pprint
 
 logger = logging.getLogger(__name__)
 
+from orders.models import VTUProviderConfig, Purchase
+from wallet.utils import fund_wallet
+
+logger = logging.getLogger(__name__)
+
 class ClubKonnectClient:
     def __init__(self, config=None):
-        from orders.models import VTUProviderConfig
         if config is None:
-            provider = VTUProviderConfig.objects.filter(name='clubkonnect', is_active=True).first()
-            cfg_data = provider.get_config() if provider else {}
+            self.provider_config = VTUProviderConfig.objects.filter(name='clubkonnect', is_active=True).first()
+            cfg_data = self.provider_config.get_config() if self.provider_config else {}
         else:
-            cfg_data = config
+            self.provider_config = config
+            cfg_data = config.get_config()
 
         self.base_url = cfg_data.get('base_url') or getattr(settings, 'CLUBKONNECT_BASE_URL', "")
         self.user_id = cfg_data.get('user_id') or getattr(settings, 'CLUBKONNECT_USER_ID', "")
         self.api_key = cfg_data.get('api_key') or getattr(settings, 'CLUBKONNECT_API_KEY', "")
         self.timeout = getattr(settings, 'CLUBKONNECT_TIMEOUT', 30)
+
+    def handle_webhook(self, data):
+        """Processes generic ClubKonnect webhook notifications."""
+        return self._process_callback_data(data)
+
+    def handle_callback(self, data):
+        """Processes generic ClubKonnect callback notifications."""
+        return self._process_callback_data(data)
+
+    def _process_callback_data(self, data):
+        """Unified processing for ClubKonnect feedback."""
+        order_id = data.get("orderid") or data.get("OrderID")
+        request_id = data.get("requestid") or data.get("RequestID")
+        status_code = data.get("statuscode") or data.get("StatusCode") or data.get("Status")
+        
+        logger.info(f"ClubKonnect Feedback: order_id={order_id}, request_id={request_id}, status={status_code}")
+
+        try:
+            purchase = Purchase.objects.filter(reference__in=[order_id, request_id]).first()
+            if not purchase:
+                logger.warning(f"ClubKonnect Feedback: Purchase not found for reference {order_id or request_id}")
+                return False
+
+            purchase.provider_response = data
+            
+            # Map Status Codes
+            terminal_failure = False
+            if status_code in ["200", "delivered", "Success"]:
+                purchase.status = "success"
+                purchase.save()
+            elif status_code in ["100", "101", "102", "pending", "Pending"]:
+                purchase.status = "pending"
+                purchase.save()
+            else:
+                self._handle_failure(purchase, f"ClubKonnect reported failure: {status_code}")
+                terminal_failure = True
+
+            return True
+        except Exception as e:
+            logger.error(f"ClubKonnect Feedback Error: {e}")
+            return False
+
+    def _handle_failure(self, purchase, error_msg):
+        """Internal failure handling with config checks."""
+        purchase.status = "failed"
+        purchase.last_error = error_msg
+        purchase.save()
+
+        if self.provider_config:
+            # 1. Check for Auto-Refund
+            if self.provider_config.auto_refund_on_failure:
+                logger.info(f"ClubKonnect: Initiating auto-refund for purchase {purchase.reference}")
+                fund_wallet(
+                    user_id=purchase.user.id,
+                    amount=purchase.amount,
+                    description=f"Auto-Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
+                )
+            
+            # 2. Check for Retry configuration
+            # if purchase.retry_count < self.provider_config.max_retries:
+            #     # Trigger retry logic here
+            #     pass
 
     def _get_params(self, **kwargs):
         params = {

@@ -140,6 +140,7 @@ class AdminResetPinRequestSerializer(serializers.Serializer):
     new_pin = serializers.CharField(min_length=4, max_length=6, help_text="New transaction PIN for the user")
 
 
+class VTUProviderConfigSerializer(serializers.ModelSerializer):
     webhook_url = serializers.ReadOnlyField()
     callback_url = serializers.ReadOnlyField()
     

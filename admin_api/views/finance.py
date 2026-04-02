@@ -22,7 +22,17 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WalletTransaction.objects.all().order_by('-timestamp')
     serializer_class = AdminWalletTransactionSerializer
     permission_classes = [CanManageWallets]
-    filterset_fields = ['user', 'transaction_type', 'initiator']
+    filterset_fields = {
+        'wallet': ['exact'],
+        'user': ['exact'],
+        'status': ['exact'],
+        'transaction_type': ['exact'],
+        'initiator': ['exact'],
+        'initiated_by': ['exact'],
+        'timestamp': ['exact', 'gte', 'lte'],
+    }
+    search_fields = ['reference', 'description', 'user__email', 'user__full_name']
+    ordering_fields = ['timestamp', 'amount']
 
     @extend_schema(
         tags=["Admin Wallets"],

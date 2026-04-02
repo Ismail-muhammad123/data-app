@@ -129,6 +129,54 @@ class ClubKonnectProvider(BaseVTUProvider):
             "raw_response": res
         }
 
+    def handle_webhook(self, data: Dict[str, Any]) -> bool:
+        """Processes ClubKonnect webhook notifications."""
+        return self._process_async_feedback(data)
+
+    def handle_callback(self, data: Dict[str, Any]) -> bool:
+        """Processes ClubKonnect callback notifications."""
+        return self._process_async_feedback(data)
+
+    def _process_async_feedback(self, data: Dict[str, Any]) -> bool:
+        """Unified processing for ClubKonnect async feedback."""
+        from orders.models import Purchase
+        
+        order_id = data.get("orderid") or data.get("OrderID")
+        request_id = data.get("requestid") or data.get("RequestID")
+        status_code = data.get("statuscode") or data.get("StatusCode") or data.get("Status")
+        
+        logger.info(f"ClubKonnect Async Feedback: order_id={order_id}, request_id={request_id}, status={status_code}")
+
+        try:
+            purchase = Purchase.objects.filter(reference__in=[order_id, request_id]).first()
+            if not purchase:
+                logger.warning(f"ClubKonnect Feedback: Purchase not found for reference {order_id or request_id}")
+                return False
+
+            purchase.provider_response = data
+            
+            if status_code in ["200", "delivered", "Success"]:
+                purchase.status = "success"
+                purchase.save()
+            elif status_code in ["100", "101", "102", "pending", "Pending"]:
+                # Keep as pending
+                pass
+            else:
+                self._handle_async_failure(purchase, f"ClubKonnect reported failure: {status_code}")
+
+            return True
+        except Exception as e:
+            logger.error(f"ClubKonnect Feedback Error: {e}")
+            return False
+
+    def _handle_async_failure(self, purchase, error_msg):
+        """Internal failure handling delegating to common logic."""
+        purchase.last_error = error_msg
+        purchase.save()
+        
+        from orders.utils.purchase_logic import handle_vtu_async_failure
+        handle_vtu_async_failure(purchase)
+
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         params = {"ElectricCompany": service, "MeterNo": meter_number}
         res = self._get("/ElectricityVerify.asp", params)

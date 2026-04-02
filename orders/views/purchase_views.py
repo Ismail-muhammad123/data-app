@@ -358,17 +358,23 @@ class RepeatPurchaseView(APIView):
     @extend_schema(
         tags=["Orders - Repeat"],
         summary="Repeat a previous purchase",
-        description="Re-trigger a previous transaction by passing the original purchase ID. The same beneficiary and plan are used.",
+        description="Re-trigger a previous transaction by passing the original purchase ID. Requires a valid transaction PIN. The same beneficiary and plan are used.",
         request=RepeatPurchaseRequestSerializer,
-        responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer}
+        responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
     def post(self, request):
         serializer = RepeatPurchaseRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        pin = serializer.validated_data.get("transaction_pin")
+        if not user.check_transaction_pin(pin):
+            return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
+
         purchase_id = serializer.validated_data["purchase_id"]
 
         try:
-            old_purchase = Purchase.objects.get(id=purchase_id, user=request.user)
+            old_purchase = Purchase.objects.get(id=purchase_id, user=user)
         except Purchase.DoesNotExist:
             return Response({"error": "Original purchase not found."}, status=status.HTTP_404_NOT_FOUND)
 

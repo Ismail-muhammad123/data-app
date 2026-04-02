@@ -1,58 +1,75 @@
-# import uuid
-# from .utils import vtpass_post, vtpass_get
+import requests
+import logging
+from django.conf import settings
+from orders.models import VTUProviderConfig, Purchase
+from wallet.utils import fund_wallet
 
-# def generate_request_id():
-#     return str(uuid.uuid4())
+logger = logging.getLogger(__name__)
 
+class VTPassClient:
+    def __init__(self, config=None):
+        if config is None:
+            self.provider_config = VTUProviderConfig.objects.filter(name='vtpass', is_active=True).first()
+            cfg_data = self.provider_config.get_config() if self.provider_config else {}
+        else:
+            self.provider_config = config
+            cfg_data = config.get_config()
 
-# # 🔹 Airtime Purchase
-# def buy_airtime(phone: str, amount: float, network: str):
-#     """
-#     network can be: 'mtn', 'glo', 'airtel', 'etisalat'
-#     """
-#     payload = {
-#         "request_id": generate_request_id(),
-#         "serviceID": network,
-#         "amount": amount,
-#         "phone": phone,
-#     }
-#     return vtpass_post("/api/pay", payload)
+        self.api_key = cfg_data.get('api_key')
+        self.public_key = cfg_data.get('public_key')
+        self.base_url = cfg_data.get('base_url') or "https://vtpass.com/api"
 
+    def handle_webhook(self, data):
+        """Processes VTpass webhook notifications."""
+        request_id = data.get("requestId")
+        status_ = data.get("content", {}).get("transactions", {}).get("status")
+        
+        logger.info(f"VTPass Webhook Processing: requestId={request_id}, status={status_}")
+        
+        try:
+            purchase = Purchase.objects.filter(reference=request_id).first()
+            if not purchase:
+                logger.warning(f"VTPass Webhook: Purchase not found for reference {request_id}")
+                return False
 
-# # 🔹 Data Purchase
-# def buy_data(phone: str, variation_code: str, network: str):
-#     """
-#     variation_code comes from VTpass API (bundle size e.g. '500MB', '1GB').
-#     """
-#     payload = {
-#         "request_id": generate_request_id(),
-#         "serviceID": network,  # e.g. "mtn-data", "glo-data"
-#         "billersCode": phone,
-#         "variation_code": variation_code,
-#         "phone": phone,
-#     }
-#     return vtpass_post("/api/pay", payload)
+            purchase.provider_response = data
+            
+            if status_ == "delivered":
+                purchase.status = "success"
+                purchase.save()
+            elif status_ in ["failed", "reversed"]:
+                self._handle_failure(purchase, f"VTPass reported: {status_}")
+            
+            return True
+        except Exception as e:
+            logger.error(f"VTPass Webhook Error: {e}")
+            return False
 
+    def handle_callback(self, data):
+        """Processes VTpass callback redirects (usually GET)."""
+        logger.info(f"VTPass Callback Processing: {data}")
+        # Callback usually just contains basic info, or we query status
+        return True
 
-# # 🔹 Internet Internet Purchase
-# def buy_internet(account_number: str, variation_code: str, amount: float):
-#     """
-#     Internet internet requires account_number and bundle variation.
-#     """
-#     payload = {
-#         "request_id": generate_request_id(),
-#         "serviceID": "internet-direct",
-#         "billersCode": account_number,
-#         "variation_code": variation_code,
-#         "amount": amount,
-#         "phone": account_number,  # sometimes same as billersCode
-#     }
-#     return vtpass_post("/api/pay", payload)
+    def _handle_failure(self, purchase, error_msg):
+        """Internal failure handling with config checks."""
+        purchase.status = "failed"
+        purchase.last_error = error_msg
+        purchase.save()
 
+        if self.provider_config:
+            # 1. Check for Auto-Refund
+            if self.provider_config.auto_refund_on_failure:
+                logger.info(f"VTPass: Initiating auto-refund for purchase {purchase.reference}")
+                fund_wallet(
+                    user_id=purchase.user.id,
+                    amount=purchase.amount,
+                    description=f"Auto-Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
+                )
+            
+            # 2. Check for Retry configuration (if any planned)
+            # if purchase.retry_count < self.provider_config.max_retries:
+            #     # Trigger retry logic here
+            #     pass
 
-# # 🔹 Get Data Plans
-# def get_data_plans(network: str):
-#     """
-#     Get available data plans (variations) for a network.
-#     """
-#     return vtpass_get("/api/service-variations", {"serviceID": f"{network}-data"})
+    # ... Other methods can be added as needed ...

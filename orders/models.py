@@ -255,6 +255,8 @@ class Purchase(models.Model):
     provider_response = models.JSONField(default=dict, blank=True, null=True)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='purchases')
     token = models.CharField(max_length=255, blank=True, null=True)
+    retry_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True, null=True)
     
     time = models.DateTimeField(auto_now=True)
 
@@ -322,10 +324,22 @@ class VTUProviderConfig(models.Model):
             return f"/api/orders/callback/{self.name}/"
 
     def get_config(self):
-        """Returns the config_data with keys always present (even if empty) to avoid KeyErrors."""
-        default_keys = ['api_key', 'public_key', 'secret_key', 'base_url', 'user_id', 'wallet_id']
+        """Returns the config prioritizing explicit fields, falling back to config_data."""
+        # Standardize keys to what providers expect
         config = self.config_data or {}
-        return {key: config.get(key, '') for key in default_keys}
+        
+        # Explicit fields prioritize over JSON config_data
+        data = {
+            'api_key': self.api_key or config.get('api_key', ''),
+            'user_id': self.user_id or config.get('user_id', ''),
+            'session_id': self.session_id or config.get('session_id', ''),
+            'private_key': self.private_key or config.get('private_key', ''),
+            'public_key': self.public_key or config.get('public_key', ''),
+            'base_url': self.base_url or config.get('base_url', ''),
+            'wallet_id': config.get('wallet_id', ''),
+            'secret_key': config.get('secret_key', ''), # Some legacy use
+        }
+        return data
 
     class Meta:
         verbose_name = "VTU Provider Config"

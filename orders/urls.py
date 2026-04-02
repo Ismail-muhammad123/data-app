@@ -17,6 +17,7 @@ from orders.views import (
         TVPackagesListView,
         PurchaseTVSubscriptionView,
 
+        InternetServicesListView,
         InternetPackagesListView,
         PurchaseInternetSubscriptionView,
 
@@ -61,6 +62,7 @@ urlpatterns = [
     path("buy-tv-subscription/", PurchaseTVSubscriptionView.as_view(), name="purchase-tv-subscription"),
 
     # Internet Services
+    path("internet-services/", InternetServicesListView.as_view(), name="list-internet-services"),
     path("internet-packages/", InternetPackagesListView.as_view(), name="list-internet-packages"),
     path("buy-internet-subscription/", PurchaseInternetSubscriptionView.as_view(), name="purchase-internet-subscription"),
     

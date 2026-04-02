@@ -43,6 +43,20 @@ class BaseVTUProvider(ABC):
         pass
 
     @abstractmethod
+    def handle_webhook(self, data: Dict[str, Any]) -> bool:
+        """
+        Logic for processing incoming webhooks.
+        """
+        pass
+
+    @abstractmethod
+    def handle_callback(self, data: Dict[str, Any]) -> bool:
+        """
+        Logic for processing callback redirects.
+        """
+        pass
+
+    @abstractmethod
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         """
         Validate electricity meter before payment.

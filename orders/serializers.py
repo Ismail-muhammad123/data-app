@@ -4,7 +4,7 @@ from .models import (
     ElectricityService, ElectricityVariation, 
     Purchase, TVService, TVVariation,
     InternetVariation, PromoCode, EducationService, EducationVariation,
-    PurchaseBeneficiary
+    PurchaseBeneficiary, InternetService
 )
 
 
@@ -88,13 +88,19 @@ class TVVariationSerializer(serializers.ModelSerializer):
             return float(obj.cost_price + routing.agent_margin)
         return float(obj.agent_price)
 
+class InternetServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternetService
+        fields = "__all__"
+
 class InternetVariationSerializer(serializers.ModelSerializer):
+    service = InternetServiceSerializer(read_only=True)
     selling_price = serializers.SerializerMethodField()
     agent_price = serializers.SerializerMethodField()
 
     class Meta:
         model = InternetVariation
-        fields = ["id", "name", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
+        fields = ["id", "name", "service", "variation_id", "selling_price", "agent_price", "plan_type", "is_active"]
 
     def get_selling_price(self, obj):
         from .models import ServiceRouting
@@ -208,7 +214,7 @@ class VerifyCustomerResponseSerializer(serializers.Serializer):
     account_name = serializers.CharField(help_text="Name of the verified customer")
     raw_response = serializers.DictField(required=False, help_text="Raw provider response")
 
-class RepeatPurchaseRequestSerializer(serializers.Serializer):
+class RepeatPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     purchase_id = serializers.IntegerField(help_text="ID of the previous purchase to repeat")
 
 
