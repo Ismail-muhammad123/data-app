@@ -96,7 +96,7 @@ services:
         sync: false
       - key: ZOHO_EMAIL_USER
         sync: false
-      - key: ZOHO_EMAIL_PASSWORD
+      - key: ZOHO_MAIL_API_URL
         sync: false
       - key: ZOHO_SMS_SENDER_ID
         sync: false

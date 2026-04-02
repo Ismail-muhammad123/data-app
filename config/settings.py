@@ -224,22 +224,13 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 # ----------------------------- Zoho Configurations -----------------------------
 
 ZOHO_EMAIL_USER = os.getenv("ZOHO_EMAIL_USER", "")
-ZOHO_EMAIL_PASSWORD = os.getenv("ZOHO_EMAIL_PASSWORD", "")
 ZOHO_SMS_SENDER_ID = os.getenv("ZOHO_SMS_SENDER_ID", "")
 ZOHO_WHATSAPP_NUMBER = os.getenv("ZOHO_WHATSAPP_NUMBER", "")
 ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "")
+ZOHO_MAIL_API_URL = os.getenv("ZOHO_MAIL_API_URL", "https://api.zeptomail.com/v1.1/email") # Typically used for Zoho ZeptoMail
 
-if PRODUCTION:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    EMAIL_HOST = "smtp.zoho.com" # For EU use smtp.zoho.eu
-    EMAIL_PORT = 465
-    EMAIL_USE_SSL = True
-    EMAIL_HOST_USER = ZOHO_EMAIL_USER
-    EMAIL_HOST_PASSWORD = ZOHO_EMAIL_PASSWORD
-    DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER
-else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
 
 
 
