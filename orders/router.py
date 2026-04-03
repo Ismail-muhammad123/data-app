@@ -46,6 +46,9 @@ class ProviderRouter:
         if provider_name.lower() not in factories.keys():
             return None
 
+        config = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
+            
+
         try:     
             provider_class = factories.get(provider_name)
             if provider_class:
