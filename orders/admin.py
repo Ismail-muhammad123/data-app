@@ -568,8 +568,8 @@ class VTUProviderConfigAdmin(admin.ModelAdmin):
             "fields": ("name", "is_active")
         }),
         ("API Configuration", {
-            "fields": ("config_data",),
-            "description": 'Enter config in JSON format. E.g. {"api_key": "...", "public_key": "...", "secret_key": "...", "base_url": "..."}'
+            "fields": ("api_key", "secret_key", "public_key", "user_id", "session_id", "base_url"),
+            "description": 'Enter the raw API credentials provided by the VTU service.'
         }),
         ("Failover Behavior", {
             "fields": ("max_retries", "auto_refund_on_failure"),

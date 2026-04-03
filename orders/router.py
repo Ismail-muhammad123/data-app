@@ -52,7 +52,7 @@ class ProviderRouter:
         try:     
             provider_class = factories.get(provider_name)
             if provider_class:
-                instance = provider_class(config.config_data)
+                instance = provider_class(config.get_config_dict())
                 # instance.provider_name = provider_name
                 return instance
         except Exception as e:

@@ -275,15 +275,23 @@ class VTUProviderConfig(models.Model):
     name = models.CharField(max_length=20, choices=PROVIDER_CHOICES, unique=True)
     is_active = models.BooleanField(default=True)
     
-    config_data = models.JSONField(default=dict, help_text='Additional settings for the provider')
-    
     # Standard Credentials
     api_key = models.CharField(max_length=500, blank=True, null=True)
     user_id = models.CharField(max_length=255, blank=True, null=True)
     session_id = models.CharField(max_length=500, blank=True, null=True)
-    private_key = models.TextField(blank=True, null=True)
+    secret_key = models.TextField(blank=True, null=True)
     public_key = models.TextField(blank=True, null=True)
     base_url = models.URLField(blank=True, null=True)
+    
+    def get_config_dict(self):
+        return {
+            'api_key': self.api_key,
+            'user_id': self.user_id,
+            'session_id': self.session_id,
+            'secret_key': self.secret_key,
+            'public_key': self.public_key,
+            'base_url': self.base_url,
+        }
     
     # Global fallbacks settings (Defaults)
     max_retries = models.PositiveIntegerField(default=3)
@@ -323,23 +331,7 @@ class VTUProviderConfig(models.Model):
         except:
             return f"/api/orders/callback/{self.name}/"
 
-    def get_config(self):
-        """Returns the config prioritizing explicit fields, falling back to config_data."""
-        # Standardize keys to what providers expect
-        config = self.config_data or {}
-        
-        # Explicit fields prioritize over JSON config_data
-        data = {
-            'api_key': self.api_key or config.get('api_key', ''),
-            'user_id': self.user_id or config.get('user_id', ''),
-            'session_id': self.session_id or config.get('session_id', ''),
-            'private_key': self.private_key or config.get('private_key', ''),
-            'public_key': self.public_key or config.get('public_key', ''),
-            'base_url': self.base_url or config.get('base_url', ''),
-            'wallet_id': config.get('wallet_id', ''),
-            'secret_key': config.get('secret_key', ''), # Some legacy use
-        }
-        return data
+
 
     class Meta:
         verbose_name = "VTU Provider Config"

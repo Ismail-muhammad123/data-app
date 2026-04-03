@@ -148,7 +148,7 @@ class VTUProviderConfigSerializer(serializers.ModelSerializer):
         model = VTUProviderConfig
         fields = [
             'id', 'name', 'is_active', 'api_key', 'user_id', 'session_id', 
-            'private_key', 'public_key', 'base_url', 'config_data', 
+            'secret_key', 'public_key', 'base_url', 
             'webhook_url', 'callback_url', 'max_retries', 'auto_refund_on_failure',
             'account_name', 'bank_name', 'account_number', 'bank_code', 
             'min_funding_balance', 'auto_funding_enabled'
