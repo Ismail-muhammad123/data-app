@@ -15,7 +15,10 @@ class VTPassProvider(BaseVTUProvider):
         self.api_key = config.get('api_key')
         self.public_key = config.get('public_key')
         self.secret_key = config.get('secret_key')
-        self.base_url = config.get('base_url', 'https://vtpass.com/api')
+        self.base_url = config.get('base_url')
+        if self.base_url is None or self.base_url == '':
+            self.base_url = 'https://vtpass.com/api'
+            
         self.headers = {
             "api-key": self.api_key,
             "secret-key": self.secret_key,
@@ -200,7 +203,7 @@ class VTPassProvider(BaseVTUProvider):
         # VTPass doesn't have a direct "balance" API in the basic set, usually checked in dashboard
         # But some versions support it via POST /balance
         try:
-            res = self._post("/balance", {})
+            res = self._get("/balance")
             return float(res.get('contents', {}).get('balance', 0))
         except:
             return 0.0

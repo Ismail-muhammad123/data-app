@@ -14,7 +14,10 @@ class ClubKonnectProvider(BaseVTUProvider):
     def __init__(self, config: Dict[str, Any]):
         self.user_id = config.get('user_id')
         self.api_key = config.get('api_key')
-        self.base_url = config.get('base_url', 'https://www.nellobytesystems.com')
+        self.base_url = config.get('base_url')
+        if self.base_url is None or self.base_url == '':
+            self.base_url = 'https://www.nellobytesystems.com'
+            
         self.headers = {
             "Content-Type": "application/json",
         }
@@ -195,7 +198,7 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def get_wallet_balance(self) -> float:
         res = self._get("/APIWalletBalanceV1.asp", {})
-        return float(res.get('balance', 0))
+        return res.get('balance', 0)
 
     def get_available_services(self) -> List[Dict[str, Any]]:
         """
