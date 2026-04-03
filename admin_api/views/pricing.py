@@ -1,4 +1,6 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from orders.models import (
     DataVariation, DataService, AirtimeNetwork, TVVariation, TVService, 
@@ -27,6 +29,14 @@ class AdminDataServiceViewSet(AdminBasePricingViewSet):
     queryset = DataService.objects.all()
     serializer_class = AdminDataServiceSerializer
 
+    @extend_schema(responses={200: AdminDataVariationSerializer(many=True)})
+    @action(detail=True, methods=['get'])
+    def plans(self, request, pk=None):
+        network = self.get_object()
+        plans = DataVariation.objects.filter(service=network)
+        serializer = AdminDataVariationSerializer(plans, many=True)
+        return Response(serializer.data)
+
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminDataVariationViewSet(AdminBasePricingViewSet):
     queryset = DataVariation.objects.all()
@@ -36,6 +46,14 @@ class AdminDataVariationViewSet(AdminBasePricingViewSet):
 class AdminTVServiceViewSet(AdminBasePricingViewSet):
     queryset = TVService.objects.all()
     serializer_class = AdminTVServiceSerializer
+
+    @extend_schema(responses={200: AdminTVVariationSerializer(many=True)})
+    @action(detail=True, methods=['get'])
+    def plans(self, request, pk=None):
+        network = self.get_object()
+        plans = TVVariation.objects.filter(service=network)
+        serializer = AdminTVVariationSerializer(plans, many=True)
+        return Response(serializer.data)
 
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminTVVariationViewSet(AdminBasePricingViewSet):
@@ -47,6 +65,14 @@ class AdminInternetServiceViewSet(AdminBasePricingViewSet):
     queryset = InternetService.objects.all()
     serializer_class = AdminInternetServiceSerializer
 
+    @extend_schema(responses={200: AdminInternetVariationSerializer(many=True)})
+    @action(detail=True, methods=['get'])
+    def plans(self, request, pk=None):
+        network = self.get_object()
+        plans = InternetVariation.objects.filter(service=network)
+        serializer = AdminInternetVariationSerializer(plans, many=True)
+        return Response(serializer.data)
+
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminInternetVariationViewSet(AdminBasePricingViewSet):
     queryset = InternetVariation.objects.all()
@@ -57,6 +83,14 @@ class AdminEducationServiceViewSet(AdminBasePricingViewSet):
     queryset = EducationService.objects.all()
     serializer_class = AdminEducationServiceSerializer
 
+    @extend_schema(responses={200: AdminEducationVariationSerializer(many=True)})
+    @action(detail=True, methods=['get'])
+    def plans(self, request, pk=None):
+        network = self.get_object()
+        plans = EducationVariation.objects.filter(service=network)
+        serializer = AdminEducationVariationSerializer(plans, many=True)
+        return Response(serializer.data)
+
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminEducationVariationViewSet(AdminBasePricingViewSet):
     queryset = EducationVariation.objects.all()
@@ -66,6 +100,14 @@ class AdminEducationVariationViewSet(AdminBasePricingViewSet):
 class AdminElectricityServiceViewSet(AdminBasePricingViewSet):
     queryset = ElectricityService.objects.all()
     serializer_class = AdminElectricityServiceSerializer
+
+    @extend_schema(responses={200: AdminElectricityVariationSerializer(many=True)})
+    @action(detail=True, methods=['get'])
+    def plans(self, request, pk=None):
+        network = self.get_object()
+        plans = ElectricityVariation.objects.filter(service=network)
+        serializer = AdminElectricityVariationSerializer(plans, many=True)
+        return Response(serializer.data)
 
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminElectricityVariationViewSet(AdminBasePricingViewSet):
