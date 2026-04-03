@@ -194,7 +194,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         }
 
     def get_wallet_balance(self) -> float:
-        res = self._get("/Balance.asp", {})
+        res = self._get("/APIWalletBalanceV1.asp", {})
         return float(res.get('balance', 0))
 
     def get_available_services(self) -> List[Dict[str, Any]]:
@@ -206,11 +206,10 @@ class ClubKonnectProvider(BaseVTUProvider):
             {"type": "data", "endpoint": "/DataPlans.asp"},
             {"type": "cable", "endpoint": "/CableTVPackages.asp"},
             {"type": "electricity", "endpoint": "/ElectricityCompanies.asp"},
-            {"type": "internet", "endpoint": "/SmilePackages.asp"},
+            # {"type": "internet", "endpoint": "/SmilePackages.asp"},
         ]
-
     def get_airtime_networks(self) -> List[Dict[str, Any]]:
-        res = self._get("/AirtimeNetworks.asp", {})
+        res = self._get("/APIAirtimeDiscountV2.asp", {})
         return res if isinstance(res, list) else res.get('content', [])
 
     def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
