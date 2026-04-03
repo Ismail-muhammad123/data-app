@@ -192,8 +192,11 @@ class ProviderBalanceView(APIView):
         responses={200: {"balance": 0.0}}
     )
     def get(self, request, pk):
-        provider = VTUProviderConfig.objects.get(pk=pk)
-        impl = ProviderRouter.get_provider_implementation(provider.name)
+        try:
+            provider = VTUProviderConfig.objects.get(pk=pk)
+        except VTUProviderConfig.DoesNotExist:
+            return Response({"error": "Provider not found"}, status=status.HTTP_404_NOT_FOUND)
+        impl = ProviderRouter.get_provider_implementation(provider.name.lower())
         if not impl:
             return Response({"error": "Implementation not found"}, status=status.HTTP_400_BAD_REQUEST)
         

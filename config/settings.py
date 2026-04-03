@@ -242,8 +242,6 @@ CLOUDINARY_STORAGE = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
-
 # ----------------------------- Zoho Configurations -----------------------------
 
 ZOHO_EMAIL_USER = os.getenv("ZOHO_EMAIL_USER", "")
@@ -254,8 +252,6 @@ ZOHO_MAIL_API_URL = os.getenv("ZOHO_MAIL_API_URL", "https://api.zeptomail.com/v1
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
-
-
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 
