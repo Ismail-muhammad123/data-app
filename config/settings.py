@@ -96,11 +96,34 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Data App Api DOcs',
-    'DESCRIPTION': 'A full API Documentation of the Data App',
+    'TITLE': 'A-Star Data App API',
+    'DESCRIPTION': (
+        'Comprehensive API Documentation for the A-Star Data App Backend.\\n\\n'
+        'This API serves the mobile and web client, handling user authentication, '
+        'wallets, data/airtime/electricity purchases, referrals, and admin functionality. '
+        'Interact with the live or local test environments using the server toggles below.'
+    ),
     'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False, # Set to True if you want to serve the schema at /schema/
-    # ... other Spectacular settings
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'name': 'API Support Team',
+        'email': 'support@astar.com',
+    },
+    'SERVERS': [
+        {'url': 'http://localhost:8000', 'description': 'Local Test Environment'},
+        {'url': 'https://z9trades-backend-production.up.railway.app', 'description': 'Production Environment'},
+    ],
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'displayRequestDuration': True,
+        'filter': True,
+        'syntaxHighlight.theme': 'monokai',  # Dark theme for syntax highlighting
+        'defaultModelsExpandDepth': -1,  # Hide models at the bottom by default to keep it clean
+        'defaultModelRendering': 'example',
+    },
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 

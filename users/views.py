@@ -1,9 +1,10 @@
 # users/views.py
 from django.contrib.auth import get_user_model, logout, authenticate
-from rest_framework import status, generics, permissions
+from rest_framework import status, generics, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema, OpenApiExample, inline_serializer
 from .models import OTP, Referral, Beneficiary
 from .utils import send_otp_code
 from notifications.models import UserNotification
@@ -41,6 +42,27 @@ User = get_user_model()
 class LoginView(APIView):
     """Login with phone number and PIN"""
 
+
+    @extend_schema(
+        request=LoginSerializer,
+        examples=[
+            OpenApiExample(
+                "Valid Login",
+                value={"phone_number": "08012345678", "pin": "1234"},
+                request_only=True
+            )
+        ],
+        responses={
+            200: inline_serializer(
+                name="LoginResponse",
+                fields={
+                    "refresh": serializers.CharField(),
+                    "access": serializers.CharField(),
+                    "user": ProfileSerializer()
+                }
+            )
+        }
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -66,6 +88,19 @@ class RefreshTokenView(APIView):
     """Obtain a new access token using a refresh token."""
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=inline_serializer("RefreshTokenRequest", fields={"refresh": serializers.CharField()}),
+        examples=[
+            OpenApiExample(
+                "Refresh Token",
+                value={"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."},
+                request_only=True
+            )
+        ],
+        responses={
+            200: inline_serializer("RefreshTokenResponse", fields={"access": serializers.CharField()})
+        }
+    )
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
@@ -82,12 +117,44 @@ class SignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
 
+    @extend_schema(
+        request=SignupSerializer,
+        examples=[
+            OpenApiExample(
+                "Signup Request",
+                value={
+                    "phone_country_code": "+234",
+                    "phone_number": "08012345678",
+                    "email": "user@example.com",
+                    "pin": "1234",
+                    "first_name": "John",
+                    "last_name": "Doe"
+                },
+                request_only=True
+            )
+        ],
+        responses={201: SignupSerializer}
+    )
     def perform_create(self, serializer):
         user = serializer.save(is_active=True)  # wait for OTP verification
         # send_otp_code(user, "activation")
 
 
 class ResendActivationCodeView(APIView):
+    @extend_schema(
+        request=inline_serializer("ResendActivationCodeRequest", fields={
+            "identifier": serializers.CharField(),
+            "channel": serializers.CharField(required=False)
+        }),
+        examples=[
+            OpenApiExample(
+                "Resend via SMS",
+                value={"identifier": "08012345678", "channel": "sms"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         identifier = request.data.get("identifier")
         channel = request.data.get("channel", None)
@@ -108,6 +175,17 @@ class ResendActivationCodeView(APIView):
 
 
 class ActivateAccountView(APIView):
+    @extend_schema(
+        request=inline_serializer("ActivateAccountRequest", fields={"identifier": serializers.CharField(), "otp": serializers.CharField()}),
+        examples=[
+            OpenApiExample(
+                "Activate Account",
+                value={"identifier": "08012345678", "otp": "123456"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         identifier = request.data.get("identifier")
         otp_code = request.data.get("otp")
@@ -145,10 +223,24 @@ class ActivateAccountView(APIView):
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        responses={200: ProfileSerializer}
+    )
     def get(self, request):
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
 
+    @extend_schema(
+        request=UpdateProfileSerializer,
+        examples=[
+            OpenApiExample(
+                "Update Profile",
+                value={"first_name": "Jane", "last_name": "Doe", "email": "jane@example.com"},
+                request_only=True
+            )
+        ],
+        responses={200: UpdateProfileSerializer}
+    )
     def post(self, request):
         if request.user.email and request.data.get("email") and request.user.email != request.data.get("email"):
             users = User.objects.filter(email=request.data.get("email"), email_verified=True).exclude(id=request.user.id)
@@ -164,6 +256,17 @@ class ProfileView(APIView):
 # ──────────────────────────────────────────────
 
 class PasswordResetRequestView(APIView):
+    @extend_schema(
+        request=inline_serializer("PasswordResetRequest", fields={"identifier": serializers.CharField()}),
+        examples=[
+            OpenApiExample(
+                "Request Reset",
+                value={"identifier": "08012345678"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         identifier = request.data.get("identifier")
         identifier = identifier[1:] if identifier and identifier.startswith("0") else identifier
@@ -178,6 +281,17 @@ class PasswordResetRequestView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
+    @extend_schema(
+        request=PasswordResetSerializer,
+        examples=[
+            OpenApiExample(
+                "Confirm Reset",
+                value={"identifier": "08012345678", "otp_code": "123456", "new_pin": "5678"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -187,6 +301,17 @@ class PasswordResetConfirmView(APIView):
 class ChangePINView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=ChangePINSerializer,
+        examples=[
+            OpenApiExample(
+                "Change Login PIN",
+                value={"old_pin": "1234", "new_pin": "5678"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = ChangePINSerializer(data=request.data, context={"user": request.user})
         serializer.is_valid(raise_exception=True)
@@ -201,6 +326,17 @@ class SetTransactionPinView(APIView):
     """Set the transaction PIN for the first time."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=SetTransactionPinSerializer,
+        examples=[
+            OpenApiExample(
+                "Set Transaction PIN",
+                value={"pin": "1234", "confirm_pin": "1234"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = SetTransactionPinSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -212,6 +348,17 @@ class ChangeTransactionPinView(APIView):
     """Change existing transaction PIN."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=ChangeTransactionPinSerializer,
+        examples=[
+            OpenApiExample(
+                "Change Transaction PIN",
+                value={"old_pin": "1234", "new_pin": "5678", "confirm_pin": "5678"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = ChangeTransactionPinSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -223,6 +370,17 @@ class ResetTransactionPinView(APIView):
     """Reset transaction PIN via OTP (requires OTP to be requested first)."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=ResetTransactionPinSerializer,
+        examples=[
+            OpenApiExample(
+                "Reset Transaction PIN",
+                value={"otp_code": "123456", "new_pin": "5678", "confirm_pin": "5678"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = ResetTransactionPinSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -240,6 +398,10 @@ class RequestTransactionPinResetOTPView(APIView):
     """Request an OTP to reset the transaction PIN."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=None,
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         send_otp_code(request.user, "reset")
         return Response({"message": "OTP sent for transaction PIN reset."})
@@ -249,6 +411,17 @@ class VerifyTransactionPinView(APIView):
     """Verify if a transaction PIN is correct."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=VerifyTransactionPinSerializer,
+        examples=[
+            OpenApiExample(
+                "Verify Transaction PIN",
+                value={"pin": "1234"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("VerifyPinResponse", fields={"valid": serializers.BooleanField()})}
+    )
     def post(self, request):
         serializer = VerifyTransactionPinSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -273,6 +446,18 @@ class ReferralStatsView(APIView):
     """Get referral statistics for the current user."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                "ReferralStatsResponse",
+                fields={
+                    "referral_code": serializers.CharField(),
+                    "total_referrals": serializers.IntegerField(),
+                    "total_bonus_earned": serializers.FloatField()
+                }
+            )
+        }
+    )
     def get(self, request):
         referrals = Referral.objects.filter(referrer=request.user)
         total_referrals = referrals.count()
@@ -295,6 +480,17 @@ class RegisterFCMTokenView(APIView):
     """Register or update FCM device token for push notifications."""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=FCMTokenSerializer,
+        examples=[
+            OpenApiExample(
+                "Register FCM Token",
+                value={"token": "bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1..."},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         serializer = FCMTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -313,6 +509,25 @@ class NotificationListView(generics.ListAPIView):
     def get_queryset(self):
         return UserNotification.objects.filter(user=self.request.user).order_by('-created_at')
 
+    @extend_schema(
+        request=inline_serializer("NotificationActionRequest", fields={
+            "action": serializers.CharField(),
+            "notification_id": serializers.IntegerField(required=False)
+        }),
+        examples=[
+            OpenApiExample(
+                "Mark Read",
+                value={"action": "mark_read", "notification_id": 1},
+                request_only=True
+            ),
+            OpenApiExample(
+                "Mark All Read",
+                value={"action": "mark_all_read"},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request, *args, **kwargs):
         """Mark a notification or all notifications as read."""
         action_type = request.data.get("action")
@@ -344,6 +559,17 @@ class NotificationListView(generics.ListAPIView):
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=inline_serializer("LogoutRequest", fields={"refresh": serializers.CharField()}),
+        examples=[
+            OpenApiExample(
+                "Logout Request",
+                value={"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."},
+                request_only=True
+            )
+        ],
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
     def post(self, request):
         try:
             refresh_token = request.data.get("refresh")
@@ -355,6 +581,17 @@ class LogoutView(APIView):
         return Response({"message": "Logged out successfully"})
 
 
+@extend_schema(
+    request=None,
+    examples=[
+        OpenApiExample(
+            "Close Account",
+            value={},
+            request_only=True
+        )
+    ],
+    responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+)
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def close_account(request):
@@ -377,6 +614,17 @@ def close_account(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    request=None,
+    examples=[
+        OpenApiExample(
+            "Generate Virtual Account",
+            value={},
+            request_only=True
+        )
+    ],
+    responses={200: inline_serializer("GenerateVirtualAccountResponse", fields={"success": serializers.BooleanField(), "message": serializers.CharField()})}
+)
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def generate_virtual_account(request):

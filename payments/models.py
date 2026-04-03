@@ -71,6 +71,18 @@ class PaystackConfig(models.Model):
         verbose_name = "Paystack Configuration"
         verbose_name_plural = "Paystack Configuration"
 
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
     def __str__(self):
         return "Paystack Config"
 
