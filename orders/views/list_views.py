@@ -2,7 +2,7 @@ from rest_framework import generics, permissions
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from orders.models import (
     DataService, DataVariation, AirtimeNetwork, 
-    ElectricityService, TVService, TVVariation, 
+    ElectricityService, ElectricityVariation, TVService, TVVariation, 
     InternetService, InternetVariation, EducationService, EducationVariation,
     ServiceRouting
 )
@@ -11,7 +11,7 @@ from orders.serializers import (
     AirtimeNetworkSerializer, TVServiceSerializer,
     TVVariationSerializer, InternetServiceSerializer, InternetVariationSerializer,
     EducationServiceSerializer, EducationVariationSerializer,
-    ElectricityServiceSerializer
+    ElectricityServiceSerializer, ElectricityVariationSerializer
 )
 
 
@@ -30,12 +30,16 @@ class DataServicesListView(generics.ListAPIView):
 
 @extend_schema(tags=["Orders - Data"])
 class DataVariationsListView(generics.ListAPIView):
-    """List available data plans/variations. Filter by service_id query param."""
+    """List available data plans/variations. Filter by service_id query param or network_id in URL."""
     serializer_class = DataVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = DataVariation.objects.filter(is_active=True)
+        network_id = self.kwargs.get("network_id")
+        if network_id:
+            return queryset.filter(service__id=network_id)
+        
         service_id = self.request.query_params.get("service_id")
         if service_id:
             queryset = queryset.filter(service__id=service_id)
@@ -68,6 +72,22 @@ class ElectricityServiceListView(generics.ListAPIView):
         return ElectricityService.objects.filter(is_active=True)
 
 
+@extend_schema(tags=["Orders - Electricity"])
+class ElectricityVariationListView(generics.ListAPIView):
+    """List available electricity plans/variations. Filter by service_id query param or network_id in URL."""
+    serializer_class = ElectricityVariationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        network_id = self.kwargs.get("network_id")
+        if network_id:
+            return ElectricityVariation.objects.filter(is_active=True, service__id=network_id)
+        service_id = self.request.query_params.get("service_id")
+        if service_id:
+            return ElectricityVariation.objects.filter(service__service_id=service_id, is_active=True)
+        return ElectricityVariation.objects.filter(is_active=True)
+
+
 @extend_schema(tags=["Orders - Cable TV"])
 class TVServicesListView(generics.ListAPIView):
     """List available Cable TV services (DSTV, GOTV, Startimes)."""
@@ -83,12 +103,14 @@ class TVServicesListView(generics.ListAPIView):
 
 @extend_schema(tags=["Orders - Cable TV"])
 class TVPackagesListView(generics.ListAPIView):
-    """List available TV bouquet packages. Filter by service_id query param."""
-    queryset = TVVariation.objects.all()
+    """List available TV bouquet packages. Filter by service_id query param or network_id in URL."""
     serializer_class = TVVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        network_id = self.kwargs.get("network_id")
+        if network_id:
+            return TVVariation.objects.filter(is_active=True, service__id=network_id)
         service_id = self.request.query_params.get("service_id")
         if not service_id:
             return TVVariation.objects.filter(is_active=True)
@@ -110,11 +132,14 @@ class InternetServicesListView(generics.ListAPIView):
 
 @extend_schema(tags=["Orders - Internet"])
 class InternetPackagesListView(generics.ListAPIView):
-    """List available Internet data packages. Filter by service_id query param."""
+    """List available Internet data packages. Filter by service_id query param or network_id in URL."""
     serializer_class = InternetVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        network_id = self.kwargs.get("network_id")
+        if network_id:
+            return InternetVariation.objects.filter(is_active=True, service__id=network_id)
         service_id = self.request.query_params.get("service_id")
         if service_id:
             return InternetVariation.objects.filter(service__service_id=service_id, is_active=True)
@@ -136,11 +161,14 @@ class EducationServiceListView(generics.ListAPIView):
 
 @extend_schema(tags=["Orders - Education"])
 class EducationVariationListView(generics.ListAPIView):
-    """List available education PIN variations. Filter by service_id query param."""
+    """List available education PIN variations. Filter by service_id query param or network_id in URL."""
     serializer_class = EducationVariationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        network_id = self.kwargs.get("network_id")
+        if network_id:
+            return EducationVariation.objects.filter(is_active=True, service__id=network_id)
         service_id = self.request.query_params.get("service_id")
         if service_id:
             return EducationVariation.objects.filter(service__service_id=service_id, is_active=True)

@@ -47,13 +47,13 @@ class ProviderRouter:
             return None
 
         config = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
-            
+
 
         try:     
             provider_class = factories.get(provider_name)
             if provider_class:
                 instance = provider_class(config.config_data)
-                instance.provider_name = provider_name
+                # instance.provider_name = provider_name
                 return instance
         except Exception as e:
             logger.error(f"Error instantiating provider {provider_name}: {e}")
