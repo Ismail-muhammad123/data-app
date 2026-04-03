@@ -3,12 +3,19 @@ from .interfaces import BaseVTUProvider
 from typing import Optional, List, Dict, Any
 import logging
 
+# Import all provider implementations
+from .providers.vtpass import VTPassProvider
+from .providers.clubkonnect import ClubKonnectProvider
+from .providers.generic import GenericLocalProvider
+
+
 logger = logging.getLogger(__name__)
 
 class ProviderRouter:
     """
     Router to select, instantiate and handle fallbacks for VTU providers.
     """
+    
 
     @staticmethod
     def get_provider_implementation(provider_name: str) -> Optional[BaseVTUProvider]:
@@ -16,32 +23,30 @@ class ProviderRouter:
         Instantiate the provider implementation class.
         Uses a registry or factory pattern to associate the provider choice with its implementation.
         """
-        config = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
-        if not config:
+
+        factories = {
+            'vtpass': VTPassProvider,
+            'clubkonnect': ClubKonnectProvider,
+            'alrahuz': GenericLocalProvider,
+            'mobilenig': GenericLocalProvider,
+            'otapay': GenericLocalProvider,
+            'arewa_global': GenericLocalProvider,
+            'mightydata': GenericLocalProvider,
+            'smedata': GenericLocalProvider,
+            'mobilevtu': GenericLocalProvider,
+            'aimtoget': GenericLocalProvider,
+            'nata_api': GenericLocalProvider,
+            'amigo': GenericLocalProvider,
+            'vtu_org': GenericLocalProvider,
+            'payflex': GenericLocalProvider,
+        }
+
+        
+        
+        if provider_name.lower() not in factories.keys():
             return None
 
-        try:
-            from .providers.vtpass import VTPassProvider
-            from .providers.clubkonnect import ClubKonnectProvider
-            from .providers.generic import GenericLocalProvider
-            
-            factories = {
-                'vtpass': VTPassProvider,
-                'clubkonnect': ClubKonnectProvider,
-                'alrahuz': GenericLocalProvider,
-                'mobilenig': GenericLocalProvider,
-                'otapay': GenericLocalProvider,
-                'arewa_global': GenericLocalProvider,
-                'mightydata': GenericLocalProvider,
-                'smedata': GenericLocalProvider,
-                'mobilevtu': GenericLocalProvider,
-                'aimtoget': GenericLocalProvider,
-                'nata_api': GenericLocalProvider,
-                'amigo': GenericLocalProvider,
-                'vtu_org': GenericLocalProvider,
-                'payflex': GenericLocalProvider,
-            }
-            
+        try:     
             provider_class = factories.get(provider_name)
             if provider_class:
                 instance = provider_class(config.config_data)
