@@ -14,7 +14,7 @@ class ClubKonnectProvider(BaseVTUProvider):
     def __init__(self, config: Dict[str, Any]):
         self.user_id = config.get('user_id')
         self.api_key = config.get('api_key')
-        self.base_url = config.get('base_url', 'https://www.nellobytesystems.com/APIV2.0')
+        self.base_url = config.get('base_url', 'https://www.nellobytesystems.com')
         self.headers = {
             "Content-Type": "application/json",
         }

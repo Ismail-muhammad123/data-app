@@ -198,7 +198,7 @@ class ProviderBalanceView(APIView):
             return Response({"error": "Provider not found"}, status=status.HTTP_404_NOT_FOUND)
             print(provider.name)
             print(provider.name.lower())
-        impl = ProviderRouter.get_provider_implementation(provider.name.lower())
+        impl = ProviderRouter.get_provider_implementation(provider.name)
         if not impl:
             return Response({"error": "Implementation not found"}, status=status.HTTP_400_BAD_REQUEST)
         
