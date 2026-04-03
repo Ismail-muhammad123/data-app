@@ -894,17 +894,22 @@ Enable or disable an entire service type across the platform.
 
 Full CRUD for all service variations and promo codes. All require **`CanManageVTU`** permission.
 
-| Resource | Endpoint | Fields |
-|---|---|---|
-| Data Variations | `/api/admin/pricing/data/` | All `DataVariation` fields |
-| TV Variations | `/api/admin/pricing/tv/` | All `TVVariation` fields |
-| Airtime Networks | `/api/admin/pricing/airtime/` | All `AirtimeNetwork` fields |
-| Internet Variations | `/api/admin/pricing/internet/` | All `InternetVariation` fields |
-| Education Variations | `/api/admin/pricing/education/` | All `EducationVariation` fields |
-| Electricity Variations | `/api/admin/pricing/electricity/` | All `ElectricityVariation` fields |
-| Promo Codes | `/api/admin/pricing/promos/` | All `PromoCode` fields |
+| Resource | Endpoint |
+|---|---|
+| Airtime Networks | `/api/admin/pricing/airtime/networks/` |
+| Data Networks | `/api/admin/pricing/data/networks/` |
+| Data Plans | `/api/admin/pricing/data/plans/` |
+| TV Networks | `/api/admin/pricing/tv/networks/` |
+| TV Plans | `/api/admin/pricing/tv/plans/` |
+| Internet Networks | `/api/admin/pricing/internet/networks/` |
+| Internet Plans | `/api/admin/pricing/internet/plans/` |
+| Education Networks | `/api/admin/pricing/education/networks/` |
+| Education Plans | `/api/admin/pricing/education/plans/` |
+| Electricity Networks | `/api/admin/pricing/electricity/networks/` |
+| Electricity Plans | `/api/admin/pricing/electricity/plans/` |
 
-Each supports standard CRUD: `GET` (list), `POST` (create), `GET /{id}/` (detail), `PUT /{id}/` (update), `PATCH /{id}/` (partial update), `DELETE /{id}/` (destroy).
+Each supports standard CRUD methods: `GET` (list), `POST` (create), `GET /{id}/` (detail), `PATCH /{id}/` (partial update), `DELETE /{id}/` (destroy). 
+*Note: Any GET query for Plans/Variations returns their corresponding parent network object inside the `service_details` JSON property.*
 
 ---
 

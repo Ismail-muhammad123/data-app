@@ -15,7 +15,7 @@ from admin_api.permissions import CanManageVTU
 
 class AdminBasePricingViewSet(viewsets.ModelViewSet):
     permission_classes = [CanManageVTU]
-    http_method_names = ['get', 'post', 'delete']
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
 @extend_schema(tags=["Admin Pricing & Plans"])
 class AdminAirtimeNetworkViewSet(AdminBasePricingViewSet):
