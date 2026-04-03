@@ -3,8 +3,8 @@ from users.models import User, StaffPermission, ReferralConfig, KYC
 from admin_api.models import AdminBeneficiary, AdminTransferLog
 from orders.models import (
     VTUProviderConfig, ServiceRouting, ServiceFallback, Purchase, 
-    DataVariation, AirtimeNetwork, TVVariation, InternetVariation, 
-    EducationVariation, ElectricityVariation, PromoCode
+    DataService, DataVariation, AirtimeNetwork, TVService, TVVariation, InternetService, InternetVariation, 
+    EducationService, EducationVariation, ElectricityService, ElectricityVariation, PromoCode
 )
 from payments.models import PaystackConfig, Deposit, Withdrawal
 from wallet.models import Wallet, WalletTransaction
@@ -249,41 +249,66 @@ class AdminReferralConfigSerializer(serializers.ModelSerializer):
         model = ReferralConfig
         fields = '__all__'
 
-# ─── Variations Serializers for Admin (includes agent pricing) ───
-
-class AdminDataVariationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DataVariation
-        fields = '__all__'
+# ─── Services & Variations Serializers for Admin (includes agent pricing) ───
 
 class AdminAirtimeNetworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = AirtimeNetwork
         fields = '__all__'
 
+class AdminDataServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DataService
+        fields = '__all__'
+
+class AdminDataVariationSerializer(serializers.ModelSerializer):
+    service_details = AdminDataServiceSerializer(source='service', read_only=True)
+    class Meta:
+        model = DataVariation
+        fields = '__all__'
+
+class AdminTVServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TVService
+        fields = '__all__'
+
 class AdminTVVariationSerializer(serializers.ModelSerializer):
+    service_details = AdminTVServiceSerializer(source='service', read_only=True)
     class Meta:
         model = TVVariation
         fields = '__all__'
 
+class AdminInternetServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternetService
+        fields = '__all__'
+
 class AdminInternetVariationSerializer(serializers.ModelSerializer):
+    service_details = AdminInternetServiceSerializer(source='service', read_only=True)
     class Meta:
         model = InternetVariation
         fields = '__all__'
 
+class AdminEducationServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EducationService
+        fields = '__all__'
+
 class AdminEducationVariationSerializer(serializers.ModelSerializer):
+    service_details = AdminEducationServiceSerializer(source='service', read_only=True)
     class Meta:
         model = EducationVariation
         fields = '__all__'
 
-class AdminElectricityVariationSerializer(serializers.ModelSerializer):
+class AdminElectricityServiceSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ElectricityVariation
+        model = ElectricityService
         fields = '__all__'
 
-class AdminPromoCodeSerializer(serializers.ModelSerializer):
+class AdminElectricityVariationSerializer(serializers.ModelSerializer):
+    service_details = AdminElectricityServiceSerializer(source='service', read_only=True)
     class Meta:
-        model = PromoCode
+        model = ElectricityVariation
         fields = '__all__'
 
 

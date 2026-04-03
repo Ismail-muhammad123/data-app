@@ -14,13 +14,12 @@ from .views import (
     AdminSupportTicketViewSet,
     AdminVTUProviderConfigViewSet,
     AdminServiceRoutingViewSet,
-    AdminDataVariationViewSet,
-    AdminTVVariationViewSet,
+    AdminDataVariationViewSet, AdminDataServiceViewSet,
+    AdminTVVariationViewSet, AdminTVServiceViewSet,
     AdminAirtimeNetworkViewSet,
-    AdminInternetVariationViewSet,
-    AdminEducationVariationViewSet,
-    AdminElectricityVariationViewSet,
-    AdminPromoCodeViewSet,
+    AdminInternetVariationViewSet, AdminInternetServiceViewSet,
+    AdminEducationVariationViewSet, AdminEducationServiceViewSet,
+    AdminElectricityVariationViewSet, AdminElectricityServiceViewSet,
     AdminBeneficiaryViewSet,
     AdminInitiateTransferView,
     AdminTransferLogView,
@@ -45,13 +44,19 @@ router.register(r'purchases', AdminPurchaseViewSet, basename='admin-purchases')
 router.register(r'support', AdminSupportTicketViewSet, basename='admin-support')
 router.register(r'vtu/providers', AdminVTUProviderConfigViewSet, basename='admin-vtu-providers')
 router.register(r'vtu/routings', AdminServiceRoutingViewSet, basename='admin-vtu-routings')
-router.register(r'pricing/data', AdminDataVariationViewSet, basename='admin-pricing-data')
-router.register(r'pricing/tv', AdminTVVariationViewSet, basename='admin-pricing-tv')
-router.register(r'pricing/airtime', AdminAirtimeNetworkViewSet, basename='admin-pricing-airtime')
-router.register(r'pricing/internet', AdminInternetVariationViewSet, basename='admin-pricing-internet')
-router.register(r'pricing/education', AdminEducationVariationViewSet, basename='admin-pricing-education')
-router.register(r'pricing/electricity', AdminElectricityVariationViewSet, basename='admin-pricing-electricity')
-router.register(r'pricing/promos', AdminPromoCodeViewSet, basename='admin-pricing-promos')
+
+router.register(r'pricing/airtime/networks', AdminAirtimeNetworkViewSet, basename='admin-pricing-airtime')
+router.register(r'pricing/data/networks', AdminDataServiceViewSet, basename='admin-pricing-data-networks')
+router.register(r'pricing/data/plans', AdminDataVariationViewSet, basename='admin-pricing-data-plans')
+router.register(r'pricing/tv/networks', AdminTVServiceViewSet, basename='admin-pricing-tv-networks')
+router.register(r'pricing/tv/plans', AdminTVVariationViewSet, basename='admin-pricing-tv-plans')
+router.register(r'pricing/internet/networks', AdminInternetServiceViewSet, basename='admin-pricing-internet-networks')
+router.register(r'pricing/internet/plans', AdminInternetVariationViewSet, basename='admin-pricing-internet-plans')
+router.register(r'pricing/education/networks', AdminEducationServiceViewSet, basename='admin-pricing-education-networks')
+router.register(r'pricing/education/plans', AdminEducationVariationViewSet, basename='admin-pricing-education-plans')
+router.register(r'pricing/electricity/networks', AdminElectricityServiceViewSet, basename='admin-pricing-electricity-networks')
+router.register(r'pricing/electricity/plans', AdminElectricityVariationViewSet, basename='admin-pricing-electricity-plans')
+
 router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='admin-transfer-beneficiaries')
 router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
