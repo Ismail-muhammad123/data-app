@@ -1,7 +1,8 @@
+from datetime import datetime
 from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from summary.models import SummaryDashboard, SiteConfig
 from admin_api.serializers import (
     AdminDashboardStatsResponseSerializer,
@@ -16,11 +17,27 @@ class AdminDashboardStatsView(views.APIView):
     @extend_schema(
         tags=["Admin Dashboard"],
         summary="Dashboard overview statistics",
-        description="Returns comprehensive dashboard stats including business metrics, service health, provider balances, alerts, and current config state.",
+        description="Returns comprehensive dashboard stats including financial, wallets, purchases, users, VTU providers, service health, alerts, and config state. Supports optional date filtering via `start_date` and `end_date` query parameters (YYYY-MM-DD).",
+        parameters=[
+            OpenApiParameter(name='start_date', type=str, required=False, description='Filter start date (YYYY-MM-DD)'),
+            OpenApiParameter(name='end_date', type=str, required=False, description='Filter end date (YYYY-MM-DD)'),
+        ],
         responses={200: AdminDashboardStatsResponseSerializer}
     )
     def get(self, request):
-        stats = SummaryDashboard.summary()
+        start = None
+        end = None
+        start_str = request.query_params.get('start_date')
+        end_str = request.query_params.get('end_date')
+        try:
+            if start_str:
+                start = datetime.strptime(start_str, '%Y-%m-%d')
+            if end_str:
+                end = datetime.strptime(end_str, '%Y-%m-%d')
+        except (ValueError, TypeError):
+            pass
+
+        stats = SummaryDashboard.summary(start=start, end=end)
         return Response(stats)
 
 
@@ -58,12 +75,11 @@ class AdminRefreshServicesView(views.APIView):
     )
     def post(self, request):
         # Re-fetch all balances and clear any cached data
-        from summary.utils import get_api_wallet_balance, get_paystack_balance, get_termii_balance
+        from summary.utils import get_api_wallet_balance, get_paystack_balance
         
         results = {
             "vtu_balance": get_api_wallet_balance() or 0.0,
             "payment_gateway_balance": get_paystack_balance() or 0.0,
-            "sms_balance": get_termii_balance() or 0.0,
         }
         
         return Response({
