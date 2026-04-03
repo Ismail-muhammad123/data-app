@@ -110,8 +110,8 @@ SPECTACULAR_SETTINGS = {
         'email': 'support@astar.com',
     },
     'SERVERS': [
-        {'url': 'http://localhost:8000', 'description': 'Local Test Environment'},
         {'url': 'https://z9trades-backend-production.up.railway.app', 'description': 'Production Environment'},
+        {'url': 'http://localhost:8000', 'description': 'Local Test Environment'},
     ],
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
