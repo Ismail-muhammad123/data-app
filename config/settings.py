@@ -96,9 +96,9 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'A-Star Data App API',
+    'TITLE': 'Starboy Global VTU API Server',
     'DESCRIPTION': (
-        'Comprehensive API Documentation for the A-Star Data App Backend.\\n\\n'
+        'Comprehensive API Documentation for the Starboy Global VTU Backend.\\n\\n'
         'This API serves the mobile and web client, handling user authentication, '
         'wallets, data/airtime/electricity purchases, referrals, and admin functionality. '
         'Interact with the live or local test environments using the server toggles below.'
@@ -110,7 +110,7 @@ SPECTACULAR_SETTINGS = {
         'email': 'support@astar.com',
     },
     'SERVERS': [
-        {'url': 'https://z9trades-backend-production.up.railway.app', 'description': 'Production Environment'},
+        {'url': 'https://data-app-backend-9yxa.onrender.com', 'description': 'Production Environment'},
         {'url': 'http://localhost:8000', 'description': 'Local Test Environment'},
     ],
     'SWAGGER_UI_SETTINGS': {
