@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 import uuid
-
+from payments.models import PaystackConfig
 from payments.models import Deposit, Withdrawal
 from .models import (
     VirtualAccount, Wallet, TransferBeneficiary
@@ -257,7 +257,11 @@ class BankListView(APIView):
         description="Fetch the list of banks supported for withdrawals and account resolution."
     )
     def get(self, request):
-        paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+        config = PaystackConfig.objects.first()
+        if not config:
+            return Response({"error": "Payment configurations not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        paystack = PaystackGateway(config.secret_key)
         try:
             return Response(paystack.list_banks())
         except Exception as e:
@@ -277,9 +281,14 @@ class ResolveAccountView(APIView):
     def post(self, request):
         serializer = ResolveAccountSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+        config = PaystackConfig.objects.first()
+        if not config:
+            return Response({"error": "Payment configurations not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        paystack = PaystackGateway(config.secret_key)
         try:
-            return Response(paystack.resolve_account(serializer.validated_data['account_number'], serializer.validated_data['bank_code']))
+            res = paystack.resolve_account(serializer.validated_data['account_number'], serializer.validated_data['bank_code'])
+            return Response(res)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -319,7 +328,12 @@ class InitFundWallet(APIView):
             return Response({"error": "Amount must be at least 100"}, status=status.HTTP_400_BAD_REQUEST)
 
         ref = f"DEP-{uuid.uuid4().hex[:12].upper()}"
-        paystack = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+
+        config = PaystackConfig.objects.first()
+        if not config:
+            return Response({"error": "Payment configurations not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        paystack = PaystackGateway(config.secret_key)
         res = paystack.initialize_charge(email=request.user.email, amount=amount, reference=ref)
         
         if res['status']:

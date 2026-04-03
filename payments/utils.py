@@ -76,6 +76,7 @@ class PaystackGateway:
 
     def resolve_account(self, account_number: str, bank_code: str) -> Dict[str, Any]:
         res = self._get(f"/bank/resolve?account_number={account_number}&bank_code={bank_code}")
+        print(res)
         return {
             "account_name": res["data"]["account_name"],
             "account_number": res["data"]["account_number"],
