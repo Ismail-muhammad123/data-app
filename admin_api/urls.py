@@ -1,3 +1,8 @@
+from admin_api.views import BulkVariationUpdatePriceView
+from admin_api.views import VariationUpdatePriceView
+from admin_api.views import FetchFromProviderView
+from admin_api.views import ProviderBalanceView
+from admin_api.views import VTUOverviewView
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
@@ -29,9 +34,11 @@ from .views import (
     AutomationConfigView, AutomationGlobalSettingsView, ServiceRetryConfigView,
     ServiceFallbackToggleView, ServiceAutoRefundView, ServicePricingModeView,
     DetectDelayedTransactionsView,
-    VTUOverviewView, ProviderBalanceView, FetchFromProviderView,
-    VariationUpdatePriceView, BulkVariationUpdatePriceView,
-    VariationToggleView, ServiceTypeToggleView, AdminAvailableVTUProvidersView
+    VariationToggleView, ServiceTypeToggleView, AdminAvailableVTUProvidersView,
+    # New views added today
+    AdminWalletViewSet, AdminTransferViewSet, AdminTransferBeneficiaryViewSet,
+    AdminPaystackDataViewSet, AdminReferralViewSet, AdminSiteConfigViewSet, AdminServiceCashbackViewSet,
+    AdminExportUsersView, AdminExportWalletTransactionsView, AdminExportDepositsView, AdminExportWithdrawalsView, AdminExportPurchasesView
 )
 
 router = DefaultRouter()
@@ -61,6 +68,15 @@ router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='ad
 router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
 
+# Comprehensive Admin Control Sets
+router.register(r'wallets/all', AdminWalletViewSet, basename='admin-global-wallets')
+router.register(r'admin-transfers/beneficiaries', AdminTransferBeneficiaryViewSet, basename='admin-transfers-beneficiaries')
+router.register(r'admin-transfers/transactions', AdminTransferViewSet, basename='admin-transfers-transactions')
+router.register(r'analytics/referrals', AdminReferralViewSet, basename='admin-referral-analytics')
+router.register(r'settings/site-config', AdminSiteConfigViewSet, basename='admin-site-config')
+router.register(r'settings/service-cashbacks', AdminServiceCashbackViewSet, basename='admin-service-cashbacks')
+router.register(r'paystack/data', AdminPaystackDataViewSet, basename='admin-paystack-data')
+
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),
     path('vtu/available-providers/', AdminAvailableVTUProvidersView.as_view(), name='admin-vtu-available-providers'),
@@ -89,4 +105,9 @@ urlpatterns = [
     path('vtu/services/<str:service_type>/toggle/', ServiceTypeToggleView.as_view(), name='admin-vtu-service-toggle'),
 
     path('', include(router.urls)),
+    path('reports/users/export/', AdminExportUsersView.as_view(), name='export-users'),
+    path('reports/wallet-transactions/export/', AdminExportWalletTransactionsView.as_view(), name='export-wallet-transactions'),
+    path('reports/deposits/export/', AdminExportDepositsView.as_view(), name='export-deposits'),
+    path('reports/withdrawals/export/', AdminExportWithdrawalsView.as_view(), name='export-withdrawals'),
+    path('reports/purchases/export/', AdminExportPurchasesView.as_view(), name='export-purchases'),
 ]

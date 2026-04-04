@@ -51,7 +51,17 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
         beneficiary = serializer.validated_data['beneficiary']
         action_name = serializer.validated_data['action']
         
+        # New fields for granular control
+        plan_id = serializer.validated_data.get('plan_id')
+        service_id = serializer.validated_data.get('service_id')
+        network_id = serializer.validated_data.get('network_id')
+        
         user = User.objects.get(id=user_id)
+        
+        purchase_kwargs = {}
+        if plan_id: purchase_kwargs['plan_id'] = plan_id
+        if service_id: purchase_kwargs['service_id'] = service_id
+        if network_id: purchase_kwargs['network_id'] = network_id
         
         res = process_vtu_purchase(
             user=user,
@@ -59,7 +69,7 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
             amount=amount,
             beneficiary=beneficiary,
             action=action_name,
-            **serializer.validated_data.get('extra_kwargs', {})
+            **purchase_kwargs
         )
         return Response(res)
 

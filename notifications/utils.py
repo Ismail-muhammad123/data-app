@@ -168,3 +168,10 @@ class NotificationService:
         body = template.body.format(**context)
         
         return NotificationService.create_notification([user], title, body, channel, context)
+
+    @staticmethod
+    def broadcast_announcement(title: str, body: str, channel: str = 'fcm', data: Optional[Dict[str, Any]] = None):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.filter(is_active=True)
+        return NotificationService.create_notification(users, title, body, channel, data)

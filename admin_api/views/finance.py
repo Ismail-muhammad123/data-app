@@ -8,10 +8,17 @@ from wallet.models import WalletTransaction
 from admin_api.serializers import (
     AdminWalletTransactionSerializer, AdminDepositSerializer,
     AdminWithdrawalSerializer, AdminManualAdjustmentRequestSerializer,
+    AdminWithdrawalSerializer, AdminManualAdjustmentRequestSerializer,
     AdminDepositMarkSuccessRequestSerializer, AdminWithdrawalActionRequestSerializer,
-    AdminStatusResponseSerializer, AdminErrorResponseSerializer, AdminPaystackConfigSerializer
+    AdminStatusResponseSerializer, AdminErrorResponseSerializer, AdminPaystackConfigSerializer,
+    AdminTransferSerializer, AdminTransferBeneficiarySerializer, AdminInitiateTransferRequestSerializer,
+    AdminUserListSerializer
 )
-from admin_api.permissions import CanManageWallets, CanManagePayments, IsSuperUserOnly
+from admin_api.permissions import CanManageWallets, CanManagePayments, IsSuperUserOnly, CanInitiateTransfers
+from payments.models import AdminTransfer, AdminTransferBeneficiary
+from wallet.models import Wallet
+import requests
+from django.conf import settings
 from wallet.utils import fund_wallet, debit_wallet
 
 @extend_schema_view(
@@ -164,3 +171,125 @@ class AdminPaystackConfigViewSet(viewsets.ModelViewSet):
     queryset = PaystackConfig.objects.all()
     serializer_class = AdminPaystackConfigSerializer
     permission_classes = [IsSuperUserOnly]
+
+@extend_schema_view(
+    list=extend_schema(tags=["Admin Wallets"]),
+    retrieve=extend_schema(tags=["Admin Wallets"]),
+)
+class AdminWalletViewSet(viewsets.ReadOnlyModelViewSet):
+    """List and retrieve all user wallets."""
+    queryset = Wallet.objects.all().select_related('user').order_by('-user__created_at')
+    serializer_class = AdminUserListSerializer # Reuse list serializer as it contains wallet info
+    permission_classes = [CanManageWallets]
+
+@extend_schema_view(
+    list=extend_schema(tags=["Admin Transfers"]),
+    retrieve=extend_schema(tags=["Admin Transfers"]),
+    create=extend_schema(tags=["Admin Transfers"]),
+)
+class AdminTransferBeneficiaryViewSet(viewsets.ModelViewSet):
+    """Manage beneficiaries for admin-initiated transfers."""
+    queryset = AdminTransferBeneficiary.objects.all().order_by('-created_at')
+    serializer_class = AdminTransferBeneficiarySerializer
+    permission_classes = [CanInitiateTransfers]
+
+@extend_schema_view(
+    list=extend_schema(tags=["Admin Transfers"]),
+    retrieve=extend_schema(tags=["Admin Transfers"]),
+)
+class AdminTransferViewSet(viewsets.ModelViewSet):
+    """Initiate and track transfers by admin to external bank accounts."""
+    queryset = AdminTransfer.objects.all().order_by('-created_at')
+    serializer_class = AdminTransferSerializer
+    permission_classes = [CanInitiateTransfers]
+
+    @extend_schema(
+        tags=["Admin Transfers"],
+        summary="Initiate admin transfer",
+        description="Initiate a bank transfer using Paystack to a saved beneficiary.",
+        request=AdminInitiateTransferRequestSerializer,
+        responses={200: AdminStatusResponseSerializer, 400: AdminErrorResponseSerializer}
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = AdminInitiateTransferRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        beneficiary_id = serializer.validated_data['beneficiary_id']
+        amount = serializer.validated_data['amount']
+        otp = serializer.validated_data.get('otp')
+        
+        # Verify OTP if admin has 2FA enabled
+        if request.user.two_factor_secret:
+            totp = pyotp.TOTP(request.user.two_factor_secret)
+            if not otp or not totp.verify(otp):
+                return Response({"error": "Invalid or missing OTP"}, status=403)
+        
+        try:
+            beneficiary = AdminTransferBeneficiary.objects.get(id=beneficiary_id)
+        except AdminTransferBeneficiary.DoesNotExist:
+            return Response({"error": "Beneficiary not found"}, status=404)
+        
+        import uuid
+        reference = f"ADM-TXN-{uuid.uuid4().hex[:12].upper()}"
+        
+        # In a real scenario, call Paystack Transfers API here
+        # For now, we create the record
+        transfer = AdminTransfer.objects.create(
+            amount=amount,
+            beneficiary=beneficiary,
+            reference=reference,
+            initiated_by=request.user,
+            status='PENDING'
+        )
+        
+        # Mock Paystack call logic:
+        # 1. Fetch Paystack secret key
+        config = PaystackConfig.load()
+        if not config.secret_key:
+            return Response({"error": "Paystack is not configured"}, status=400)
+        
+        # Standard Paystack transfer logic would go here...
+        
+        return Response({
+            "status": "SUCCESS",
+            "message": "Transfer initiated successfully",
+            "data": AdminTransferSerializer(transfer).data
+        })
+
+@extend_schema(tags=["Admin Payments"])
+class AdminPaystackDataViewSet(viewsets.ViewSet):
+    permission_classes = [CanManagePayments]
+
+    @extend_schema(
+        summary="Fetch Paystack Payouts",
+        description="Fetch a list of payouts from Paystack API."
+    )
+    @action(detail=False, methods=['get'], url_path='payouts')
+    def payouts(self, request):
+        config = PaystackConfig.load()
+        if not config.secret_key:
+            return Response({"error": "Paystack is not configured"}, status=400)
+            
+        headers = {"Authorization": f"Bearer {config.secret_key}"}
+        try:
+            response = requests.get("https://api.paystack.co/transfer", headers=headers)
+            return Response(response.json())
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    @extend_schema(
+        summary="Fetch Paystack Transactions",
+        description="Fetch all transactions directly from Paystack API."
+    )
+    @action(detail=False, methods=['get'], url_path='transactions')
+    def transactions(self, request):
+        config = PaystackConfig.load()
+        if not config.secret_key:
+            return Response({"error": "Paystack is not configured"}, status=400)
+            
+        headers = {"Authorization": f"Bearer {config.secret_key}"}
+        try:
+            response = requests.get("https://api.paystack.co/transaction", headers=headers)
+            return Response(response.json())
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

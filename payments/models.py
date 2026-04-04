@@ -97,3 +97,32 @@ class PaystackConfig(models.Model):
         from django.conf import settings
         domain = getattr(settings, 'SITE_DOMAIN', 'https://yourdomain.com')
         return f"{domain}/payments/callback/paystack/"
+
+class AdminTransferBeneficiary(models.Model):
+    name = models.CharField(max_length=200)
+    bank_name = models.CharField(max_length=100)
+    bank_code = models.CharField(max_length=10)
+    account_number = models.CharField(max_length=20)
+    recipient_code = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Admin Transfer Beneficiary"
+        verbose_name_plural = "Admin Transfer Beneficiaries"
+
+    def __str__(self):
+        return f"{self.name} ({self.bank_name})"
+
+class AdminTransfer(models.Model):
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    beneficiary = models.ForeignKey(AdminTransferBeneficiary, on_delete=models.CASCADE, related_name='transfers')
+    status = models.CharField(max_length=10, choices=STATUS_OPTIONS, default="PENDING")
+    reference = models.CharField(max_length=100, unique=True)
+    transfer_code = models.CharField(max_length=100, null=True, blank=True)
+    initiated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='initiated_admin_transfers')
+    remarks = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Admin Transfer {self.amount} to {self.beneficiary.name}"

@@ -72,6 +72,8 @@ class PaymentWebhookView(APIView):
                     fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
                     deposit.recieved = True
                     deposit.save()
+                    from wallet.utils import process_referral_reward
+                    process_referral_reward(deposit.user, trigger_event='credit', transaction_amount=amount)
                 else:
                     if deposit.status != "SUCCESS":
                         deposit.status = "SUCCESS"
@@ -79,6 +81,8 @@ class PaymentWebhookView(APIView):
                         fund_wallet(deposit.user.id, amount_to_fund, "Wallet Top-Up", ref)
                         deposit.recieved = True
                         deposit.save()
+                        from wallet.utils import process_referral_reward
+                        process_referral_reward(deposit.user, trigger_event='credit', transaction_amount=amount)
                         
             else:
                 """Handle other payment method webhook."""
@@ -88,6 +92,8 @@ class PaymentWebhookView(APIView):
                     deposit.amount = amount
                     deposit.save()
                     fund_wallet(deposit.user.id, amount_to_fund, reference=ref)
+                    from wallet.utils import process_referral_reward
+                    process_referral_reward(deposit.user, trigger_event='credit', transaction_amount=amount)
 
         elif event_type == "dedicatedaccount.assign.success":
             """Handle dedicated account assignment success webhook."""

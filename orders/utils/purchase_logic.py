@@ -117,6 +117,10 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
                 "Purchase Successful", 
                 f"Your {service_name} purchase to {beneficiary} was successful."
             )
+            # Cashback & Referral logic
+            from wallet.utils import process_cashback, process_referral_reward
+            process_cashback(user, purchase_type, final_amount)
+            process_referral_reward(user, trigger_event='transaction', transaction_amount=final_amount)
 
     return {"status": status, "purchase_id": purchase.id, "res": res}
 

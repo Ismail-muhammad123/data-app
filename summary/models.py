@@ -491,6 +491,41 @@ class SummaryDashboard(Wallet):
 class SiteConfig(models.Model):
     withdrawal_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     crediting_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Newly added charges
+    deposit_charge_fixed = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    deposit_charge_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    withdrawal_charge_fixed = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    withdrawal_charge_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
+    # Auto-creation toggles
+    auto_create_wallet = models.BooleanField(default=True)
+    auto_create_virtual_account = models.BooleanField(default=True)
+
+    # Signup bonus
+    signup_bonus_enabled = models.BooleanField(default=False)
+    signup_bonus_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    # Cashback settings
+    cashback_enabled = models.BooleanField(default=False)
+
+    # Referral settings
+    COMMISSION_TYPE_CHOICES = [('percentage', 'Percentage'), ('flat', 'Flat')]
+    TRIGGER_CHOICES = [('signup', 'On Signup'), ('credit', 'On Credit'), ('transaction', 'On Transaction')]
+    CYCLE_CHOICES = [('always', 'Always'), ('once', 'Once'), ('never', 'Never')]
+
+    # Agent Referral Settings
+    agent_referral_commission_type = models.CharField(max_length=20, choices=COMMISSION_TYPE_CHOICES, default='flat')
+    agent_referral_commission_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    agent_referral_trigger = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default='signup')
+    agent_referral_cycle = models.CharField(max_length=20, choices=CYCLE_CHOICES, default='once')
+
+    # User Referral Settings
+    user_referral_commission_type = models.CharField(max_length=20, choices=COMMISSION_TYPE_CHOICES, default='flat')
+    user_referral_commission_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    user_referral_trigger = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default='signup')
+    user_referral_cycle = models.CharField(max_length=20, choices=CYCLE_CHOICES, default='once')
+
     automatic_withdrawal = models.BooleanField(default=False, help_text="If enabled, withdrawals will be processed automatically via Paystack.")
     withdrawals_enabled = models.BooleanField(default=True, help_text="Global toggle to enable or disable user withdrawals.")
     
@@ -523,8 +558,31 @@ class SiteConfig(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk and SiteConfig.objects.exists():
+            # Return either existing instance or None, don't allow double creation.
             return 
         return super(SiteConfig, self).save(*args, **kwargs)
+
+class ServiceCashback(models.Model):
+    SERVICE_CHOICES = [
+        ('airtime', 'Airtime'),
+        ('data', 'Data'),
+        ('tv', 'TV'),
+        ('electricity', 'Electricity'),
+        ('education', 'Education'),
+        ('internet', 'Internet'),
+    ]
+    CASHBACK_TYPE_CHOICES = [
+        ('flat', 'Flat Amount'),
+        ('percentage', 'Percentage (%)'),
+    ]
+    service_type = models.CharField(max_length=20, choices=SERVICE_CHOICES, unique=True)
+    cashback_type = models.CharField(max_length=20, choices=CASHBACK_TYPE_CHOICES, default='flat')
+    cashback_value = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    min_purchase_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.get_service_type_display()} Cashback: {self.cashback_value} ({self.cashback_type})"
 
 
 class SystemTransaction(models.Model):

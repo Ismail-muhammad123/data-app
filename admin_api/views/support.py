@@ -30,3 +30,10 @@ class AdminSupportTicketViewSet(viewsets.ModelViewSet):
             ticket.status = 'in_progress'
             ticket.save()
         return Response({"status": "Reply sent"})
+
+    @action(detail=True, methods=['post'], url_path='close')
+    def close(self, request, pk=None):
+        ticket = self.get_object()
+        ticket.status = 'closed'
+        ticket.save()
+        return Response({"status": "Ticket closed"})

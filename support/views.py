@@ -36,3 +36,16 @@ class TicketMessageCreateView(generics.CreateAPIView):
         
         # Optionally update ticket status to 'in_progress' or similar
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class SupportTicketCloseView(generics.UpdateAPIView):
+    queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        ticket = self.get_object()
+        if ticket.user != request.user:
+            return Response({"error": "Unauthorized"}, status=403)
+        ticket.status = 'closed'
+        ticket.save()
+        return Response({"status": "Ticket closed successfully."})

@@ -213,6 +213,17 @@ class ActivateAccountView(APIView):
         otp.is_used = True
         otp.save()
 
+        # Site Configuration Logic: Signup Bonus & Referral Reward
+        from summary.models import SiteConfig
+        from wallet.utils import fund_wallet, process_referral_reward
+        
+        config = SiteConfig.objects.first()
+        if config and config.signup_bonus_enabled and config.signup_bonus_amount > 0:
+            fund_wallet(user.id, float(config.signup_bonus_amount), description="Signup Bonus", initiator='system')
+        
+        # Referral commission on signup
+        process_referral_reward(user, trigger_event='signup')
+
         return Response({"message": "Account activated successfully."}, status=status.HTTP_200_OK)
 
 

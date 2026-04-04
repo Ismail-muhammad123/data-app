@@ -54,6 +54,8 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     transfer_beneficiaries = serializers.SerializerMethodField()
     recent_transactions = serializers.SerializerMethodField()
     recent_purchases = serializers.SerializerMethodField()
+    total_credits = serializers.SerializerMethodField()
+    total_debits = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -67,6 +69,7 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
             "wallet_balance", "kyc", "staff_permissions", "virtual_account",
             "beneficiaries", "purchase_beneficiaries", "transfer_beneficiaries",
             "recent_transactions", "recent_purchases",
+            "total_credits", "total_debits",
             "created_at", "upgraded_at",
         ]
 
@@ -109,6 +112,14 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
             "beneficiary": p.beneficiary, "status": p.status,
             "reference": p.reference, "time": p.time.isoformat(),
         } for p in purchases]
+
+    def get_total_credits(self, obj):
+        from wallet.models import WalletTransaction
+        return obj.wallet_transactions.filter(transaction_type='credit', status='success').aggregate(total=Sum('amount'))['total'] or 0
+
+    def get_total_debits(self, obj):
+        from wallet.models import WalletTransaction
+        return obj.wallet_transactions.filter(transaction_type='debit', status='success').aggregate(total=Sum('amount'))['total'] or 0
 
 
 class AdminCreateUserRequestSerializer(serializers.Serializer):
@@ -249,6 +260,45 @@ class AdminReferralConfigSerializer(serializers.ModelSerializer):
         model = ReferralConfig
         fields = '__all__'
 
+from django.db.models import Sum, Q, Count
+from summary.models import SiteConfig, ServiceCashback
+from payments.models import AdminTransfer, AdminTransferBeneficiary
+
+class ServiceCashbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceCashback
+        fields = '__all__'
+
+class AdminSiteConfigSerializer(serializers.ModelSerializer):
+    cashbacks = ServiceCashbackSerializer(many=True, read_only=True, source='servicecashback_set')
+    class Meta:
+        model = SiteConfig
+        fields = '__all__'
+
+class AdminTransferBeneficiarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminTransferBeneficiary
+        fields = '__all__'
+
+class AdminTransferSerializer(serializers.ModelSerializer):
+    beneficiary_details = AdminTransferBeneficiarySerializer(source='beneficiary', read_only=True)
+    initiated_by_name = serializers.CharField(source='initiated_by.phone_number', read_only=True)
+    class Meta:
+        model = AdminTransfer
+        fields = '__all__'
+
+class AdminReferralSerializer(serializers.ModelSerializer):
+    referred_user_count = serializers.IntegerField(read_only=True)
+    total_referral_earnings = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_referral_transaction_value = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'phone_number', 'first_name', 'last_name', 'referral_code',
+            'referred_user_count', 'total_referral_earnings', 'total_referral_transaction_value'
+        ]
+
 # ─── Services & Variations Serializers for Admin (includes agent pricing) ───
 
 class AdminAirtimeNetworkSerializer(serializers.ModelSerializer):
@@ -339,7 +389,10 @@ class AdminCreatePurchaseRequestSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, help_text="Purchase amount")
     beneficiary = serializers.CharField(help_text="Beneficiary phone/meter/smartcard number")
     action = serializers.CharField(help_text="Action name e.g. 'buy_data', 'buy_airtime'")
-    extra_kwargs = serializers.DictField(required=False, default={}, help_text="Additional kwargs for the purchase")
+    # Added fields for granular control
+    plan_id = serializers.CharField(required=False, help_text="Plan ID for the service")
+    service_id = serializers.CharField(required=False, help_text="Service ID")
+    network_id = serializers.CharField(required=False, help_text="Network ID")
 
 class AdminSupportReplyRequestSerializer(serializers.Serializer):
     message = serializers.CharField(help_text="Reply message content")
@@ -465,7 +518,7 @@ class AdminBulkSendNotificationSerializer(serializers.Serializer):
     user_ids = serializers.ListField(child=serializers.IntegerField(), help_text="IDs of target users")
     title = serializers.CharField()
     body = serializers.CharField()
-    channel = serializers.ChoiceField(choices=['fcm', 'email', 'sms', 'whatsapp'])
+    channels = serializers.ListField(child=serializers.CharField(), help_text="List of channels: 'fcm', 'email', 'sms', 'whatsapp'")
     data = serializers.JSONField(required=False, default={})
 
 class VTUProviderOverviewSerializer(serializers.ModelSerializer):
