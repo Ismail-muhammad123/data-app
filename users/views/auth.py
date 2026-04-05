@@ -34,13 +34,6 @@ class LoginView(APIView):
         if not user.is_active:
             return Response({"error": "Account not active"}, status=status.HTTP_403_FORBIDDEN)
         
-        from summary.models import SiteConfig
-        config = SiteConfig.objects.first()
-        is_staff_enforced = user.is_staff and config and config.enforce_2fa_for_staff
-        if is_staff_enforced or user.is_2fa_enabled:
-            send_otp_code(user, "2fa")
-            return Response({"two_factor_required": True, "message": "A 2FA code has been sent.", "identifier": user.phone_number}, status=status.HTTP_200_OK)
-        
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
 
