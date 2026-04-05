@@ -38,13 +38,17 @@ CORS_ALLOW_ALL_ORIGINS = True
 CSRF_TRUSTED_ORIGINS = [
     'https://data-app-backend.onrender.com',
     'https://data-app-backend-9yxa.onrender.com',
-    'https://z9trades-backend-production.up.railway.app'
+    'https://z9trades-backend-production.up.railway.app',
+    'https://a-star-backend-staging.up.railway.app'
 ]
 
-csrf_origins_env = os.environ.get("CSRF_TRUSTED_ORIGINS", None)
-if csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS += [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
 
+if DEBUG:
+    CSRF_ALLOW_ALL_ORIGINS = True
+else:
+    csrf_origins_env = os.environ.get("CSRF_TRUSTED_ORIGINS", None)
+    if csrf_origins_env:
+        CSRF_TRUSTED_ORIGINS += [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
 
 # Application definition
 
