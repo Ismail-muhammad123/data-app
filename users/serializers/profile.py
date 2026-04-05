@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from users.models import OTP
+from users.models import OTP, KYC
 
 User = get_user_model()
 
@@ -100,3 +100,19 @@ class ResetTransactionPinSerializer(serializers.Serializer):
 
 class VerifyTransactionPinSerializer(serializers.Serializer):
     pin = serializers.CharField(min_length=4, max_length=4)
+
+class KYCSubmissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KYC
+        fields = ['id_type', 'id_number', 'id_image', 'face_image']
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if hasattr(user, 'kyc') and user.kyc.status == 'APPROVED':
+            raise serializers.ValidationError("KYC already approved.")
+        return attrs
+
+class KYCStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KYC
+        fields = ['status', 'remarks', 'created_at', 'updated_at', 'id_type', 'id_number']

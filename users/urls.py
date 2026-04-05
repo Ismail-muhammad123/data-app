@@ -6,7 +6,7 @@ from .views import (
     SetTransactionPinView, ChangeTransactionPinView, ResetTransactionPinView, 
     RequestTransactionPinResetOTPView, VerifyTransactionPinView, NotificationListView, 
     MarkNotificationReadView, MarkAllNotificationsReadView, ReferralListView, 
-    ReferralStatsView, RegisterFCMTokenView
+    ReferralStatsView, RegisterFCMTokenView, KYCView
 )
 
 urlpatterns = [
@@ -28,6 +28,7 @@ urlpatterns = [
     # PROFILE  (authenticated)
     # ═══════════════════════════════════════════
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("kyc/", KYCView.as_view(), name="kyc"),
     path("change-pin/", ChangePINView.as_view(), name="change-pin"),
     path("close-account/", close_account, name="close-account"),
     path("generate-virtual-account/", generate_virtual_account, name="generate-virtual-account"),

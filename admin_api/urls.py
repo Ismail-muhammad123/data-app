@@ -11,6 +11,7 @@ from .views import (
     AdminRefreshServicesView,
     AdminPauseServiceView,
     AdminUserViewSet, 
+    AdminKYCViewSet,
     AdminWalletTransactionViewSet,
     AdminDepositViewSet,
     AdminWithdrawalViewSet,
@@ -44,6 +45,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'users', AdminUserViewSet, basename='admin-users')
+router.register(r'kyc', AdminKYCViewSet, basename='admin-kyc')
 router.register(r'wallet/transactions', AdminWalletTransactionViewSet, basename='admin-wallet-transactions')
 router.register(r'payments/deposits', AdminDepositViewSet, basename='admin-deposits')
 router.register(r'payments/withdrawals', AdminWithdrawalViewSet, basename='admin-withdrawals')

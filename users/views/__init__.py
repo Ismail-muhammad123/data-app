@@ -6,7 +6,7 @@ from .profile import (
     ProfileView, Update2FASettingsView, ChangePINView, PasswordResetRequestView, 
     PasswordResetConfirmView, SetTransactionPinView, ChangeTransactionPinView, 
     ResetTransactionPinView, RequestTransactionPinResetOTPView, VerifyTransactionPinView, 
-    close_account, generate_virtual_account
+    close_account, generate_virtual_account, KYCView
 )
 from .notifications import (
     RegisterFCMTokenView, NotificationListView, MarkNotificationReadView, 

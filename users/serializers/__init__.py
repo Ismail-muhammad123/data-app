@@ -2,6 +2,7 @@ from .auth import LoginSerializer, GoogleAuthSerializer, Verify2FASerializer, Si
 from .profile import (
     ProfileSerializer, UpdateProfileSerializer, PasswordResetSerializer, 
     ChangePINSerializer, SetTransactionPinSerializer, ChangeTransactionPinSerializer, 
-    ResetTransactionPinSerializer, VerifyTransactionPinSerializer
+    ResetTransactionPinSerializer, VerifyTransactionPinSerializer,
+    KYCSubmissionSerializer, KYCStatusSerializer
 )
 from .referrals import ReferralSerializer

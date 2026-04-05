@@ -1,10 +1,11 @@
-from rest_framework import viewsets, status, filters
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, status, filters, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from django.utils import timezone
 from django.db.models import Q, Sum, Count
-from drf_spectacular.utils import extend_schema_view, extend_schema
+from drf_spectacular.utils import extend_schema_view, extend_schema, inline_serializer
 from users.models import User, KYC, StaffPermission
 from admin_api.serializers import (
     AdminUserListSerializer, AdminUserDetailSerializer,
@@ -12,7 +13,7 @@ from admin_api.serializers import (
     AdminSetPermissionsRequestSerializer, AdminResetPinRequestSerializer,
     AdminKYCActionRequestSerializer, AdminAgentUpgradeRequestSerializer,
     AdminStatusResponseSerializer, AdminErrorResponseSerializer,
-    StaffPermissionSerializer,
+    StaffPermissionSerializer, KYCSerializer, AdminKYCActionRequestSerializer
 )
 from admin_api.permissions import CanManageUsers
 from wallet.models import Wallet, VirtualAccount
@@ -446,3 +447,74 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.save()
         NotificationService.send_from_template(user, "login-pin-reset", {})
         return Response({"status": "SUCCESS", "message": f"Login PIN reset for user {user.phone_number}."})
+
+
+@extend_schema_view(
+    list=extend_schema(tags=["Admin KYC Management"], summary="List all KYC applications"),
+    retrieve=extend_schema(tags=["Admin KYC Management"], summary="Get details of a specific KYC application"),
+)
+class AdminKYCViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user KYC applications. Allows listing, searching, 
+    and updating statuses.
+    """
+    queryset = KYC.objects.select_related('user', 'processed_by').all().order_by('-created_at')
+    serializer_class = KYCSerializer
+    permission_classes = [CanManageUsers]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['user__phone_number', 'user__first_name', 'user__last_name', 'id_number']
+    ordering_fields = ['created_at', 'status']
+
+    def get_queryset(self):
+        return self.queryset
+
+    @extend_schema(tags=["Admin KYC Management"], summary="Find KYC by User ID")
+    @action(detail=False, methods=['get'], url_path='by-user/(?P<user_id>[^/.]+)')
+    def by_user_id(self, request, user_id=None):
+        kyc = get_object_or_404(KYC, user_id=user_id)
+        return Response(KYCSerializer(kyc).data)
+
+    @extend_schema(tags=["Admin KYC Management"], summary="Find KYC by Phone Number")
+    @action(detail=False, methods=['get'], url_path='by-phone/(?P<phone>[^/.]+)')
+    def by_phone(self, request, phone=None):
+        kyc = get_object_or_404(KYC, user__phone_number=phone)
+        return Response(KYCSerializer(kyc).data)
+
+    @extend_schema(
+        tags=["Admin KYC Management"],
+        summary="Update KYC status (Approve/Reject)",
+        request=inline_serializer("KYCUpdateStatusRequest", fields={
+            "action": serializers.ChoiceField(choices=['APPROVE', 'REJECT']),
+            "reason": serializers.CharField(required=False)
+        }),
+        responses={200: AdminStatusResponseSerializer, 400: AdminErrorResponseSerializer}
+    )
+    @action(detail=True, methods=['post'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        kyc = self.get_object()
+        if kyc.status == 'APPROVED':
+            return Response({"error": "KYC already approved and cannot be modified."}, status=400)
+             
+        action_type = request.data.get('action') # 'APPROVE' or 'REJECT'
+        reason = request.data.get('reason', '')
+
+        if action_type == 'APPROVE':
+            kyc.status = 'APPROVED'
+            kyc.time_accepted = timezone.now()
+            kyc.user.is_kyc_verified = True
+            kyc.user.save(update_fields=['is_kyc_verified'])
+            NotificationService.send_from_template(kyc.user, "kyc-approved", {})
+        elif action_type == 'REJECT':
+            kyc.status = 'REJECTED'
+            kyc.time_rejected = timezone.now()
+            kyc.user.is_kyc_verified = False
+            kyc.user.save(update_fields=['is_kyc_verified'])
+            NotificationService.send_from_template(kyc.user, "kyc-rejected", {"reason": reason})
+        else:
+            return Response({"error": "Invalid action. Use 'APPROVE' or 'REJECT'."}, status=400)
+        
+        kyc.remarks = reason
+        kyc.processed_by = request.user
+        kyc.save()
+        
+        return Response({"status": "SUCCESS", "message": f"KYC status updated to {kyc.status}."})

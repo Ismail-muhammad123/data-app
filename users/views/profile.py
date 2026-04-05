@@ -10,8 +10,9 @@ from users.serializers import (
     ProfileSerializer, UpdateProfileSerializer, ChangePINSerializer, 
     PasswordResetSerializer, SetTransactionPinSerializer, 
     ChangeTransactionPinSerializer, ResetTransactionPinSerializer, 
-    VerifyTransactionPinSerializer
+    VerifyTransactionPinSerializer, KYCSubmissionSerializer, KYCStatusSerializer
 )
+from users.models import User, OTP, KYC
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -127,3 +128,50 @@ def generate_virtual_account(request):
         return Response({"success": False, "error": "Fail"}, status=500)
     except Exception as e:
         return Response({"success": False, "error": str(e)}, status=500)
+
+
+class KYCView(APIView):
+    """
+    Endpoint for users to manage their KYC application status and submit updates.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["Account - KYC"],
+        summary="Get KYC submission status and details",
+        responses={200: KYCStatusSerializer}
+    )
+    def get(self, request):
+        kyc = getattr(request.user, 'kyc', None)
+        if not kyc:
+             return Response({"status": "NOT_SUBMITTED", "message": "KYC has not been submitted yet."}, status=200)
+        return Response(KYCStatusSerializer(kyc).data)
+
+    @extend_schema(
+        tags=["Account - KYC"],
+        summary="Submit or re-submit KYC for verification",
+        description="Allows a user to submit their KYC materials. If an application is rejected, this can be used to update it.",
+        request=KYCSubmissionSerializer,
+        responses={
+            200: inline_serializer("KYCResponse", fields={
+                "status": serializers.CharField(),
+                "message": serializers.CharField()
+            }),
+            400: inline_serializer("KYCError", fields={"error": serializers.CharField()})
+        }
+    )
+    def post(self, request):
+        kyc, created = KYC.objects.get_or_create(user=request.user)
+        if kyc.status == 'APPROVED':
+            return Response({"error": "KYC is already approved and cannot be changed."}, status=400)
+             
+        serializer = KYCSubmissionSerializer(kyc, data=request.data, context={'request': request}, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        # Reset to pending on any update
+        serializer.save(status='PENDING', remarks=None)
+        
+        return Response({
+            "status": "SUCCESS", 
+            "message": "KYC submitted successfully. Status is now pending review."
+        })
