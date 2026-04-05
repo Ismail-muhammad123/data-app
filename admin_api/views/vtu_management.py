@@ -414,6 +414,30 @@ class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     serializer_class = VTUProviderConfigSerializer
     permission_classes = [CanManageVTU]
 
+    def perform_create(self, serializer):
+        provider = serializer.save()
+        self._auto_create_beneficiary(provider, self.request.user)
+
+    def perform_update(self, serializer):
+        provider = serializer.save()
+        self._auto_create_beneficiary(provider, self.request.user)
+
+    def _auto_create_beneficiary(self, provider, admin_user):
+        """Auto-create a TransferBeneficiary if the provider has complete bank info."""
+        from wallet.models import TransferBeneficiary
+
+        if all([provider.bank_name, provider.account_name, provider.account_number, provider.bank_code]):
+            TransferBeneficiary.objects.update_or_create(
+                user=admin_user,
+                bank_code=provider.bank_code,
+                account_number=provider.account_number,
+                defaults={
+                    'bank_name': provider.bank_name,
+                    'account_name': provider.account_name,
+                    'nickname': provider.get_name_display(),
+                }
+            )
+
     @extend_schema(summary="Get list of all supported providers for dropdown selection", responses={200: AvailableVTUProviderSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path='available-providers')
     def available_providers(self, request):

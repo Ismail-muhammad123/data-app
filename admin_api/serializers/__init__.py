@@ -39,3 +39,8 @@ from .actions import (
     VariationToggleSerializer, ServiceTypeToggleSerializer, ServiceRetryConfigSerializer, 
     ServicePricingModeSerializer
 )
+from .permissions import (
+    PermissionSerializer, GroupSerializer, GroupListSerializer, 
+    UserPermissionSummarySerializer, AssignUserPermissionsSerializer,
+    AssignUserGroupsSerializer
+)

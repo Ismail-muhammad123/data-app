@@ -47,6 +47,8 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     recent_purchases = serializers.SerializerMethodField()
     total_credits = serializers.SerializerMethodField()
     total_debits = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+    all_permissions = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -58,7 +60,7 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
             "transaction_pin_set", "two_factor_enabled", "profile_image", "wallet_balance", 
             "kyc", "staff_permissions", "virtual_account", "beneficiaries", "purchase_beneficiaries", 
             "transfer_beneficiaries", "recent_transactions", "recent_purchases", "total_credits", 
-            "total_debits", "created_at", "upgraded_at"
+            "total_debits", "groups", "all_permissions", "created_at", "upgraded_at"
         ]
 
     @extend_schema_field(serializers.DictField(allow_null=True))
@@ -111,6 +113,14 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=2))
     def get_total_debits(self, obj):
         return obj.wallet_transactions.filter(transaction_type='debit', status='success').aggregate(total=Sum('amount'))['total'] or 0
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_groups(self, obj):
+        return list(obj.groups.values('id', 'name'))
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_all_permissions(self, obj):
+        return sorted(list(obj.get_all_permissions()))
 
 class AdminCreateUserRequestSerializer(serializers.Serializer):
     phone_number = serializers.CharField()

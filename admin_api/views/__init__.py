@@ -10,3 +10,4 @@ from .automation import *
 from .referrals import *
 from .site_config import *
 from .reports import *
+from .permissions import *

@@ -5,6 +5,9 @@ from users.models import OTP, KYC
 User = get_user_model()
 
 class ProfileSerializer(serializers.ModelSerializer):
+    groups = serializers.SerializerMethodField()
+    all_permissions = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -12,8 +15,17 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email", "is_verified", "email_verified", "phone_number_verified", "is_active",
             "role", "referral_code", "profile_image",
             "transaction_pin_set", "created_at",
+            "groups", "all_permissions",
         ]
         read_only_fields = fields
+
+    def get_groups(self, obj):
+        return list(obj.groups.values('id', 'name'))
+
+    def get_all_permissions(self, obj):
+        if obj.is_staff or obj.is_superuser:
+            return sorted(list(obj.get_all_permissions()))
+        return []
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:

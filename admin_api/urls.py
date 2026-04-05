@@ -40,7 +40,9 @@ from .views import (
     # New views added today
     AdminWalletViewSet, AdminTransferViewSet, AdminTransferBeneficiaryViewSet,
     AdminPaystackDataViewSet, AdminReferralViewSet, AdminSiteConfigViewSet, AdminServiceCashbackViewSet,
-    AdminExportUsersView, AdminExportWalletTransactionsView, AdminExportDepositsView, AdminExportWithdrawalsView, AdminExportPurchasesView
+    AdminExportUsersView, AdminExportWalletTransactionsView, AdminExportDepositsView, AdminExportWithdrawalsView, AdminExportPurchasesView,
+    # Permissions & Groups
+    AdminPermissionViewSet, AdminGroupViewSet, AdminUserPermissionView, AdminUserGroupView
 )
 
 router = DefaultRouter()
@@ -80,6 +82,8 @@ router.register(r'analytics/referrals', AdminReferralViewSet, basename='admin-re
 router.register(r'settings/site-config', AdminSiteConfigViewSet, basename='admin-site-config')
 router.register(r'settings/service-cashbacks', AdminServiceCashbackViewSet, basename='admin-service-cashbacks')
 router.register(r'paystack/data', AdminPaystackDataViewSet, basename='admin-paystack-data')
+router.register(r'permissions/all', AdminPermissionViewSet, basename='admin-permissions')
+router.register(r'permissions/groups', AdminGroupViewSet, basename='admin-groups')
 
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),
@@ -114,4 +118,8 @@ urlpatterns = [
     path('reports/deposits/export/', AdminExportDepositsView.as_view(), name='export-deposits'),
     path('reports/withdrawals/export/', AdminExportWithdrawalsView.as_view(), name='export-withdrawals'),
     path('reports/purchases/export/', AdminExportPurchasesView.as_view(), name='export-purchases'),
+
+    # Permissions & Groups per-user management
+    path('permissions/user/<str:identifier>/', AdminUserPermissionView.as_view(), name='admin-user-permissions'),
+    path('permissions/user/<str:identifier>/groups/', AdminUserGroupView.as_view(), name='admin-user-groups'),
 ]
