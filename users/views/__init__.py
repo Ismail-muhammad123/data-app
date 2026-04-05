@@ -1,6 +1,7 @@
 from .auth import (
     LoginView, RefreshTokenView, GoogleAuthView, Verify2FAView, SignupView, 
-    ResendActivationCodeView, ActivateAccountView, LogoutView
+    ResendActivationCodeView, ActivateAccountView, LogoutView,
+    Resend2FACodeView, Reset2FAView
 )
 from .profile import (
     ProfileView, Update2FASettingsView, ChangePINView, PasswordResetRequestView, 

@@ -21,7 +21,18 @@ class LoginView(APIView):
     @extend_schema(
         tags=["Account - Auth"],
         request=LoginSerializer,
-        responses={200: inline_serializer(name="LoginResponse", fields={"refresh": serializers.CharField(), "access": serializers.CharField(), "user": ProfileSerializer()})}
+        responses={
+            200: inline_serializer(name="LoginResponse", fields={
+                "refresh": serializers.CharField(),
+                "access": serializers.CharField(),
+                "user": ProfileSerializer()
+            }),
+            202: inline_serializer(name="Login2FARequired", fields={
+                "requires_2fa": serializers.BooleanField(),
+                "message": serializers.CharField(),
+                "identifier": serializers.CharField(),
+            }),
+        }
     )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -33,6 +44,15 @@ class LoginView(APIView):
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
             return Response({"error": "Account not active"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 2FA check — only for regular users (not staff/admin)
+        if user.is_2fa_enabled and not user.is_staff and not user.is_superuser:
+            send_otp_code(user, "2fa")
+            return Response({
+                "requires_2fa": True,
+                "message": "A verification code has been sent to your registered channels.",
+                "identifier": user.phone_number,
+            }, status=status.HTTP_202_ACCEPTED)
         
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
@@ -75,6 +95,16 @@ class GoogleAuthView(APIView):
             elif not user.google_id:
                 user.google_id = google_id
                 user.save(update_fields=['google_id'])
+            
+            # 2FA check for Google auth too (regular users only)
+            if user.is_2fa_enabled and not user.is_staff and not user.is_superuser:
+                send_otp_code(user, "2fa")
+                return Response({
+                    "requires_2fa": True,
+                    "message": "A verification code has been sent to your registered channels.",
+                    "identifier": user.phone_number,
+                }, status=status.HTTP_202_ACCEPTED)
+            
             refresh = RefreshToken.for_user(user)
             return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
         except ValueError:
@@ -82,16 +112,150 @@ class GoogleAuthView(APIView):
 
 class Verify2FAView(APIView):
     permission_classes = [permissions.AllowAny]
-    @extend_schema(tags=["Account - 2FA"], request=Verify2FASerializer, responses={200: inline_serializer("Verify2FAResponse", fields={"refresh": serializers.CharField(), "access": serializers.CharField(), "user": ProfileSerializer()})})
+    @extend_schema(
+        tags=["Account - 2FA"],
+        summary="Verify 2FA code to complete login",
+        description="After receiving a 202 response from login, submit the OTP code here to get your auth tokens.",
+        request=Verify2FASerializer,
+        responses={200: inline_serializer("Verify2FAResponse", fields={"refresh": serializers.CharField(), "access": serializers.CharField(), "user": ProfileSerializer()})}
+    )
     def post(self, request):
         serializer = Verify2FASerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = User.objects.get(email=serializer.validated_data["identifier"]) if "@" in serializer.validated_data["identifier"] else User.objects.get(phone_number=serializer.validated_data["identifier"])
-        otp = OTP.objects.get(user=user, code=serializer.validated_data["otp_code"], purpose="2fa", is_used=False)
+        identifier = serializer.validated_data["identifier"]
+        
+        try:
+            user = User.objects.get(email=identifier) if "@" in identifier else User.objects.get(phone_number=identifier)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        otp = OTP.objects.filter(
+            user=user, code=serializer.validated_data["otp_code"], 
+            purpose="2fa", is_used=False
+        ).order_by('-created_at').first()
+        
+        if not otp:
+            return Response({"error": "Invalid or expired OTP code."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from django.utils import timezone
+        if otp.expires_at < timezone.now():
+            return Response({"error": "OTP has expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+        
         otp.is_used = True
         otp.save()
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
+
+
+class Resend2FACodeView(APIView):
+    """Resend the 2FA OTP code if the user didn't receive it."""
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        tags=["Account - 2FA"],
+        summary="Resend 2FA verification code",
+        request=inline_serializer("Resend2FARequest", fields={
+            "identifier": serializers.CharField(help_text="Phone number or email"),
+            "channel": serializers.ChoiceField(choices=['sms', 'whatsapp', 'email'], required=False,
+                                                help_text="Preferred delivery channel. Defaults to user's 2FA method.")
+        }),
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
+    def post(self, request):
+        identifier = request.data.get("identifier")
+        channel = request.data.get("channel")
+        
+        try:
+            user = User.objects.get(phone_number=identifier)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not user.is_2fa_enabled:
+            return Response({"error": "2FA is not enabled for this account."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        send_otp_code(user, "2fa", preferred_channel=channel)
+        return Response({"message": "Verification code resent."})
+
+
+class Reset2FAView(APIView):
+    """
+    Reset (disable) 2FA for a user who has lost access to their 2FA channels.
+    POST: Request a reset code via an alternative channel.
+    PUT: Submit the code to disable 2FA.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        tags=["Account - 2FA"],
+        summary="Request 2FA reset code via alternative channel",
+        description="Sends a reset code via a specified alternative channel (sms, whatsapp, email). "
+                    "Use this when the user cannot receive codes on their primary 2FA channel.",
+        request=inline_serializer("Request2FAResetRequest", fields={
+            "identifier": serializers.CharField(help_text="Phone number"),
+            "channel": serializers.ChoiceField(choices=['sms', 'whatsapp', 'email'],
+                                                help_text="Alternative channel to receive the reset code")
+        }),
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
+    def post(self, request):
+        identifier = request.data.get("identifier")
+        channel = request.data.get("channel")
+        
+        try:
+            user = User.objects.get(phone_number=identifier)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not user.is_2fa_enabled:
+            return Response({"error": "2FA is not enabled for this account."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if channel == 'email' and not user.email:
+            return Response({"error": "No email address on file. Please contact support."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        send_otp_code(user, "2fa", preferred_channel=channel)
+        return Response({"message": f"Reset code sent via {channel}. Use it to disable 2FA."})
+
+    @extend_schema(
+        tags=["Account - 2FA"],
+        summary="Confirm 2FA reset and disable 2FA",
+        description="Submit the reset code to disable 2FA on the account. "
+                    "The user can then login normally and re-enable 2FA if desired.",
+        request=inline_serializer("Confirm2FAResetRequest", fields={
+            "identifier": serializers.CharField(help_text="Phone number"),
+            "otp_code": serializers.CharField(help_text="The reset OTP code"),
+        }),
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
+    def put(self, request):
+        identifier = request.data.get("identifier")
+        otp_code = request.data.get("otp_code")
+        
+        try:
+            user = User.objects.get(phone_number=identifier)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        otp = OTP.objects.filter(
+            user=user, code=otp_code, purpose="2fa", is_used=False
+        ).order_by('-created_at').first()
+        
+        if not otp:
+            return Response({"error": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from django.utils import timezone
+        if otp.expires_at < timezone.now():
+            return Response({"error": "Code has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        otp.is_used = True
+        otp.save()
+        
+        # Disable 2FA
+        user.is_2fa_enabled = False
+        user.two_factor_method = 'none'
+        user.save(update_fields=['is_2fa_enabled', 'two_factor_method'])
+        
+        return Response({"message": "2FA has been disabled. You can now login normally."})
+
 
 @extend_schema(tags=["Account - Auth"])
 class SignupView(generics.CreateAPIView):

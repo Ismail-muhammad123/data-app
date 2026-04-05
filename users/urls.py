@@ -6,7 +6,8 @@ from .views import (
     SetTransactionPinView, ChangeTransactionPinView, ResetTransactionPinView, 
     RequestTransactionPinResetOTPView, VerifyTransactionPinView, NotificationListView, 
     MarkNotificationReadView, MarkAllNotificationsReadView, ReferralListView, 
-    ReferralStatsView, RegisterFCMTokenView, KYCView
+    ReferralStatsView, RegisterFCMTokenView, KYCView,
+    Resend2FACodeView, Reset2FAView
 )
 
 urlpatterns = [
@@ -37,6 +38,8 @@ urlpatterns = [
     # TWO-FACTOR AUTHENTICATION  (authenticated)
     # ═══════════════════════════════════════════
     path("2fa/settings/", Update2FASettingsView.as_view(), name="update-2fa-settings"),
+    path("2fa/resend/", Resend2FACodeView.as_view(), name="resend-2fa-code"),
+    path("2fa/reset/", Reset2FAView.as_view(), name="reset-2fa"),
 
     # ═══════════════════════════════════════════
     # TRANSACTION PIN  (authenticated)

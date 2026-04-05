@@ -45,14 +45,14 @@ class AdminExportUsersView(BaseExportView):
         ]
     )
     def get(self, request):
-        queryset = self.get_queryset(User, date_field='date_joined')
+        queryset = self.get_queryset(User, date_field='created_at')
         headers = ['ID', 'Phone', 'Email', 'First Name', 'Last Name', 'Role', 'Balance', 'Date Joined']
         
         def data_gen():
             for u in queryset:
                 balance = getattr(u, 'wallet', None)
                 bal_val = balance.balance if balance else 0
-                yield [u.id, u.phone_number, u.email, u.first_name, u.last_name, u.role, bal_val, u.date_joined]
+                yield [u.id, u.phone_number, u.email, u.first_name, u.last_name, u.role, bal_val, u.created_at]
 
         return self.generate_csv_response('users_export', headers, data_gen())
 
