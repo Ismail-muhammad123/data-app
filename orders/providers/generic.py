@@ -144,40 +144,141 @@ class GenericLocalProvider(BaseVTUProvider):
             {"type": "data", "id": "1", "name": "MTN Data"},
         ]
 
-    def get_airtime_networks(self) -> List[Dict[str, Any]]:
+    def get_airtime_networks(self) -> List[Any]:
         try:
             url = f"{self.base_url}/networks/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
-            return response.json()
+            data = response.json()
+            return self._deserialize_airtime(data)
         except: return []
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_airtime(self, data: List[Dict]) -> List[Any]:
+        from orders.models import AirtimeNetwork
+        created = []
+        for item in data:
+            net, _ = AirtimeNetwork.objects.update_or_create(
+                service_id=item.get("id"),
+                defaults={
+                    "service_name": item.get("name"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            created.append(net)
+        return created
+
+    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
         try:
             url = f"{self.base_url}/dataplans/?network={network_id}" if network_id else f"{self.base_url}/dataplans/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
-            return response.json()
+            data = response.json()
+            return self._deserialize_data(data)
         except: return []
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_data(self, data: List[Dict]) -> List[Any]:
+        from orders.models import DataService, DataVariation
+        created = []
+        for item in data:
+            network_name = item.get("network_name") or item.get("network")
+            service, _ = DataService.objects.get_or_create(
+                service_id=item.get("network_id") or network_name,
+                defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+            )
+            variation, _ = DataVariation.objects.update_or_create(
+                variation_id=item.get("id"),
+                service=service,
+                defaults={
+                    "name": item.get("plan_name") or item.get("name"),
+                    "selling_price": item.get("amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
+
+    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
         try:
             url = f"{self.base_url}/cableplans/?cablename={service_id}" if service_id else f"{self.base_url}/cableplans/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
-            return response.json()
+            data = response.json()
+            return self._deserialize_tv(data)
         except: return []
 
-    def get_electricity_services(self) -> List[Dict[str, Any]]:
+    def _deserialize_tv(self, data: List[Dict]) -> List[Any]:
+        from orders.models import TVService, TVVariation
+        created = []
+        for item in data:
+            service_name = item.get("cablename") or item.get("name")
+            service, _ = TVService.objects.get_or_create(
+                service_id=item.get("cable_id") or service_name,
+                defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
+            )
+            variation, _ = TVVariation.objects.update_or_create(
+                variation_id=item.get("id"),
+                service=service,
+                defaults={
+                    "name": item.get("plan_name") or item.get("name"),
+                    "selling_price": item.get("amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
+
+    def get_electricity_services(self) -> List[Any]:
         try:
             url = f"{self.base_url}/discos/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
-            return response.json()
+            data = response.json()
+            return self._deserialize_electricity(data)
         except: return []
+
+    def _deserialize_electricity(self, data: List[Dict]) -> List[Any]:
+        from orders.models import ElectricityService, ElectricityVariation
+        created = []
+        for item in data:
+            service, _ = ElectricityService.objects.get_or_create(
+                service_id=item.get("id") or item.get("name"),
+                defaults={"service_name": item.get("name"), "provider": getattr(self, "provider_config", None)}
+            )
+            variation, _ = ElectricityVariation.objects.update_or_create(
+                variation_id=f"{item.get('id')}-general",
+                service=service,
+                defaults={
+                    "name": "General",
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
 
     def get_internet_packages(self) -> List[Dict[str, Any]]:
         return []
 
-    def get_education_services(self) -> List[Dict[str, Any]]:
+    def get_education_services(self) -> List[Any]:
         try:
             url = f"{self.base_url}/education/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
-            return response.json()
+            data = response.json()
+            return self._deserialize_education(data)
         except: return []
+
+    def _deserialize_education(self, data: List[Dict]) -> List[Any]:
+        from orders.models import EducationService, EducationVariation
+        created = []
+        for item in data:
+            name = item.get("name") or item.get("exam_name")
+            service, _ = EducationService.objects.get_or_create(
+                service_id=item.get("id") or name,
+                defaults={"service_name": name, "provider": getattr(self, "provider_config", None)}
+            )
+            variation, _ = EducationVariation.objects.update_or_create(
+                variation_id=item.get("id"),
+                service=service,
+                defaults={
+                    "name": item.get("plan_name") or name,
+                    "selling_price": item.get("amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created

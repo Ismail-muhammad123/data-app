@@ -20,6 +20,10 @@ from wallet.models import Wallet
 import requests
 from django.conf import settings
 from wallet.utils import fund_wallet, debit_wallet
+from users.models import User
+
+from rest_framework.pagination import PageNumberPagination
+from admin_api.views.user_management import UserPagination
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Wallets"]),
@@ -29,6 +33,7 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WalletTransaction.objects.all().order_by('-timestamp')
     serializer_class = AdminWalletTransactionSerializer
     permission_classes = [CanManageWallets]
+    pagination_class = UserPagination
     filterset_fields = {
         'wallet': ['exact'],
         'user': ['exact'],
@@ -178,10 +183,11 @@ class AdminPaystackConfigViewSet(viewsets.ModelViewSet):
     retrieve=extend_schema(tags=["Admin Wallets"]),
 )
 class AdminWalletViewSet(viewsets.ReadOnlyModelViewSet):
-    """List and retrieve all user wallets."""
-    queryset = Wallet.objects.all().select_related('user').order_by('-user__created_at')
-    serializer_class = AdminUserListSerializer # Reuse list serializer as it contains wallet info
+    """List and retrieve all user wallets (via User objects)."""
+    queryset = User.objects.select_related('wallet').all().order_by('-created_at')
+    serializer_class = AdminUserListSerializer 
     permission_classes = [CanManageWallets]
+    pagination_class = UserPagination
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Transfers"]),

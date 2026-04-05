@@ -16,13 +16,24 @@ class KYCSerializer(serializers.ModelSerializer):
 
 class AdminUserListSerializer(serializers.ModelSerializer):
     wallet_balance = serializers.DecimalField(source='wallet.balance', max_digits=12, decimal_places=2, read_only=True, default=0)
+    total_credits = serializers.SerializerMethodField()
+    total_debits = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             "id","phone_country_code", "phone_number", "first_name", "last_name", "email", "profile_image", "role", "is_active", 
             "is_verified", "is_kyc_verified", "is_staff", "is_closed", "referral_code", 
-            "wallet_balance", "created_at"
+            "wallet_balance", "total_credits", "total_debits", "created_at"
         ]
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=2))
+    def get_total_credits(self, obj):
+        return obj.wallet_transactions.filter(transaction_type='credit', status='success').aggregate(total=Sum('amount'))['total'] or 0
+
+    @extend_schema_field(serializers.DecimalField(max_digits=12, decimal_places=2))
+    def get_total_debits(self, obj):
+        return obj.wallet_transactions.filter(transaction_type='debit', status='success').aggregate(total=Sum('amount'))['total'] or 0
 
 class AdminUserDetailSerializer(serializers.ModelSerializer):
     staff_permissions = StaffPermissionSerializer(required=False, read_only=True)

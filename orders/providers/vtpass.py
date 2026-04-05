@@ -233,30 +233,196 @@ class VTPassProvider(BaseVTUProvider):
             {"type": "electricity", "id": "ikedc-postpaid", "name": "IKEDC Postpaid"},
         ]
 
-    def get_airtime_networks(self) -> List[Dict[str, Any]]:
+
+    def get_airtime_networks(self) -> List[Any]:
         res = self._get("/services?identifier=airtime")
-        return res.get('content', [{}])[0].get('services', [])
+        raw_list = res.get('content', [{}])[0].get('services', []) if isinstance(res.get('content'), list) else []
+        return self._deserialize_airtime(raw_list)
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_airtime(self, raw_list: List[Dict]) -> List[Any]:
+        from orders.models import AirtimeNetwork
+        services = []
+        for item in raw_list:
+            net, _ = AirtimeNetwork.objects.update_or_create(
+                service_id=item.get("serviceID"),
+                defaults={
+                    "service_name": item.get("name"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            services.append(net)
+        return services
+
+    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
+        services_list = []
         if not network_id:
-            return []
-        res = self._get(f"/service-variations?serviceID={network_id}")
-        return res.get('content', {}).get('varations', [])
+            res_nets = self._get("/services?identifier=data")
+            networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+            for n in networks:
+                services_list.append(n.get("serviceID"))
+        else:
+            services_list = [network_id]
+            
+        created_variations = []
+        for sid in services_list:
+            res = self._get(f"/service-variations?serviceID={sid}")
+            variations = res.get('content', {}).get('varations', [])
+            created_variations.extend(self._deserialize_data(sid, variations))
+        return created_variations
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_data(self, sid: str, variations: List[Dict]) -> List[Any]:
+        from orders.models import DataService, DataVariation
+        created = []
+        service, _ = DataService.objects.get_or_create(
+            service_id=sid,
+            defaults={"service_name": sid.replace("-data", "").upper(), "provider": getattr(self, "provider_config", None)}
+        )
+        for item in variations:
+            variation, _ = DataVariation.objects.update_or_create(
+                variation_id=item.get("variation_code"),
+                service=service,
+                defaults={
+                    "name": item.get("name"),
+                    "selling_price": item.get("variation_amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
+
+    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
+        services_list = []
         if not service_id:
-            return []
-        res = self._get(f"/service-variations?serviceID={service_id}")
-        return res.get('content', {}).get('varations', [])
+            res_nets = self._get("/services?identifier=tv-subscription")
+            networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+            for n in networks:
+                services_list.append(n.get("serviceID"))
+        else:
+            services_list = [service_id]
+            
+        created_variations = []
+        for sid in services_list:
+            res = self._get(f"/service-variations?serviceID={sid}")
+            variations = res.get('content', {}).get('varations', [])
+            created_variations.extend(self._deserialize_tv(sid, variations))
+        return created_variations
 
-    def get_electricity_services(self) -> List[Dict[str, Any]]:
-        res = self._get("/services?identifier=electricity")
-        return res.get('content', [{}])[0].get('services', [])
+    def _deserialize_tv(self, sid: str, variations: List[Dict]) -> List[Any]:
+        from orders.models import TVService, TVVariation
+        created = []
+        service, _ = TVService.objects.get_or_create(
+            service_id=sid,
+            defaults={"service_name": sid.upper(), "provider": getattr(self, "provider_config", None)}
+        )
+        for item in variations:
+            variation, _ = TVVariation.objects.update_or_create(
+                variation_id=item.get("variation_code"),
+                service=service,
+                defaults={
+                    "name": item.get("name"),
+                    "selling_price": item.get("variation_amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
 
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        res = self._get("/service-variations?serviceID=internet-direct")
-        return res.get('content', {}).get('varations', [])
+    def get_electricity_services(self) -> List[Any]:
+        res = self._get("/services?identifier=electricity-bill")
+        raw_list = res.get('content', [{}])[0].get('services', []) if isinstance(res.get('content'), list) else []
+        return self._deserialize_electricity(raw_list)
 
-    def get_education_services(self) -> List[Dict[str, Any]]:
-        res = self._get("/services?identifier=education")
-        return res.get('content', [{}])[0].get('services', [])
+    def _deserialize_electricity(self, raw_list: List[Dict]) -> List[Any]:
+        from orders.models import ElectricityService, ElectricityVariation
+        services = []
+        for item in raw_list:
+            service, _ = ElectricityService.objects.get_or_create(
+                service_id=item.get("serviceID"),
+                defaults={
+                    "service_name": item.get("name"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            variation, _ = ElectricityVariation.objects.update_or_create(
+                variation_id=f"{item.get('serviceID')}-general",
+                service=service,
+                defaults={
+                    "name": "General Setup",
+                    "is_active": True
+                }
+            )
+            services.append(variation)
+        return services
+
+    def get_internet_packages(self) -> List[Any]:
+        res_nets = self._get("/services?identifier=internet")
+        networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+        created_variations = []
+        for n in networks:
+            sid = n.get("serviceID")
+            res = self._get(f"/service-variations?serviceID={sid}")
+            variations = res.get('content', {}).get('varations', [])
+            created_variations.extend(self._deserialize_internet(sid, n.get("name"), variations))
+        return created_variations
+
+    def _deserialize_internet(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
+        from orders.models import InternetService, InternetVariation
+        created = []
+        service, _ = InternetService.objects.get_or_create(
+            service_id=sid,
+            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
+        )
+        for item in variations:
+            variation, _ = InternetVariation.objects.update_or_create(
+                variation_id=item.get("variation_code"),
+                service=service,
+                defaults={
+                    "name": item.get("name"),
+                    "selling_price": item.get("variation_amount", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
+
+    def get_education_services(self) -> List[Any]:
+        res_nets = self._get("/services?identifier=education")
+        networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+        created_variations = []
+        for n in networks:
+            sid = n.get("serviceID")
+            res = self._get(f"/service-variations?serviceID={sid}")
+            variations = res.get('content', {}).get('varations', [])
+            created_variations.extend(self._deserialize_education(sid, n.get("name"), variations))
+        return created_variations
+
+    def _deserialize_education(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
+        from orders.models import EducationService, EducationVariation
+        created = []
+        service, _ = EducationService.objects.get_or_create(
+            service_id=sid,
+            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
+        )
+        for item in variations:
+            variation, _ = EducationVariation.objects.update_or_create(
+                variation_id=item.get("variation_code") or f"{sid}-general",
+                service=service,
+                defaults={
+                    "name": item.get("name") or service_name,
+                    "selling_price": item.get("variation_amount", 0) or 0,
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        if not variations:
+            variation, _ = EducationVariation.objects.update_or_create(
+                variation_id=f"{sid}-general",
+                service=service,
+                defaults={
+                    "name": "PIN Purchase",
+                    "selling_price": 0,
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created

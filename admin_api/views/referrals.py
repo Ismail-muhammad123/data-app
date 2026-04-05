@@ -21,11 +21,11 @@ class AdminReferralViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return User.objects.annotate(
-            referred_user_count=Count('referrals', distinct=True),
+            referred_user_count=Count('referrals_made', distinct=True),
             total_referral_earnings=Sum('referral_earnings_amount'),
             total_referral_transaction_value=Sum(
-                'referrals__purchases__amount', 
-                filter=Q(referrals__purchases__status='SUCCESS')
+                'referrals_made__referred__purchases__amount', 
+                filter=Q(referrals_made__referred__purchases__status='SUCCESS')
             )
         ).filter(referred_user_count__gt=0).order_by('-total_referral_transaction_value')
 
@@ -37,9 +37,10 @@ class AdminReferralViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['get'], url_path='details')
     def details(self, request, pk=None):
         user = self.get_object()
-        referrals = user.referrals.annotate(
-            total_purchases_value=Sum('purchases__amount', filter=Q(purchases__status='SUCCESS')),
-            purchase_count=Count('purchases', filter=Q(purchases__status='SUCCESS'))
+        # referrals_made are Referral objects. We annotate with stats from the 'referred' relationship.
+        referral_records = user.referrals_made.select_related('referred').annotate(
+            total_purchases_value=Sum('referred__purchases__amount', filter=Q(referred__purchases__status='SUCCESS')),
+            purchase_count=Count('referred__purchases', filter=Q(referred__purchases__status='SUCCESS'))
         ).all()
         
         data = {
@@ -50,14 +51,14 @@ class AdminReferralViewSet(viewsets.ReadOnlyModelViewSet):
                 "referral_code": user.referral_code
             },
             "referrals": [{
-                "id": r.id,
-                "phone_number": r.phone_number,
-                "full_name": f"{r.first_name} {r.last_name}",
-                "date_joined": r.created_at,
+                "id": r.referred.id,
+                "phone_number": r.referred.phone_number,
+                "full_name": f"{r.referred.first_name} {r.referred.last_name}",
+                "date_joined": r.referred.created_at,
                 "total_purchases_value": r.total_purchases_value or 0,
                 "purchase_count": r.purchase_count or 0
-            } for r in referrals],
-            "total_referral_count": referrals.count(),
+            } for r in referral_records],
+            "total_referral_count": referral_records.count(),
             "grand_total_transaction_value": user.total_referral_transaction_value or 0
         }
         return Response(data)

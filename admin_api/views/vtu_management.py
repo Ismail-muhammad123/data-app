@@ -183,10 +183,11 @@ class VTUOverviewView(APIView):
         for st in services_list:
             routing = ServiceRouting.objects.filter(service=st).first()
             # Success rates from last 100 txs
-            txs = Purchase.objects.filter(purchase_type=st).order_by('-time')[:100]
+            txs = list(Purchase.objects.filter(purchase_type=st).order_by('-time')[:100])
             success_rate = 0
-            if txs.count() > 0:
-                success_rate = txs.filter(status='success').count() / txs.count()
+            if len(txs) > 0:
+                successes = sum(1 for tx in txs if tx.status == 'success')
+                success_rate = successes / len(txs)
             
             summary.append({
                 "service": st,
@@ -246,27 +247,19 @@ class FetchFromProviderView(APIView):
         service_type = serializer.validated_data['service_type']
         
         provider = VTUProviderConfig.objects.get(id=provider_id)
-        # Use existing sync logic if available in the provider implementation
-        # For simplicity in this demo, we call a placeholders sync method or actual if defined
-        # In a real app, we'd have a mapping layer.
+        impl = ProviderRouter.get_provider_implementation(provider.name)
+        if not impl:
+            return Response({"error": "Implementation not found"}, status=400)
+            
+        objects = []
+        if service_type == 'data': objects = impl.get_data_plans()
+        elif service_type == 'airtime': objects = impl.get_airtime_networks()
+        elif service_type == 'tv': objects = impl.get_cable_tv_packages()
+        elif service_type == 'electricity': objects = impl.get_electricity_services()
+        elif service_type == 'internet': objects = impl.get_internet_packages()
+        elif service_type == 'education': objects = impl.get_education_services()
         
-        # Example using ClubKonnectClient if provider is clubkonnect
-        if provider.name == 'clubkonnect':
-             from orders.services.clubkonnect import ClubKonnectClient
-             client = ClubKonnectClient()
-             if service_type == 'data': client.sync_data()
-             elif service_type == 'airtime': client.sync_airtime()
-             elif service_type == 'tv': client.sync_cable()
-             elif service_type == 'electricity': client.sync_electricity()
-             elif service_type == 'internet': client.sync_internet()
-        else:
-             # Fallback to generic implementation methods if they support sync
-             impl = ProviderRouter.get_provider_implementation(provider.name)
-             if impl:
-                 # Logic to iterate and save variations locally
-                 pass
-        
-        return Response({"status": "SUCCESS", "message": f"Successfully synced {service_type} from {provider.name}"})
+        return Response({"status": "SUCCESS", "message": f"Successfully synced {len(objects)} {service_type} from {provider.name}"})
 
 class VariationUpdatePriceView(APIView):
     permission_classes = [CanManageVTU]

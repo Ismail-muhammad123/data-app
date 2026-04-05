@@ -82,39 +82,50 @@ class VTUOverviewResponseSerializer(serializers.Serializer):
     services_summary = ServiceSummaryItemSerializer(many=True)
 
 class AdminAirtimeNetworkSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = AirtimeNetwork; fields = '__all__'
 
 class AdminDataServiceSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = DataService; fields = '__all__'
 
 class AdminDataVariationSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='service.provider.name')
     service_details = AdminDataServiceSerializer(source='service', read_only=True)
     class Meta: model = DataVariation; fields = '__all__'
 
 class AdminTVServiceSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = TVService; fields = '__all__'
 
 class AdminTVVariationSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='service.provider.name')
     service_details = AdminTVServiceSerializer(source='service', read_only=True)
     class Meta: model = TVVariation; fields = '__all__'
 
 class AdminInternetServiceSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = InternetService; fields = '__all__'
 
 class AdminInternetVariationSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='service.provider.name')
     service_details = AdminInternetServiceSerializer(source='service', read_only=True)
     class Meta: model = InternetVariation; fields = '__all__'
 
 class AdminEducationServiceSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = EducationService; fields = '__all__'
 
 class AdminEducationVariationSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='service.provider.name')
     service_details = AdminEducationServiceSerializer(source='service', read_only=True)
     class Meta: model = EducationVariation; fields = '__all__'
 
 class AdminElectricityServiceSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='provider.name')
     class Meta: model = ElectricityService; fields = '__all__'
 
 class AdminElectricityVariationSerializer(serializers.ModelSerializer):
+    provider_name = serializers.ReadOnlyField(source='service.provider.name')
     service_details = AdminElectricityServiceSerializer(source='service', read_only=True)
     class Meta: model = ElectricityVariation; fields = '__all__'

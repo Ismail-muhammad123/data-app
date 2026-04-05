@@ -368,6 +368,7 @@ class ClubKonnectClient(VTUInterface):
                         "min_amount": product.get("MINAMOUNT", "50"),
                         "max_amount": product.get("MAXAMOUNT", "200000"),
                         "discount": product.get("PRODUCT_DISCOUNT", "0"),
+                        "provider": self.provider_config,
                     }
                 )
                 airtime_count += 1
@@ -387,7 +388,7 @@ class ClubKonnectClient(VTUInterface):
             products = net_info.get("PRODUCT", [])
             service, _ = DataService.objects.get_or_create(
                 service_id=service_id,
-                defaults={"service_name": network_name}
+                defaults={"service_name": network_name, "provider": self.provider_config}
             )
             for product in products:
                 DataVariation.objects.update_or_create(
@@ -417,7 +418,7 @@ class ClubKonnectClient(VTUInterface):
             
             service, _ = TVService.objects.get_or_create(
                 service_id=service_id,
-                defaults={"service_name": network_name}
+                defaults={"service_name": network_name, "provider": self.provider_config}
             )
             
             for product in products:
@@ -451,7 +452,7 @@ class ClubKonnectClient(VTUInterface):
             for company_info in company_infos:
                 service, _ = ElectricityService.objects.get_or_create(
                     service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
-                    defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title()}
+                    defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title(), "provider": self.provider_config}
                 )
                 for product in company_info.get("PRODUCT", []):
                     ElectricityVariation.objects.update_or_create(
@@ -479,7 +480,10 @@ class ClubKonnectClient(VTUInterface):
             if not network_list: continue
             net_info = network_list[0]
             products = net_info.get("PRODUCT") or []
-            
+            service, _ = InternetService.objects.get_or_create(
+                service_id=network_name.lower().replace(" ", "-"),
+                defaults={"service_name": network_name, "provider": self.provider_config}
+            )
             for product in products:
                 # Internet response uses PACKAGE_ID, PACKAGE_NAME, etc.
                 variation_id = product.get("PACKAGE_ID") or product.get("PRODUCT_ID")
@@ -493,6 +497,7 @@ class ClubKonnectClient(VTUInterface):
                     variation_id=variation_id,
                     defaults={
                         "name": name,
+                        "service": service,
                         "selling_price": amount,
                         "is_active": True
                     }

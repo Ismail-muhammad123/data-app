@@ -50,6 +50,7 @@ class ProviderRouter:
 
         try:     
             instance = provider_class(config.get_config_dict())
+            instance.provider_config = config
             return instance
         except Exception as e:
             logger.error(f"Error instantiating provider {provider_name}: {e}")

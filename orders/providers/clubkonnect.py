@@ -28,7 +28,7 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     @classmethod
     def get_supported_services(cls) -> List[str]:
-        return ["airtime", "data", "tv", "electricity", "internet"]
+        return ["airtime", "data", "tv", "electricity", "education", "internet"]
 
     @classmethod
     def get_config_requirements(cls) -> List[Dict[str, Any]]:
@@ -221,29 +221,175 @@ class ClubKonnectProvider(BaseVTUProvider):
             {"type": "data", "endpoint": "/DataPlans.asp"},
             {"type": "cable", "endpoint": "/CableTVPackages.asp"},
             {"type": "electricity", "endpoint": "/ElectricityCompanies.asp"},
-            # {"type": "internet", "endpoint": "/SmilePackages.asp"},
+            {"type": "internet", "endpoint": "/SmilePackages.asp"},
+            {"type": "education", "endpoint": "/EducationPackages.asp"},
         ]
-    def get_airtime_networks(self) -> List[Dict[str, Any]]:
+    
+    def get_airtime_networks(self) -> List[Any]:
         res = self._get("/APIAirtimeDiscountV2.asp", {})
-        return res if isinstance(res, list) else res.get('content', [])
+        networks = res.get("MOBILE_NETWORK") or {}
+        created_networks = []
+        for network_name, product_list in networks.items():
+            if not product_list: continue
+            created_networks.extend(self._deserialize_airtime(network_name, product_list))
+        return created_networks
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_airtime(self, network_name: str, product_list: List[Dict]) -> List[Any]:
+        from orders.models import AirtimeNetwork
+        created = []
+        for product in product_list:
+            discount = product.get("PRODUCT_DISCOUNT", "0")
+            if isinstance(discount, str):
+                discount = discount.replace("%", "").strip()
+            
+            net, _ = AirtimeNetwork.objects.update_or_create(
+                service_id=product.get("ID"),
+                defaults={
+                    "service_name": product.get("PRODUCT_NAME", network_name).capitalize(),
+                    "min_amount": product.get("MINAMOUNT", "50"),
+                    "max_amount": product.get("MAXAMOUNT", "200000"),
+                    "discount": discount,
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            created.append(net)
+        return created
+
+    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
         params = {"MobileNetwork": network_id} if network_id else {}
-        res = self._get("/DataPlans.asp", params)
-        return res if isinstance(res, list) else res.get('content', [])
+        res = self._get("/APIDatabundlePlansV2.asp", params)
+        networks = res.get("MOBILE_NETWORK") or {}
+        created_variations = []
+        for network_name, network_list in networks.items():
+            if not network_list: continue
+            created_variations.extend(self._deserialize_data(network_name, network_list))
+        return created_variations
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _deserialize_data(self, network_name: str, network_list: List[Dict]) -> List[Any]:
+        from orders.models import DataService, DataVariation
+        created = []
+        net_info = network_list[0]
+        service_id = net_info.get("ID")
+        products = net_info.get("PRODUCT", [])
+        service, _ = DataService.objects.get_or_create(
+            service_id=service_id,
+            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+        )
+        for product in products:
+            variation, _ = DataVariation.objects.update_or_create(
+                variation_id=product.get("PRODUCT_ID"),
+                service=service,
+                defaults={
+                    "name": product.get("PRODUCT_NAME", "Data Plan"),
+                    "selling_price": product.get("PRODUCT_AMOUNT", product.get("selling_price", 0)),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
+
+    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
         params = {"CableTV": service_id} if service_id else {}
-        res = self._get("/CableTVPackages.asp", params)
-        return res if isinstance(res, list) else res.get('content', [])
+        res = self._get("/APICableTVPackagesV2.asp", params)
+        networks = res.get("MOBILE_NETWORK") or res.get("TV_ID") or res.get("CABLETV") or {}
+        created_variations = []
+        for network_name, network_list in networks.items():
+            if not network_list: continue
+            created_variations.extend(self._deserialize_tv(network_name, network_list))
+        return created_variations
 
-    def get_electricity_services(self) -> List[Dict[str, Any]]:
-        res = self._get("/ElectricityCompanies.asp", {})
-        return res if isinstance(res, list) else res.get('content', [])
+    def _deserialize_tv(self, network_name: str, network_list: List[Dict]) -> List[Any]:
+        from orders.models import TVService, TVVariation
+        created = []
+        net_info = network_list[0]
+        s_id = net_info.get("ID") or network_name.lower().replace(" ", "-")
+        products = net_info.get("PRODUCT") or net_info.get("PACKAGE") or []
+        service, _ = TVService.objects.get_or_create(
+            service_id=s_id,
+            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+        )
+        for product in products:
+            variation, _ = TVVariation.objects.update_or_create(
+                variation_id=product.get("PACKAGE_ID") or product.get("PRODUCT_ID"),
+                service=service,
+                defaults={
+                    "name": product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME") or "TV Package",
+                    "selling_price": product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0,
+                    "package_bouquet": product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME"),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created
 
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        res = self._get("/SmilePackages.asp", {})
-        return res if isinstance(res, list) else res.get('content', [])
+    def get_electricity_services(self) -> List[Any]:
+        res = self._get("/APIElectricityDiscosV2.asp", {})
+        companies = res.get("ELECTRIC_COMPANY") or res.get("ELECTRICCOMPANIES") or {}
+        created_variations = []
+        for name, company_infos in companies.items():
+            if not company_infos: continue
+            created_variations.extend(self._deserialize_electricity(name, company_infos))
+        return created_variations
 
-    def get_education_services(self) -> List[Dict[str, Any]]:
+    def _deserialize_electricity(self, name: str, company_infos: List[Dict]) -> List[Any]:
+        from orders.models import ElectricityService, ElectricityVariation
+        created = []
+        for company_info in company_infos:
+            service, _ = ElectricityService.objects.get_or_create(
+                service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
+                defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title(), "provider": getattr(self, "provider_config", None)}
+            )
+            for product in company_info.get("PRODUCT", []):
+                variation, _ = ElectricityVariation.objects.update_or_create(
+                    variation_id=product.get("PRODUCT_ID"),
+                    service=service,
+                    defaults={
+                        "name": product.get("PRODUCT_TYPE", "General").capitalize(),
+                        "min_amount": product.get("MINAMOUNT", "1000"),
+                        "max_amount": product.get("MAXAMOUNT", "200000"),
+                        "discount": product.get("PRODUCT_DISCOUNT_AMOUNT", "0"),
+                        "is_active": True
+                    }
+                )
+                created.append(variation)
+        return created
+
+    def get_internet_packages(self) -> List[Any]:
+        # res = self._get("/APISmileDiscountV1.asp", {}) 
+        # internet_networks = res.get("MOBILE_NETWORK") or {}
+        
+        # We explicitly return the InternetService object(s) created
+        services = []
+        # for network_name, network_list in internet_networks.items():
+        #     if not network_list: continue
+        #     service = self._deserialize_internet(network_name, network_list)
+        #     if service:
+        #         services.append(service)
+        return services
+
+    def _deserialize_internet(self, network_name: str, network_list: List[Dict]) -> Optional[Any]:
+        from orders.models import InternetVariation, InternetService
+        net_info = network_list[0]
+        products = net_info.get("PRODUCT") or []
+        service, _ = InternetService.objects.get_or_create(
+            service_id=network_name.lower().replace(" ", "-"),
+            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+        )
+        for product in products:
+            variation_id = product.get("PACKAGE_ID") or product.get("PRODUCT_ID")
+            p_name = product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME")
+            amount = product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0
+            if not variation_id or not p_name: continue
+            InternetVariation.objects.update_or_create(
+                variation_id=variation_id,
+                defaults={
+                    "name": p_name,
+                    "service": service,
+                    "selling_price": amount,
+                    "is_active": True
+                }
+            )
+        return service
+
+    def get_education_services(self) -> List[Any]:
         return []

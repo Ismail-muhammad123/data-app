@@ -6,20 +6,21 @@ AVAILABLE_PROVIDERS = [
     # Currently implemented
     ('vtpass', 'VTPass'),
     ('clubkonnect', 'ClubKonnect'),
+    ('arewa_global', 'Arewa Global'),
+    ('alrahuz', 'Alrahuz Data'),
     
     # Planned or available for generic configuration
-    ('alrahuz', 'Alrahuz Data'),
-    ('mobilenig', 'MobileNig'),
-    ('otapay', 'OTAPAY'),
-    ('arewa_global', 'Arewa Global'),
-    ('mightydata', 'MightyData'),
-    ('smedata', 'SMEDATA.NG'),
-    ('mobilevtu', 'MobileVTU'),
-    ('aimtoget', 'Aimtoget'),
-    ('nata', 'Nata API'),
-    ('amigo', 'Amigo'),
-    ('vtuorg', 'vtu.org'),
-    ('payflex', 'PayFlex'),
+    # ----------------------------------------------
+    # ('mobilenig', 'MobileNig'),
+    # ('otapay', 'OTAPAY'),
+    # ('mightydata', 'MightyData'),
+    # ('smedata', 'SMEDATA.NG'),
+    # ('mobilevtu', 'MobileVTU'),
+    # ('aimtoget', 'Aimtoget'),
+    # ('nata', 'Nata API'),
+    # ('amigo', 'Amigo'),
+    # ('vtuorg', 'vtu.org'),
+    # ('payflex', 'PayFlex'),
 ]
 
 def get_provider_display_name(provider_id: str) -> str:
