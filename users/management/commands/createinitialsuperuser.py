@@ -9,11 +9,9 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         username = os.environ.get("DJANGO_SUPERUSER_USERNAME")
         password = os.environ.get("DJANGO_SUPERUSER_PASSWORD")
-        full_name = os.environ.get("DJANGO_SUPERUSER_FULL_NAME")
-        email = os.environ.get("DJANGO_SUPERUSER_EMAIL")
 
-        if not username or not password or not full_name:
-            self.stdout.write(self.style.ERROR("DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD, and DJANGO_SUPERUSER_FULL_NAME must all be provided."))
+        if not username or not password:
+            self.stdout.write(self.style.ERROR("DJANGO_SUPERUSER_USERNAME and DJANGO_SUPERUSER_PASSWORD must all be provided."))
             return
 
         User = get_user_model()
