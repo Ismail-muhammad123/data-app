@@ -388,7 +388,17 @@ class AdminAvailableVTUProvidersView(APIView):
     )
     def get(self, request):
         from orders.providers.registry import AVAILABLE_PROVIDERS
-        data = [{"id": p[0], "name": p[1]} for p in AVAILABLE_PROVIDERS]
+        from orders.router import ProviderRouter
+        
+        data = []
+        for p_id, p_name in AVAILABLE_PROVIDERS:
+            p_class = ProviderRouter.FACTORIES.get(p_id)
+            data.append({
+                "id": p_id,
+                "name": p_name,
+                "supported_services": p_class.get_supported_services() if p_class else [],
+                "config_requirements": p_class.get_config_requirements() if p_class else []
+            })
         return Response(data)
 
 @extend_schema_view(
@@ -409,8 +419,18 @@ class AdminVTUProviderConfigViewSet(viewsets.ModelViewSet):
     @extend_schema(summary="Get list of all supported providers for dropdown selection", responses={200: AvailableVTUProviderSerializer(many=True)})
     @action(detail=False, methods=['get'], url_path='available-providers')
     def available_providers(self, request):
+        from orders.router import ProviderRouter
         choices = VTUProviderConfig.PROVIDER_CHOICES
-        return Response([{"id": c[0], "name": c[1]} for c in choices])
+        data = []
+        for p_id, p_name in choices:
+            p_class = ProviderRouter.FACTORIES.get(p_id)
+            data.append({
+                "id": p_id,
+                "name": p_name,
+                "supported_services": p_class.get_supported_services() if p_class else [],
+                "config_requirements": p_class.get_config_requirements() if p_class else []
+            })
+        return Response(data)
 
     @extend_schema(summary="Update provider funding configuration")
     @action(detail=True, methods=['post'], url_path='funding-config')

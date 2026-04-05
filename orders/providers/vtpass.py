@@ -29,6 +29,19 @@ class VTPassProvider(BaseVTUProvider):
     def provider_name(self) -> str:
         return "vtpass"
 
+    @classmethod
+    def get_supported_services(cls) -> List[str]:
+        return ["airtime", "data", "tv", "electricity", "education"]
+
+    @classmethod
+    def get_config_requirements(cls) -> List[Dict[str, Any]]:
+        return [
+            {"name": "api_key", "label": "API Key", "type": "text", "required": True},
+            {"name": "public_key", "label": "Public Key", "type": "text", "required": False},
+            {"name": "secret_key", "label": "Secret Key", "type": "text", "required": True},
+            {"name": "base_url", "label": "Base API URL", "type": "text", "required": False, "default": "https://vtpass.com/api"},
+        ]
+
     def _post(self, endpoint: str, payload: dict) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
         try:

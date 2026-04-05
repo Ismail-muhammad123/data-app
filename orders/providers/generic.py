@@ -20,6 +20,17 @@ class GenericLocalProvider(BaseVTUProvider):
     def provider_name(self) -> str:
         return self.config.get('name', 'generic')
 
+    @classmethod
+    def get_supported_services(cls) -> List[str]:
+        return ["airtime", "data", "tv", "electricity", "education"]
+
+    @classmethod
+    def get_config_requirements(cls) -> List[Dict[str, Any]]:
+        return [
+            {"name": "api_key", "label": "API Key/Token", "type": "text", "required": True},
+            {"name": "base_url", "label": "Base URL", "type": "text", "required": True},
+        ]
+
     def _get_headers(self):
         return {
             "Authorization": f"Token {self.api_key}",

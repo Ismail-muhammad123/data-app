@@ -26,6 +26,18 @@ class ClubKonnectProvider(BaseVTUProvider):
     def provider_name(self) -> str:
         return "clubkonnect"
 
+    @classmethod
+    def get_supported_services(cls) -> List[str]:
+        return ["airtime", "data", "tv", "electricity", "internet"]
+
+    @classmethod
+    def get_config_requirements(cls) -> List[Dict[str, Any]]:
+        return [
+            {"name": "user_id", "label": "User ID", "type": "text", "required": True},
+            {"name": "api_key", "label": "API Key", "type": "text", "required": True},
+            {"name": "base_url", "label": "Base URL", "type": "text", "required": False, "default": "https://www.nellobytesystems.com"},
+        ]
+
     def _get(self, endpoint: str, params: dict) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
         params.update({"UserID": self.user_id, "APIKey": self.api_key})

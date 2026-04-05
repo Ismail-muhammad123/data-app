@@ -17,44 +17,40 @@ class ProviderRouter:
     """
     
 
-    @staticmethod
-    def get_provider_implementation(provider_name: str) -> Optional[BaseVTUProvider]:
+    FACTORIES = {
+        'vtpass': VTPassProvider,
+        'clubkonnect': ClubKonnectProvider,
+        'alrahuz': GenericLocalProvider,
+        'mobilenig': GenericLocalProvider,
+        'otapay': GenericLocalProvider,
+        'arewa_global': GenericLocalProvider,
+        'mightydata': GenericLocalProvider,
+        'smedata': GenericLocalProvider,
+        'mobilevtu': GenericLocalProvider,
+        'aimtoget': GenericLocalProvider,
+        'nata_api': GenericLocalProvider,
+        'amigo': GenericLocalProvider,
+        'vtu_org': GenericLocalProvider,
+        'payflex': GenericLocalProvider,
+    }
+
+    @classmethod
+    def get_provider_implementation(cls, provider_name: str) -> Optional[BaseVTUProvider]:
         """
         Instantiate the provider implementation class.
         Uses a registry or factory pattern to associate the provider choice with its implementation.
         """
-
-        factories = {
-            'vtpass': VTPassProvider,
-            'clubkonnect': ClubKonnectProvider,
-            'alrahuz': GenericLocalProvider,
-            'mobilenig': GenericLocalProvider,
-            'otapay': GenericLocalProvider,
-            'arewa_global': GenericLocalProvider,
-            'mightydata': GenericLocalProvider,
-            'smedata': GenericLocalProvider,
-            'mobilevtu': GenericLocalProvider,
-            'aimtoget': GenericLocalProvider,
-            'nata_api': GenericLocalProvider,
-            'amigo': GenericLocalProvider,
-            'vtu_org': GenericLocalProvider,
-            'payflex': GenericLocalProvider,
-        }
-
-        
-        
-        if provider_name.lower() not in factories.keys():
+        provider_class = cls.FACTORIES.get(provider_name.lower())
+        if not provider_class:
             return None
 
         config = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
-
+        if not config:
+            return None
 
         try:     
-            provider_class = factories.get(provider_name)
-            if provider_class:
-                instance = provider_class(config.get_config_dict())
-                # instance.provider_name = provider_name
-                return instance
+            instance = provider_class(config.get_config_dict())
+            return instance
         except Exception as e:
             logger.error(f"Error instantiating provider {provider_name}: {e}")
             

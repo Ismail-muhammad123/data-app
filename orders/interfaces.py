@@ -13,6 +13,24 @@ class BaseVTUProvider(ABC):
     def provider_name(self) -> str:
         pass
 
+    @classmethod
+    @abstractmethod
+    def get_supported_services(cls) -> List[str]:
+        """
+        Return a list of service types supported by this provider.
+        e.g., ['airtime', 'data', 'tv', 'electricity']
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_config_requirements(cls) -> List[Dict[str, Any]]:
+        """
+        Return a list of configuration fields required for this provider.
+        Format: [{'name': 'api_key', 'label': 'API Key', 'type': 'text', 'required': True}]
+        """
+        pass
+
     @abstractmethod
     def buy_airtime(self, phone: str, network: str, amount: float, reference: str) -> Dict[str, Any]:
         """

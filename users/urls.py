@@ -1,38 +1,12 @@
 from django.urls import path
 from .views import (
-    # Auth
-    LoginView,
-    RefreshTokenView,
-    SignupView,
-    ResendActivationCodeView,
-    ActivateAccountView,
-    LogoutView,
-    close_account,
-    generate_virtual_account,
-    GoogleAuthView,
-    Verify2FAView,
-    # Profile
-    ProfileView,
-    Update2FASettingsView,
-    # Login PIN
-    ChangePINView,
-    PasswordResetRequestView,
-    PasswordResetConfirmView,
-    # Transaction PIN
-    SetTransactionPinView,
-    ChangeTransactionPinView,
-    ResetTransactionPinView,
-    RequestTransactionPinResetOTPView,
-    VerifyTransactionPinView,
-    # Referrals
-    ReferralListView,
-    ReferralStatsView,
-    # FCM
-    RegisterFCMTokenView,
-    # Notifications
-    NotificationListView,
-    MarkNotificationReadView,
-    MarkAllNotificationsReadView,
+    SignupView, ActivateAccountView, ResendActivationCodeView, LoginView, RefreshTokenView, 
+    GoogleAuthView, Verify2FAView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView, 
+    ProfileView, ChangePINView, close_account, generate_virtual_account, Update2FASettingsView, 
+    SetTransactionPinView, ChangeTransactionPinView, ResetTransactionPinView, 
+    RequestTransactionPinResetOTPView, VerifyTransactionPinView, NotificationListView, 
+    MarkNotificationReadView, MarkAllNotificationsReadView, ReferralListView, 
+    ReferralStatsView, RegisterFCMTokenView
 )
 
 urlpatterns = [
