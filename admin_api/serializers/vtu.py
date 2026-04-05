@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from orders.models import (
     VTUProviderConfig, ServiceRouting, ServiceFallback, DataService, DataVariation, 
     AirtimeNetwork, TVService, TVVariation, InternetService, InternetVariation, 
@@ -21,11 +22,13 @@ class VTUProviderConfigSerializer(serializers.ModelSerializer):
             'supported_services', 'config_requirements'
         ]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_supported_services(self, obj):
         from orders.router import ProviderRouter
         p_class = ProviderRouter.FACTORIES.get(obj.name.lower())
         return p_class.get_supported_services() if p_class else []
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_config_requirements(self, obj):
         from orders.router import ProviderRouter
         p_class = ProviderRouter.FACTORIES.get(obj.name.lower())
@@ -47,7 +50,8 @@ class VTUProviderOverviewSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'is_active', 'balance', 'account_name', 'bank_name', 'account_number', 'bank_code', 'min_funding_balance', 'auto_funding_enabled']
 
 class AvailableVTUProviderSerializer(serializers.Serializer):
-    id, name = serializers.CharField(), serializers.CharField()
+    id = serializers.CharField()
+    name = serializers.CharField()
     supported_services = serializers.ListField(child=serializers.CharField(), read_only=True)
     config_requirements = serializers.ListField(child=serializers.DictField(), read_only=True)
 

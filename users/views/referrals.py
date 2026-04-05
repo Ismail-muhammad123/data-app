@@ -6,11 +6,13 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 from users.models import Referral
 from users.serializers import ReferralSerializer
 
+@extend_schema(tags=["Account - Referrals"])
 class ReferralListView(generics.ListAPIView):
     serializer_class = ReferralSerializer
     permission_classes = [permissions.IsAuthenticated]
-    @extend_schema(tags=["Account - Referrals"])
-    def get_queryset(self): return Referral.objects.filter(referrer=self.request.user)
+
+    def get_queryset(self):
+        return Referral.objects.filter(referrer=self.request.user)
 
 class ReferralStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]

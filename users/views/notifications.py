@@ -13,10 +13,14 @@ class RegisterFCMTokenView(APIView):
         request.user.fcm_token = request.data.get('token'); request.user.save(update_fields=['fcm_token'])
         return Response({"message": "FCM token registered"})
 
+@extend_schema(tags=["Account - Notifications"])
 class NotificationListView(generics.ListAPIView):
-    serializer_class = UserNotificationSerializer; permission_classes = [permissions.IsAuthenticated]
-    @extend_schema(tags=["Account - Notifications"])
-    def get_queryset(self): return UserNotification.objects.filter(user=self.request.user).order_by('-created_at')
+    serializer_class = UserNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return UserNotification.objects.filter(user=self.request.user).order_by('-created_at')
+
 
 class MarkNotificationReadView(APIView):
     permission_classes = [permissions.IsAuthenticated]

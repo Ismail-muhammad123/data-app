@@ -100,9 +100,11 @@ class Verify2FAView(APIView):
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
 
+@extend_schema(tags=["Account - Auth"])
 class SignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
+    
     @extend_schema(tags=["Account - Auth"], request=SignupSerializer, responses={201: SignupSerializer})
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)

@@ -10,29 +10,46 @@ class AdminDepositMarkSuccessRequestSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, default="Manually confirmed by Admin")
 
 class AdminWithdrawalActionRequestSerializer(serializers.Serializer):
-    pin, reason = serializers.CharField(), serializers.CharField(required=False)
+    pin = serializers.CharField()
+    reason = serializers.CharField(required=False)
 
 class AdminCreatePurchaseRequestSerializer(serializers.Serializer):
-    user_id, purchase_type, amount, beneficiary, action, pin = serializers.IntegerField(), serializers.ChoiceField(choices=['data', 'airtime', 'electricity', 'tv', 'internet', 'education']), serializers.DecimalField(max_digits=10, decimal_places=2), serializers.CharField(), serializers.CharField(), serializers.CharField()
-    plan_id, service_id, network_id = serializers.CharField(required=False), serializers.CharField(required=False), serializers.CharField(required=False)
+    user_id = serializers.IntegerField()
+    purchase_type = serializers.ChoiceField(choices=['data', 'airtime', 'electricity', 'tv', 'internet', 'education'])
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    beneficiary = serializers.CharField()
+    action = serializers.CharField()
+    pin = serializers.CharField()
+    plan_id = serializers.CharField(required=False)
+    service_id = serializers.CharField(required=False)
+    network_id = serializers.CharField(required=False)
 
 class AdminErrorResponseSerializer(serializers.Serializer):
     error = serializers.CharField()
 
 class AdminPauseServiceRequestSerializer(serializers.Serializer):
-    service, active = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'education']), serializers.BooleanField()
+    service = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'education'])
+    active = serializers.BooleanField()
 
 class AdminStatusResponseSerializer(serializers.Serializer):
-    status, message = serializers.CharField(), serializers.CharField()
+    status = serializers.CharField()
+    message = serializers.CharField()
 
 class AutomationGlobalSettingsSerializer(serializers.Serializer):
-    auto_retry_enabled, auto_refund_enabled, notify_admin_on_failure, delayed_tx_detection_enabled = serializers.BooleanField(), serializers.BooleanField(), serializers.BooleanField(), serializers.BooleanField(); delayed_tx_timeout_minutes = serializers.IntegerField(min_value=1)
+    auto_retry_enabled = serializers.BooleanField()
+    auto_refund_enabled = serializers.BooleanField()
+    notify_admin_on_failure = serializers.BooleanField()
+    delayed_tx_detection_enabled = serializers.BooleanField()
+    delayed_tx_timeout_minutes = serializers.IntegerField(min_value=1)
 
 class VariationPriceUpdateSerializer(serializers.Serializer):
-    selling_price, agent_price = serializers.DecimalField(max_digits=10, decimal_places=2), serializers.DecimalField(max_digits=10, decimal_places=2)
+    selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    agent_price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 class BulkVariationPriceItemSerializer(serializers.Serializer):
-    id, selling_price, agent_price = serializers.IntegerField(), serializers.DecimalField(max_digits=10, decimal_places=2), serializers.DecimalField(max_digits=10, decimal_places=2)
+    id = serializers.IntegerField()
+    selling_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    agent_price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 class BulkVariationPriceUpdateSerializer(serializers.Serializer):
     variations = BulkVariationPriceItemSerializer(many=True)
@@ -44,10 +61,13 @@ class ServiceTypeToggleSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()
 
 class ServiceRetryConfigSerializer(serializers.Serializer):
-    enabled, count = serializers.BooleanField(), serializers.IntegerField(min_value=0, max_value=10)
+    enabled = serializers.BooleanField()
+    count = serializers.IntegerField(min_value=0, max_value=10)
 
 class ServicePricingModeSerializer(serializers.Serializer):
-    mode = serializers.ChoiceField(choices=['fixed_margin', 'defined']); customer_margin, agent_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False), serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    mode = serializers.ChoiceField(choices=['fixed_margin', 'defined'])
+    customer_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    agent_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
 class AutomationOverviewResponseSerializer(serializers.Serializer):
     global_settings = AutomationGlobalSettingsSerializer()
