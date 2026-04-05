@@ -19,3 +19,8 @@ class NotificationTemplateSerializer(serializers.ModelSerializer):
 class AdminBulkSendNotificationSerializer(serializers.Serializer):
     recipient_type = serializers.ChoiceField(choices=[('all', 'All Users'), ('customers', 'All Customers'), ('agents', 'All Agents'), ('individuals', 'Specific Individuals')], default='individuals')
     user_ids, title, body, channels = serializers.ListField(child=serializers.IntegerField(), required=False), serializers.CharField(), serializers.CharField(), serializers.ListField(child=serializers.CharField()); data = serializers.JSONField(required=False, default={})
+
+class AdminNotificationOverviewSerializer(serializers.Serializer):
+    notifications = AdminNotificationSerializer(many=True, read_only=True)
+    announcements = AdminAnnouncementSerializer(many=True, read_only=True)
+    templates = NotificationTemplateSerializer(many=True, read_only=True)

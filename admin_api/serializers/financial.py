@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from admin_api.models import AdminBeneficiary, AdminTransferLog, AdminTransfer, AdminTransferBeneficiary
-from payments.models import PaystackConfig, Deposit, Withdrawal
+from admin_api.models import AdminBeneficiary, AdminTransferLog
+from payments.models import PaystackConfig, Deposit, Withdrawal, AdminTransfer, AdminTransferBeneficiary
 from orders.models import Purchase
 from wallet.models import WalletTransaction
 

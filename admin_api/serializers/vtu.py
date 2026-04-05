@@ -37,6 +37,26 @@ class ServiceAutomationConfigSerializer(serializers.ModelSerializer):
         model = ServiceRouting
         fields = ['id', 'service', 'primary_provider', 'primary_provider_name', 'retry_enabled', 'retry_count', 'auto_refund_enabled', 'fallback_enabled', 'pricing_mode', 'customer_margin', 'agent_margin']
 
+class FetchFromProviderRequestSerializer(serializers.Serializer):
+    provider_id = serializers.IntegerField()
+    service_type = serializers.ChoiceField(choices=['airtime', 'data', 'tv', 'electricity', 'internet', 'education'])
+
+class ProviderFundingConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VTUProviderConfig
+        fields = ['min_funding_balance', 'auto_funding_enabled', 'account_name', 'bank_name', 'account_number', 'bank_code']
+
+class ServiceSummaryItemSerializer(serializers.Serializer):
+    service = serializers.CharField()
+    is_active = serializers.BooleanField()
+    routing = ServiceRoutingSerializer(allow_null=True)
+    success_rate = serializers.FloatField()
+    total_variations = serializers.IntegerField()
+
+class VTUOverviewResponseSerializer(serializers.Serializer):
+    providers = VTUProviderOverviewSerializer(many=True)
+    services_summary = ServiceSummaryItemSerializer(many=True)
+
 class AdminAirtimeNetworkSerializer(serializers.ModelSerializer):
     class Meta: model = AirtimeNetwork; fields = '__all__'
 

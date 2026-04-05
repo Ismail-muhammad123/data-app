@@ -49,6 +49,6 @@ class ServiceRetryConfigSerializer(serializers.Serializer):
 class ServicePricingModeSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(choices=['fixed_margin', 'defined']); customer_margin, agent_margin = serializers.DecimalField(max_digits=10, decimal_places=2, required=False), serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
-class AdminBeneficiarySerializer(serializers.Serializer):
-    class Meta: fields = '__all__' # Placeholder if used, otherwise model serializer needed.
-    # Actually I used a ModelSerializer in the original, let me fix it.
+class AutomationOverviewResponseSerializer(serializers.Serializer):
+    global_settings = AutomationGlobalSettingsSerializer()
+    services = serializers.ListField(child=serializers.DictField())
