@@ -6,10 +6,30 @@ from orders.models import (
 )
 
 class VTUProviderConfigSerializer(serializers.ModelSerializer):
-    webhook_url, callback_url = serializers.ReadOnlyField(), serializers.ReadOnlyField()
+    webhook_url = serializers.ReadOnlyField()
+    callback_url = serializers.ReadOnlyField()
+    supported_services = serializers.SerializerMethodField()
+    config_requirements = serializers.SerializerMethodField()
+
     class Meta:
         model = VTUProviderConfig
-        fields = ['id', 'name', 'is_active', 'api_key', 'user_id', 'session_id', 'secret_key', 'public_key', 'base_url', 'webhook_url', 'callback_url', 'max_retries', 'auto_refund_on_failure', 'account_name', 'bank_name', 'account_number', 'bank_code', 'min_funding_balance', 'auto_funding_enabled']
+        fields = [
+            'id', 'name', 'is_active', 'api_key', 'user_id', 'session_id', 
+            'secret_key', 'public_key', 'base_url', 'webhook_url', 'callback_url', 
+            'max_retries', 'auto_refund_on_failure', 'account_name', 'bank_name', 
+            'account_number', 'bank_code', 'min_funding_balance', 'auto_funding_enabled',
+            'supported_services', 'config_requirements'
+        ]
+
+    def get_supported_services(self, obj):
+        from orders.router import ProviderRouter
+        p_class = ProviderRouter.FACTORIES.get(obj.name.lower())
+        return p_class.get_supported_services() if p_class else []
+
+    def get_config_requirements(self, obj):
+        from orders.router import ProviderRouter
+        p_class = ProviderRouter.FACTORIES.get(obj.name.lower())
+        return p_class.get_config_requirements() if p_class else []
 
 class ServiceFallbackSerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source='provider.get_name_display', read_only=True)

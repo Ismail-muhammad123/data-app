@@ -293,7 +293,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_2fa_enabled = models.BooleanField(default=False)
 
     # ─── Profile Picture ───
-    profile_picture_url = models.URLField(blank=True, null=True)
     profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
 
     # ─── Referral Earnings (Simplified from Points) ───
@@ -475,8 +474,8 @@ class KYC(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kyc')
     id_type = models.CharField(max_length=50) # e.g. NIN, BVN, Passport, Driver's License
     id_number = models.CharField(max_length=50) # The specific number on the ID
-    id_image_url = models.URLField()
-    face_image_url = models.URLField()
+    id_image = models.ImageField(upload_to='kyc/id/', null=True, blank=True)
+    face_image = models.ImageField(upload_to='kyc/face/', null=True, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     remarks = models.TextField(blank=True, null=True) # Rejection reason or approval notes

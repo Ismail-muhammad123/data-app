@@ -69,7 +69,7 @@ class Announcement(models.Model):
     AUDIENCE_CHOICES = [('all','All Users'),('agents','Agents Only'),('customers','Customers Only')]
     title = models.CharField(max_length=255)
     body = models.TextField()
-    image_url = models.URLField(blank=True, null=True)
+    image = models.ImageField(upload_to='announcements/', blank=True, null=True)
     audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default='all')
     is_active = models.BooleanField(default=True)
     starts_at = models.DateTimeField(null=True, blank=True)

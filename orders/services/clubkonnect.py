@@ -8,10 +8,11 @@ logger = logging.getLogger(__name__)
 
 from orders.models import VTUProviderConfig, Purchase
 from wallet.utils import fund_wallet
+from orders.services.base import VTUInterface
 
 logger = logging.getLogger(__name__)
 
-class ClubKonnectClient:
+class ClubKonnectClient(VTUInterface):
     def __init__(self, config=None):
         if config is None:
             self.provider_config = VTUProviderConfig.objects.filter(name='clubkonnect', is_active=True).first()
@@ -164,6 +165,16 @@ class ClubKonnectClient:
         except Exception as e:
             logger.error(f"ClubKonnect error fetching balance: {e}")
             return {}
+
+    def get_available_services(self) -> list:
+        return ["airtime", "data", "tv", "electricity", "internet"]
+
+    def get_config_requirements(self) -> list:
+        return [
+            {"key": "base_url", "label": "API Base URL", "type": "url", "required": True},
+            {"key": "user_id", "label": "User ID", "type": "text", "required": True},
+            {"key": "api_key", "label": "API Key", "type": "password", "required": True},
+        ]
 
     def buy_airtime(self, network_id, amount, phone, request_id):
         """

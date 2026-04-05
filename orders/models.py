@@ -45,7 +45,7 @@ class DataService(models.Model):
     service_name=models.CharField(max_length=100)
     service_id= models.CharField(max_length=100)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='data_services')
-    image_url = models.URLField(blank=True,null=True)
+    image = models.ImageField(upload_to='services/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -59,7 +59,7 @@ class AirtimeNetwork(models.Model):
     max_amount = models.CharField(max_length=10, default="200000")
     discount = models.CharField(max_length=10, default="0")
     agent_discount = models.CharField(max_length=10, default="0")
-    image_url = models.URLField(blank=True, null=True)
+    image = models.ImageField(upload_to='networks/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -69,7 +69,7 @@ class ElectricityService(models.Model):
     service_name=models.CharField(max_length=100)
     service_id= models.CharField(max_length=100)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='electricity_services')
-    image_url = models.URLField(blank=True,null=True)
+    image = models.ImageField(upload_to='services/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -106,7 +106,7 @@ class TVService(models.Model):
     service_name=models.CharField(max_length=100)
     service_id= models.CharField(max_length=100)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='tv_services')
-    image_url = models.URLField(blank=True,null=True)
+    image = models.ImageField(upload_to='services/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -142,7 +142,7 @@ class InternetService(models.Model):
     service_name = models.CharField(max_length=100, default="Internet Subscription")
     service_id = models.CharField(max_length=100)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='internet_services')
-    image_url = models.URLField(blank=True, null=True)
+    image = models.ImageField(upload_to='services/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -193,7 +193,7 @@ class EducationService(models.Model):
     service_name = models.CharField(max_length=100)
     service_id = models.CharField(max_length=100, unique=True)
     provider = models.ForeignKey('VTUProviderConfig', on_delete=models.SET_NULL, null=True, blank=True, related_name='education_services')
-    image_url = models.URLField(blank=True, null=True)
+    image = models.ImageField(upload_to='services/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

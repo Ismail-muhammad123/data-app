@@ -3,10 +3,11 @@ import logging
 from django.conf import settings
 from orders.models import VTUProviderConfig, Purchase
 from wallet.utils import fund_wallet
+from orders.services.base import VTUInterface
 
 logger = logging.getLogger(__name__)
 
-class VTPassClient:
+class VTPassClient(VTUInterface):
     def __init__(self, config=None):
         if config is None:
             self.provider_config = VTUProviderConfig.objects.filter(name='vtpass', is_active=True).first()
@@ -18,6 +19,37 @@ class VTPassClient:
         self.api_key = cfg_data.get('api_key')
         self.public_key = cfg_data.get('public_key')
         self.base_url = cfg_data.get('base_url') or "https://vtpass.com/api"
+
+    def get_balance(self):
+        url = f"{self.base_url}/balance"
+        headers = {"api-key": self.api_key, "public-key": self.public_key}
+        try:
+            resp = requests.get(url, headers=headers)
+            return resp.json()
+        except: return {}
+
+    def get_available_services(self) -> list:
+        return ["airtime", "data", "tv", "electricity", "education"]
+
+    def get_config_requirements(self) -> list:
+        return [
+            {"key": "base_url", "label": "API Base URL", "type": "url", "required": True},
+            {"key": "api_key", "label": "API Key", "type": "password", "required": True},
+            {"key": "public_key", "label": "Public Key", "type": "text", "required": True},
+        ]
+
+    def buy_airtime(self, network_id, amount, phone, request_id):
+        # Implementation for VTpass...
+        pass
+
+    def buy_data(self, network_id, plan_id, phone, request_id):
+        pass
+
+    def buy_tv(self, tv_id, package_id, smart_card_number, phone, request_id):
+        pass
+
+    def buy_electricity(self, disco_id, plan_id, meter_number, phone, amount, request_id):
+        pass
 
     def handle_webhook(self, data):
         """Processes VTpass webhook notifications."""
@@ -48,7 +80,6 @@ class VTPassClient:
     def handle_callback(self, data):
         """Processes VTpass callback redirects (usually GET)."""
         logger.info(f"VTPass Callback Processing: {data}")
-        # Callback usually just contains basic info, or we query status
         return True
 
     def _handle_failure(self, purchase, error_msg):
@@ -58,7 +89,6 @@ class VTPassClient:
         purchase.save()
 
         if self.provider_config:
-            # 1. Check for Auto-Refund
             if self.provider_config.auto_refund_on_failure:
                 logger.info(f"VTPass: Initiating auto-refund for purchase {purchase.reference}")
                 fund_wallet(
@@ -66,10 +96,3 @@ class VTPassClient:
                     amount=purchase.amount,
                     description=f"Auto-Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
                 )
-            
-            # 2. Check for Retry configuration (if any planned)
-            # if purchase.retry_count < self.provider_config.max_retries:
-            #     # Trigger retry logic here
-            #     pass
-
-    # ... Other methods can be added as needed ...

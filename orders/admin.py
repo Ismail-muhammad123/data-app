@@ -80,10 +80,10 @@ class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     actions = ["sync_data_services", "sync_all_clubkonnect_services"]
     
     def network_image(self, obj):
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" width="150" height="150" style="object-fit: cover; border-radius: 6px;" />',
-                obj.image_url
+                obj.image.url
             )
         return "#"
     network_image.short_description = "Preview"
@@ -536,10 +536,10 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     actions = ["sync_airtime_services", "sync_all_clubkonnect_services"]
 
     def network_image(self, obj):
-        if obj.image_url:
+        if obj.image:
             return format_html(
                 '<img src="{}" width="150" height="150" style="object-fit: cover; border-radius: 6px;" />',
-                obj.image_url
+                obj.image.url
             )
         return "#"
     network_image.short_description = "Preview"

@@ -28,7 +28,7 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     total_credits, total_debits = serializers.SerializerMethodField(), serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ["id", "phone_number", "first_name", "last_name", "middle_name", "email", "phone_country_code", "role", "agent_commission_rate", "is_active", "is_verified", "is_kyc_verified", "is_staff", "is_superuser", "is_closed", "closed_at", "closed_reason", "referral_code", "referral_earnings_count", "referral_earnings_amount", "transaction_pin_set", "two_factor_enabled", "profile_picture_url", "wallet_balance", "kyc", "staff_permissions", "virtual_account", "beneficiaries", "purchase_beneficiaries", "transfer_beneficiaries", "recent_transactions", "recent_purchases", "total_credits", "total_debits", "created_at", "upgraded_at"]
+        fields = ["id", "phone_number", "first_name", "last_name", "middle_name", "email", "phone_country_code", "role", "agent_commission_rate", "is_active", "is_verified", "is_kyc_verified", "is_staff", "is_superuser", "is_closed", "closed_at", "closed_reason", "referral_code", "referral_earnings_count", "referral_earnings_amount", "transaction_pin_set", "two_factor_enabled", "profile_image", "wallet_balance", "kyc", "staff_permissions", "virtual_account", "beneficiaries", "purchase_beneficiaries", "transfer_beneficiaries", "recent_transactions", "recent_purchases", "total_credits", "total_debits", "created_at", "upgraded_at"]
     def get_virtual_account(self, obj):
         try: return {"account_number": obj.virtual_account.account_number, "bank_name": obj.virtual_account.bank_name, "account_name": obj.virtual_account.account_name}
         except: return None

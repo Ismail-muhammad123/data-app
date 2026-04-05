@@ -10,7 +10,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "phone_country_code", "phone_number", "first_name", "last_name", "middle_name",
             "email", "is_verified", "email_verified", "phone_number_verified", "is_active",
-            "role", "referral_code", "profile_picture_url", "profile_image",
+            "role", "referral_code", "profile_image",
             "transaction_pin_set", "created_at",
         ]
         read_only_fields = fields
@@ -18,7 +18,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "middle_name", "profile_picture_url", "profile_image"]
+        fields = ["email", "first_name", "last_name", "middle_name", "profile_image"]
 
 class PasswordResetSerializer(serializers.Serializer):
     identifier = serializers.CharField()
