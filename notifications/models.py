@@ -16,6 +16,7 @@ class Notification(models.Model):
     # Metadata for deep linking or extra info
     data = models.JSONField(default=dict, blank=True)
     
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_notifications")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -74,6 +75,7 @@ class Announcement(models.Model):
     is_active = models.BooleanField(default=True)
     starts_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_announcements")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

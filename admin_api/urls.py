@@ -68,9 +68,9 @@ router.register(r'pricing/electricity/networks', AdminElectricityServiceViewSet,
 router.register(r'pricing/electricity/plans', AdminElectricityVariationViewSet, basename='admin-pricing-electricity-plans')
 
 router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='admin-transfer-beneficiaries')
-router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
 router.register(r'notifications/templates', AdminNotificationTemplateViewSet, basename='admin-notification-templates')
+router.register(r'notifications/logs', AdminNotificationViewSet, basename='admin-notifications')
 
 # Comprehensive Admin Control Sets
 router.register(r'wallets/all', AdminWalletViewSet, basename='admin-global-wallets')

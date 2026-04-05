@@ -35,12 +35,13 @@ class FCMProvider:
 
 class NotificationService:
     @staticmethod
-    def create_notification(users, title: str, body: str, channel: str, data: Optional[Dict[str, Any]] = None) -> Notification:
+    def create_notification(users, title: str, body: str, channel: str, data: Optional[Dict[str, Any]] = None, created_by=None) -> Notification:
         notification = Notification.objects.create(
             title=title,
             body=body,
             channel=channel,
-            data=data or {}
+            data=data or {},
+            created_by=created_by
         )
         
         user_notifications = []
@@ -209,8 +210,8 @@ class NotificationService:
         return len(results) > 0
 
     @staticmethod
-    def broadcast_announcement(title: str, body: str, channel: str = 'fcm', data: Optional[Dict[str, Any]] = None):
+    def broadcast_announcement(title: str, body: str, channel: str = 'fcm', data: Optional[Dict[str, Any]] = None, created_by=None):
         from django.contrib.auth import get_user_model
         User = get_user_model()
         users = User.objects.filter(is_active=True)
-        return NotificationService.create_notification(users, title, body, channel, data)
+        return NotificationService.create_notification(users, title, body, channel, data, created_by=created_by)

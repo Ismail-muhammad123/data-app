@@ -63,7 +63,8 @@ class AdminNotificationViewSet(viewsets.ModelViewSet):
                     title=title,
                     body=body,
                     channel=channel,
-                    data=extra_data
+                    data=extra_data,
+                    created_by=self.request.user
                 )
             
             return Response(AdminNotificationSerializer(last_notif).data, status=201)
@@ -109,29 +110,31 @@ class AdminNotificationTemplateViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 @extend_schema_view(
-    list=extend_schema(tags=["Admin Notifications"]),
+    list=extend_schema(summary="List all announcements", tags=["Admin Notifications"]),
+    create=extend_schema(summary="Create a new announcement", tags=["Admin Notifications"]),
+    retrieve=extend_schema(summary="Get announcement details", tags=["Admin Notifications"]),
+    update=extend_schema(summary="Fully update an announcement", tags=["Admin Notifications"]),
+    partial_update=extend_schema(summary="Partially update an announcement", tags=["Admin Notifications"]),
+    destroy=extend_schema(summary="Delete an announcement", tags=["Admin Notifications"]),
 )
 class AdminAnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all().order_by('-created_at')
     serializer_class = AdminAnnouncementSerializer
     permission_classes = [CanManageNotifications]
 
-    @extend_schema(
-        summary="Create and broadcast an announcement",
-        request=AdminAnnouncementSerializer,
-        responses={201: AdminAnnouncementSerializer},
-        tags=["Admin Notifications"]
-    )
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        announcement = serializer.save()
+        self.perform_create(serializer)
         
-        # Optionally broadcast via NotificationService if desired
-        # NotificationService.broadcast_announcement(
-        #     title=announcement.title,
-        #     body=announcement.body,
-        #     channel='fcm'  # Default for announcements
-        # )
+        # Optional: Trigger real-time broadcast via FCM here if desired
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"message": "Announcement deleted successfully"}, status=status.HTTP_200_OK)
