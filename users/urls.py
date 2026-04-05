@@ -13,16 +13,16 @@ urlpatterns = [
     # ═══════════════════════════════════════════
     # AUTH  (public – no token required)
     # ═══════════════════════════════════════════
-    path("auth/signup/", SignupView.as_view(), name="signup"),
-    path("auth/activate-account/", ActivateAccountView.as_view(), name="activate-account"),
-    path("auth/resend-activation-code/", ResendActivationCodeView.as_view(), name="resend-activation-code"),
-    path("auth/login/", LoginView.as_view(), name='login'),
-    path("auth/refresh-token/", RefreshTokenView.as_view(), name="refresh-token"),
-    path("auth/google/", GoogleAuthView.as_view(), name="google-auth"),
-    path("auth/verify-2fa/", Verify2FAView.as_view(), name="verify-2fa"),
-    path("auth/logout/", LogoutView.as_view(), name="logout"),
-    path("auth/reset-password/", PasswordResetRequestView.as_view(), name="reset-password"),
-    path("auth/confirm-reset-password/", PasswordResetConfirmView.as_view(), name="confirm-reset-password"),
+    path("signup/", SignupView.as_view(), name="signup"),
+    path("activate-account/", ActivateAccountView.as_view(), name="activate-account"),
+    path("resend-activation-code/", ResendActivationCodeView.as_view(), name="resend-activation-code"),
+    path("login/", LoginView.as_view(), name='login'),
+    path("refresh-token/", RefreshTokenView.as_view(), name="refresh-token"),
+    path("google/", GoogleAuthView.as_view(), name="google-auth"),
+    path("verify-2fa/", Verify2FAView.as_view(), name="verify-2fa"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path("reset-password/", PasswordResetRequestView.as_view(), name="reset-password"),
+    path("confirm-reset-password/", PasswordResetConfirmView.as_view(), name="confirm-reset-password"),
 
     # ═══════════════════════════════════════════
     # PROFILE  (authenticated)
