@@ -1,10 +1,13 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from drf_spectacular.utils import extend_schema_view, extend_schema
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample
 from support.models import SupportTicket, TicketMessage
 from admin_api.permissions import CanManageUsers
-from admin_api.serializers import AdminSupportTicketSerializer, AdminSupportReplyRequestSerializer, AdminStatusResponseSerializer
+from admin_api.serializers import (
+    AdminSupportTicketSerializer, AdminSupportReplyRequestSerializer, 
+    AdminStatusResponseSerializer
+)
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Support"], summary="List all support tickets"),
@@ -24,7 +27,26 @@ class AdminSupportTicketViewSet(viewsets.ModelViewSet):
         tags=["Admin Support"],
         summary="Reply to a ticket",
         request=AdminSupportReplyRequestSerializer,
-        responses={200: AdminStatusResponseSerializer}
+        responses={200: AdminStatusResponseSerializer},
+        examples=[
+            OpenApiExample(
+                'Reply to Support Ticket',
+                description='Example of an admin replying to a support ticket.',
+                value={
+                    "message": "We have received your request and our team is looking into it. Please hold on.",
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Reply Success Response',
+                description='Successful reply to a ticket.',
+                value={
+                    "status": "SUCCESS",
+                    "message": "Reply sent successfully."
+                },
+                response_only=True
+            )
+        ]
     )
     @action(detail=True, methods=['post'], url_path='reply')
     def reply(self, request, pk=None):
