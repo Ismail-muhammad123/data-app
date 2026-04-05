@@ -159,15 +159,54 @@ class NotificationService:
             return False
 
     @staticmethod
-    def send_from_template(user, template_slug: str, context: Dict[str, Any], channel: str = 'fcm'):
+    def send_from_template(user, template_slug: str, context: Dict[str, Any]):
+        """
+        Sends notifications to a user based on a template and active channels.
+        Checks both SiteConfig (global toggles) and NotificationTemplate (template toggles).
+        """
+        from summary.models import SiteConfig
+        
         template = NotificationTemplate.objects.filter(slug=template_slug, is_active=True).first()
         if not template:
+            logger.warning(f"Notification template not found or inactive: {template_slug}")
             return False
 
-        title = template.title.format(**context)
-        body = template.body.format(**context)
+        config = SiteConfig.objects.first()
+        if not config:
+            logger.warning("SiteConfig not found, skipping notifications")
+            return False
+
+        # Format content
+        try:
+            title = template.title.format(**context)
+            body = template.body.format(**context)
+        except KeyError as e:
+            logger.error(f"Missing context key {e} for template {template_slug}")
+            # Fallback to unformatted if formatting fails
+            title = template.title
+            body = template.body
+
+        # Determine active channels
+        channels_to_send = []
+        if config.fcm_enabled and template.use_fcm:
+            channels_to_send.append('fcm')
+        if config.email_enabled and template.use_email:
+            channels_to_send.append('email')
+        if config.sms_enabled and template.use_sms:
+            channels_to_send.append('sms')
+        if config.whatsapp_enabled and template.use_whatsapp:
+            channels_to_send.append('whatsapp')
+
+        if not channels_to_send:
+            logger.info(f"No active channels for template {template_slug}")
+            return False
+
+        results = []
+        for channel in channels_to_send:
+            res = NotificationService.create_notification([user], title, body, channel, context)
+            results.append(res)
         
-        return NotificationService.create_notification([user], title, body, channel, context)
+        return len(results) > 0
 
     @staticmethod
     def broadcast_announcement(title: str, body: str, channel: str = 'fcm', data: Optional[Dict[str, Any]] = None):

@@ -57,6 +57,10 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         amount = float(serializer.validated_data['amount'])
         adj_type = serializer.validated_data['type']
         reason = serializer.validated_data.get('reason', 'Admin Adjustment')
+        pin = serializer.validated_data['pin']
+
+        if not request.user.check_password(pin):
+             return Response({"status": "ERROR", "message": "Invalid authorization PIN"}, status=status.HTTP_403_FORBIDDEN)
 
         if adj_type == 'credit':
             fund_wallet(user_id, amount, description=reason, initiator='admin', initiated_by=request.user)
@@ -120,12 +124,9 @@ class AdminWithdrawalViewSet(viewsets.ModelViewSet):
         if withdrawal.status != 'PENDING':
             return Response({"error": f"Cannot approve withdrawal in {withdrawal.status} state"}, status=400)
             
-        otp = request.data.get('otp')
-        user = request.user
-        if user.two_factor_secret:
-            totp = pyotp.TOTP(user.two_factor_secret)
-            if not otp or not totp.verify(otp):
-                return Response({"error": "Invalid or missing OTP"}, status=403)
+        pin = request.data.get('pin')
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=403)
 
         withdrawal.status = 'APPROVED'
         withdrawal.transaction_status = 'SUCCESS'
@@ -216,13 +217,11 @@ class AdminTransferViewSet(viewsets.ModelViewSet):
         
         beneficiary_id = serializer.validated_data['beneficiary_id']
         amount = serializer.validated_data['amount']
-        otp = serializer.validated_data.get('otp')
+        pin = serializer.validated_data['pin']
         
-        # Verify OTP if admin has 2FA enabled
-        if request.user.two_factor_secret:
-            totp = pyotp.TOTP(request.user.two_factor_secret)
-            if not otp or not totp.verify(otp):
-                return Response({"error": "Invalid or missing OTP"}, status=403)
+        # Verify PIN
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=403)
         
         try:
             beneficiary = AdminTransferBeneficiary.objects.get(id=beneficiary_id)

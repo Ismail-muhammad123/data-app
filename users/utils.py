@@ -28,12 +28,21 @@ def send_otp_code(user, purpose, preferred_channel=None):
 
     # Send OTP based on preferred channel
     channels = []
-    print(user.email)
     if preferred_channel is None:
-        channels = ['sms', 'whatsapp']
-        if hasattr(user, 'email') and user.email and user.email.strip():
-            print("User has valid email, adding 'email' to channels.")
-            channels.append('email')
+        method = getattr(user, 'two_factor_method', 'none')
+        if method == 'sms':
+            channels = ['sms']
+        elif method == 'whatsapp':
+            channels = ['whatsapp']
+        elif method == 'email':
+            channels = ['email']
+        elif method == 'all':
+            channels = ['sms', 'whatsapp', 'email']
+        else:
+            # Default behavior
+            channels = ['sms', 'whatsapp']
+            if hasattr(user, 'email') and user.email and user.email.strip():
+                channels.append('email')
     else:
         channels = [preferred_channel]
 

@@ -30,6 +30,7 @@ from .views import (
     AdminTransferLogView,
     AdminNotificationViewSet,
     AdminAnnouncementViewSet,
+    AdminNotificationTemplateViewSet,
     # New Views
     AutomationConfigView, AutomationGlobalSettingsView, ServiceRetryConfigView,
     ServiceFallbackToggleView, ServiceAutoRefundView, ServicePricingModeView,
@@ -67,6 +68,7 @@ router.register(r'pricing/electricity/plans', AdminElectricityVariationViewSet, 
 router.register(r'transfer/beneficiaries', AdminBeneficiaryViewSet, basename='admin-transfer-beneficiaries')
 router.register(r'notifications', AdminNotificationViewSet, basename='admin-notifications')
 router.register(r'notifications/announcements', AdminAnnouncementViewSet, basename='admin-announcements')
+router.register(r'notifications/templates', AdminNotificationTemplateViewSet, basename='admin-notification-templates')
 
 # Comprehensive Admin Control Sets
 router.register(r'wallets/all', AdminWalletViewSet, basename='admin-global-wallets')

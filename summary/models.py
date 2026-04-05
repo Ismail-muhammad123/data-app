@@ -548,6 +548,13 @@ class SiteConfig(models.Model):
     tv_active = models.BooleanField(default=True)
     electricity_active = models.BooleanField(default=True)
     education_active = models.BooleanField(default=True)
+    enforce_2fa_for_staff = models.BooleanField(default=False, help_text="If enabled, all staff users must pass 2FA to access admin features.")
+    
+    # Global Notification Channel Toggles
+    fcm_enabled = models.BooleanField(default=True, verbose_name="Enable Push (FCM) Notifications")
+    email_enabled = models.BooleanField(default=True, verbose_name="Enable Email Notifications")
+    sms_enabled = models.BooleanField(default=False, verbose_name="Enable SMS Notifications")
+    whatsapp_enabled = models.BooleanField(default=False, verbose_name="Enable WhatsApp Notifications")
     
     class Meta:
         verbose_name = "Site Configuration"

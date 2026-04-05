@@ -50,14 +50,20 @@ class UserNotification(models.Model):
 
 
 class NotificationTemplate(models.Model):
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, help_text="System identifier (e.g. wallet-funded, purchase-success)")
     title = models.CharField(max_length=255)
-    body = models.TextField(help_text="Use {username}, {amount}, {reference} placeholder tags.")
+    body = models.TextField(help_text="Default body. Use placeholders: {username}, {amount}, {reference}, {service}, {status}, {balance}")
+    
+    # Per-template channel toggles
+    use_fcm = models.BooleanField(default=True)
+    use_email = models.BooleanField(default=True)
+    use_sms = models.BooleanField(default=False)
+    use_whatsapp = models.BooleanField(default=False)
     
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.slug
+        return f"{self.slug} ({self.title})"
 
 class Announcement(models.Model):
     AUDIENCE_CHOICES = [('all','All Users'),('agents','Agents Only'),('customers','Customers Only')]

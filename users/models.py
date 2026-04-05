@@ -278,8 +278,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     # ─── FCM Push Notification Token ───
     fcm_token = models.TextField(blank=True, null=True)
 
+    # ─── Social Login ───
+    google_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
+
+    # ─── Two-Factor Authentication ───
+    TWO_FACTOR_METHODS = [
+        ('none', 'None'),
+        ('sms', 'SMS'),
+        ('whatsapp', 'WhatsApp'),
+        ('email', 'Email'),
+        ('all', 'All Channels (SMS, WhatsApp, Email)'),
+    ]
+    two_factor_method = models.CharField(max_length=20, choices=TWO_FACTOR_METHODS, default='none')
+    is_2fa_enabled = models.BooleanField(default=False)
+
     # ─── Profile Picture ───
     profile_picture_url = models.URLField(blank=True, null=True)
+    profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
 
     # ─── Referral Earnings (Simplified from Points) ───
     referral_earnings_count = models.PositiveIntegerField(default=0)
@@ -330,6 +345,8 @@ class OTP(models.Model):
     PURPOSE_CHOICES = [
         ("activation", "Account Activation"),
         ("reset", "Password Reset"),
+        ("2fa", "Two-Factor Authentication"),
+        ("admin_operation", "Admin Sensitive Operation"),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")

@@ -19,6 +19,7 @@ from wallet.models import Wallet, VirtualAccount
 from summary.models import SiteConfig
 import pyotp
 import random
+from notifications.utils import NotificationService
 
 
 class UserPagination(PageNumberPagination):
@@ -156,6 +157,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.closed_at = timezone.now()
         user.closed_reason = request.data.get('reason', 'Blocked by Admin')
         user.save(update_fields=['is_closed', 'is_active', 'closed_at', 'closed_reason'])
+        NotificationService.send_from_template(user, "account-blocked", {"reason": user.closed_reason})
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} blocked."})
 
     @extend_schema(
@@ -171,6 +173,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.closed_at = None
         user.closed_reason = None
         user.save(update_fields=['is_closed', 'is_active', 'closed_at', 'closed_reason'])
+        NotificationService.send_from_template(user, "account-unblocked", {})
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} unblocked."})
 
     # ─── KYC ───
@@ -193,7 +196,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         kyc.remarks = request.data.get('reason', 'Approved by Admin')
         kyc.processed_by = request.user
         kyc.save()
-
+        NotificationService.send_from_template(user, "kyc-approved", {})
         return Response({"status": "SUCCESS", "message": "User KYC approved."})
 
     @extend_schema(
@@ -214,7 +217,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         kyc.remarks = request.data.get('reason', 'Rejected by Admin')
         kyc.processed_by = request.user
         kyc.save()
-
+        NotificationService.send_from_template(user, "kyc-rejected", {"reason": kyc.remarks})
         return Response({"status": "REJECTED", "message": "User KYC rejected."})
 
     # ─── Reset Transaction PIN ───
@@ -233,6 +236,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
         new_pin = serializer.validated_data['new_pin']
         user.set_transaction_pin(new_pin)
+        NotificationService.send_from_template(user, "transaction-pin-reset", {})
         return Response({"status": "SUCCESS", "message": f"Transaction PIN reset for user {user.phone_number}."})
 
     # ─── Set Role (Upgrade to Agent / Staff / Downgrade to Customer) ───
@@ -349,39 +353,64 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} upgraded to Agent."})
 
-    # ─── Password Change & OTP ───
+    # ─── Virtual Account ───
 
     @extend_schema(
         tags=["Admin User Management"],
-        summary="Admin change personal password",
-        request={"application/json": {"type": "object", "properties": {"password": {"type": "string"}}}},
+        summary="Create a virtual account for a user",
         responses={200: AdminStatusResponseSerializer}
     )
-    @action(detail=False, methods=['post'], url_path='change-password')
-    def change_password(self, request):
-        password = request.data.get('password')
-        if not password:
-            return Response({"error": "Password is required"}, status=400)
-        user = request.user
-        user.set_password(password)
+    @action(detail=True, methods=['post'], url_path='create-virtual-account')
+    def create_virtual_account(self, request, pk=None):
+        user = self.get_object()
+        
+        if hasattr(user, 'virtual_account') and user.virtual_account:
+             return Response({"status": "ERROR", "message": "User already has a virtual account"}, status=400)
+
+        if not user.first_name or not user.last_name or not user.email:
+            return Response({"status": "ERROR", "message": "User profile information is incomplete. First name, last name, and email are required."}, status=400)
+
+        try:
+            from payments.utils import PaystackGateway
+            from django.conf import settings
+            client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
+
+            account_res = client.create_virtual_account(
+                user.email,
+                user.first_name,
+                user.middle_name or "",
+                user.last_name,
+                user.phone_country_code + user.phone_number,
+            )
+
+            if account_res and account_res.get('status'):
+                return Response({"status": "SUCCESS", "message": account_res['message']}, status=200)
+            else:
+                msg = account_res.get('message') if account_res else "Unexpected error during virtual account creation"
+                return Response({"status": "ERROR", "message": msg}, status=500)
+
+        except Exception as e:
+            return Response({"status": "ERROR", "message": str(e)}, status=500)
+
+    # ─── Reset User Login PIN (Admin) ───
+
+    @extend_schema(
+        tags=["Admin User Management"],
+        summary="Reset a user's login PIN",
+        description="Allows an admin to reset a specific user's login PIN (password). "
+                    "Admins should change their own PIN via the account endpoint `/api/account/change-pin/`.",
+        request={"application/json": {"type": "object", "properties": {
+            "new_pin": {"type": "string", "description": "New login PIN for the user (4-6 digits)"}
+        }, "required": ["new_pin"]}},
+        responses={200: AdminStatusResponseSerializer}
+    )
+    @action(detail=True, methods=['post'], url_path='reset-login-pin')
+    def reset_login_pin(self, request, pk=None):
+        user = self.get_object()
+        new_pin = request.data.get('new_pin')
+        if not new_pin or len(new_pin) < 4:
+            return Response({"error": "A valid PIN (min 4 digits) is required."}, status=400)
+        user.set_password(new_pin)
         user.save()
-        return Response({"status": "SUCCESS", "message": "Password changed successfully."})
-
-    @extend_schema(
-        tags=["Admin User Management"],
-        summary="Request OTP for admin operations",
-        responses={200: AdminStatusResponseSerializer}
-    )
-    @action(detail=False, methods=['post'], url_path='request-otp')
-    def request_otp(self, request):
-        from users.models import OTP
-        user = request.user
-        code = str(random.randint(100000, 999999))
-        
-        # Clear old OTPs for this purpose
-        OTP.objects.filter(user=user, purpose='admin_operation').delete()
-        OTP.objects.create(user=user, code=code, purpose='admin_operation')
-        
-        # In a real app, send code via SMS/Email. 
-        # For this demonstration, we'll return it in the message if it's a test environment or just notify.
-        return Response({"status": "SUCCESS", "message": f"OTP generated successfully. (Code: {code})"})
+        NotificationService.send_from_template(user, "login-pin-reset", {})
+        return Response({"status": "SUCCESS", "message": f"Login PIN reset for user {user.phone_number}."})

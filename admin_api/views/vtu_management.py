@@ -55,6 +55,10 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
         plan_id = serializer.validated_data.get('plan_id')
         service_id = serializer.validated_data.get('service_id')
         network_id = serializer.validated_data.get('network_id')
+        pin = serializer.validated_data['pin']
+
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=status.HTTP_403_FORBIDDEN)
         
         user = User.objects.get(id=user_id)
         
@@ -80,6 +84,10 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def retry(self, request, pk=None):
+        pin = request.data.get('pin')
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=403)
+
         purchase = self.get_object()
         if purchase.status != 'failed':
             return Response({"error": "Can only retry failed purchases"}, status=400)
@@ -97,6 +105,10 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def refund(self, request, pk=None):
+        pin = request.data.get('pin')
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=403)
+
         purchase = self.get_object()
         if purchase.status == 'refunded':
              return Response({"error": "Already refunded"}, status=400)
@@ -119,6 +131,10 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
+        pin = request.data.get('pin')
+        if not request.user.check_password(pin):
+            return Response({"error": "Invalid authorization PIN"}, status=403)
+
         purchase = self.get_object()
         if purchase.status != 'pending':
             return Response({"error": "Can only cancel pending purchases"}, status=400)

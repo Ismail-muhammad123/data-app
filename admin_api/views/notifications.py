@@ -1,10 +1,11 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, status, permissions
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from admin_api.permissions import IsSuperUserOnly, CanManageNotifications
-from notifications.models import Notification, Announcement
+from notifications.models import Notification, Announcement, NotificationTemplate
 from admin_api.serializers import (
     AdminNotificationSerializer, AdminAnnouncementSerializer,
-    AdminBulkSendNotificationSerializer
+    AdminBulkSendNotificationSerializer, NotificationTemplateSerializer,
+    AdminNotificationOverviewSerializer
 )
 from notifications.utils import NotificationService
 from django.contrib.auth import get_user_model
@@ -31,13 +32,26 @@ class AdminNotificationViewSet(viewsets.ModelViewSet):
     def bulk_send(self, request):
         serializer = AdminBulkSendNotificationSerializer(data=request.data)
         if serializer.is_valid():
-            user_ids = serializer.validated_data['user_ids']
+            recipient_type = serializer.validated_data['recipient_type']
+            user_ids = serializer.validated_data.get('user_ids', [])
             title = serializer.validated_data['title']
             body = serializer.validated_data['body']
             channels = serializer.validated_data['channels']
             extra_data = serializer.validated_data.get('data', {})
 
-            users = User.objects.filter(id__in=user_ids)
+            if recipient_type == 'individuals':
+                if not user_ids:
+                    return Response({"error": "user_ids required for 'individuals' recipient type"}, status=400)
+                users = User.objects.filter(id__in=user_ids)
+            elif recipient_type == 'all':
+                users = User.objects.all()
+            elif recipient_type == 'customers':
+                users = User.objects.filter(role='customer')
+            elif recipient_type == 'agents':
+                users = User.objects.filter(role='agent')
+            else:
+                return Response({"error": "Invalid recipient type"}, status=400)
+
             if not users.exists():
                 return Response({"error": "No valid users found"}, status=400)
 
@@ -70,6 +84,29 @@ class AdminNotificationViewSet(viewsets.ModelViewSet):
                 "status": "Active"
             }
         })
+
+class AdminNotificationTemplateViewSet(viewsets.ModelViewSet):
+    queryset = NotificationTemplate.objects.all().order_by('slug')
+    serializer_class = NotificationTemplateSerializer
+    permission_classes = [CanManageNotifications]
+
+    @extend_schema(
+        tags=["Admin Notifications"],
+        summary="Get overview of notifications, announcements, and templates",
+        responses={200: AdminNotificationOverviewSerializer}
+    )
+    @action(detail=False, methods=['get'], url_path='overview')
+    def overview(self, request):
+        notifications = Notification.objects.all().order_by('-created_at')[:50]
+        announcements = Announcement.objects.all().order_by('-created_at')[:20]
+        templates = NotificationTemplate.objects.all().order_by('slug')
+        
+        data = {
+            "notifications": AdminNotificationSerializer(notifications, many=True).data,
+            "announcements": AdminAnnouncementSerializer(announcements, many=True).data,
+            "templates": NotificationTemplateSerializer(templates, many=True).data
+        }
+        return Response(data)
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Notifications"]),

@@ -2,6 +2,7 @@ from datetime import datetime
 from django.db import transaction
 from payments.models import Deposit
 from wallet.models import Wallet, WalletTransaction
+from notifications.utils import NotificationService
 import uuid
 
 def fund_wallet(user_id, amount, description="Wallet funded", reference=None, initiator='self', initiated_by=None):
@@ -30,6 +31,11 @@ def fund_wallet(user_id, amount, description="Wallet funded", reference=None, in
             initiated_by=initiated_by,
             reference=uuid.uuid4().hex[:10].upper(),
         )
+        NotificationService.send_from_template(
+            wallet.user, 
+            "wallet-funded", 
+            {"amount": amount, "balance": wallet.balance, "reference": reference or "N/A", "description": description}
+        )
     return wallet.balance
 
 def debit_wallet(user_id, amount, description="Wallet debited", initiator='self', initiated_by=None):
@@ -53,6 +59,11 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
             initiated_by=initiated_by,
             user=wallet.user,
             reference=uuid.uuid4().hex[:10].upper(),
+        )
+        NotificationService.send_from_template(
+            wallet.user, 
+            "wallet-debited", 
+            {"amount": amount, "balance": wallet.balance, "description": description}
         )
     return wallet.balance
 

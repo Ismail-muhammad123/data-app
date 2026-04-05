@@ -13,6 +13,17 @@ class LoginSerializer(serializers.Serializer):
     pin = serializers.CharField()
 
 
+class GoogleAuthSerializer(serializers.Serializer):
+    id_token = serializers.CharField(help_text="Google ID token")
+    phone_number = serializers.CharField(required=False, help_text="Required for new signups")
+    referral_code = serializers.CharField(required=False, allow_blank=True, help_text="Optional referral code for signups")
+
+
+class Verify2FASerializer(serializers.Serializer):
+    identifier = serializers.CharField(help_text="User phone number or email")
+    otp_code = serializers.CharField(help_text="6-digit OTP code")
+
+
 class SignupSerializer(serializers.ModelSerializer):
     pin = serializers.CharField(write_only=True, min_length=4, max_length=6)
     referral_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -100,6 +111,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "role",
             "referral_code",
             "profile_picture_url",
+            "profile_image",
             "transaction_pin_set",
             "created_at",
         ]
@@ -109,7 +121,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "middle_name", "profile_picture_url"]
+        fields = ["email", "first_name", "last_name", "middle_name", "profile_picture_url", "profile_image"]
 
 
 # ─── PIN Management Serializers ───

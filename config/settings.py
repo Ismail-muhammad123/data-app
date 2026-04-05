@@ -98,13 +98,13 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Starboy Global VTU API Server',
     'DESCRIPTION': (
-        'Comprehensive API Documentation for the Starboy Global VTU Backend.\\n\\n'
+        'Comprehensive API Documentation for the Starboy Global VTU Backend.\n\n'
         'This API serves the mobile and web client, handling user authentication, '
         'wallets, data/airtime/electricity purchases, referrals, and admin functionality. '
         'Interact with the live or local test environments using the server toggles below.'
     ),
     'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    'SERVE_INCLUDE_SCHEMA': True,
     'CONTACT': {
         'name': 'API Support Team',
         'email': 'support@astar.com',
@@ -254,6 +254,7 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = ZOHO_EMAIL_USER or "noreply@yourdomain.com"
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 
 # Payment & Notification credentials will be configured via Admin Dashboard

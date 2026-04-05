@@ -106,16 +106,16 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
                 f"Refund: {service_name} purchase failed ({reference})",
                 initiator="system"
             )
-            NotificationService.send_push(
+            NotificationService.send_from_template(
                 user, 
-                "Purchase Failed", 
-                f"Your {service_name} purchase to {beneficiary} failed. Funds have been reversed."
+                "purchase-failed", 
+                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
             )
         elif status == "success":
-            NotificationService.send_push(
+            NotificationService.send_from_template(
                 user, 
-                "Purchase Successful", 
-                f"Your {service_name} purchase to {beneficiary} was successful."
+                "purchase-success", 
+                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
             )
             # Cashback & Referral logic
             from wallet.utils import process_cashback, process_referral_reward
@@ -180,10 +180,10 @@ def handle_vtu_async_failure(purchase):
             f"Auto-Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
             initiator="system"
         )
-        NotificationService.send_push(
+        NotificationService.send_from_template(
             purchase.user, 
-            "Transaction Reversed", 
-            f"Your {purchase.purchase_type} purchase failed. Funds reversed to wallet."
+            "transaction-reversed", 
+            {"service": purchase.purchase_type, "beneficiary": purchase.beneficiary, "reference": purchase.reference, "amount": purchase.amount}
         )
     
     purchase.save()

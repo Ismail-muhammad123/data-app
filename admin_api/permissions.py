@@ -13,49 +13,49 @@ class CanManageUsers(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_users', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_users', False)
 
 
 class CanManageWallets(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_wallets', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_wallets', False)
 
 
 class CanManageVTU(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_vtu', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_vtu', False)
 
 
 class CanManagePayments(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_payments', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_payments', False)
 
 
 class CanManageSiteConfig(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_site_config', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_site_config', False)
 
 
 class CanInitiateTransfers(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_initiate_transfers', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_initiate_transfers', False)
         
 
 class CanManageNotifications(StaffPermissionBase):
     def has_permission(self, request, view):
         if not super().has_permission(request, view): return False
         if request.user.is_superuser: return True
-        return getattr(request.user.staff_permissions, 'can_manage_notifications', False)
+        return getattr(getattr(request.user, 'staff_permissions', None), 'can_manage_notifications', False)
 
 
 class IsSuperUserOnly(permissions.BasePermission):

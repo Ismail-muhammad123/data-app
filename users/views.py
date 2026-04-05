@@ -4,7 +4,9 @@ from rest_framework import status, generics, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema, OpenApiExample, inline_serializer
+from drf_spectacular.utils import extend_schema, OpenApiExample, inline_serializer, extend_schema_view
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from .models import OTP, Referral, Beneficiary
 from .utils import send_otp_code
 from notifications.models import UserNotification
@@ -22,6 +24,8 @@ from .serializers import (
     VerifyTransactionPinSerializer,
     UserNotificationSerializer,
     ChangePINSerializer,
+    GoogleAuthSerializer,
+    Verify2FASerializer,
 )
 from django.conf import settings
 from django.db.models import Sum
@@ -44,6 +48,7 @@ class LoginView(APIView):
 
 
     @extend_schema(
+        tags=["Account - Auth"],
         request=LoginSerializer,
         examples=[
             OpenApiExample(
@@ -74,7 +79,24 @@ class LoginView(APIView):
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.is_active:
+            # Check if user exists and needs activation
+            temp_user = User.objects.get(phone_number=phone)
+            if not temp_user.is_verified:
+                 return Response({"error": "Account not verified", "code": "ACCOUNT_NOT_VERIFIED"}, status=status.HTTP_403_FORBIDDEN)
             return Response({"error": "Account not active"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Check for 2FA
+        from summary.models import SiteConfig
+        config = SiteConfig.objects.first()
+        is_staff_enforced = user.is_staff and config and config.enforce_2fa_for_staff
+        
+        if is_staff_enforced or user.is_2fa_enabled:
+            send_otp_code(user, "2fa")
+            return Response({
+                "two_factor_required": True,
+                "message": "A 2FA code has been sent to your registered channels.",
+                "identifier": user.phone_number
+            }, status=status.HTTP_200_OK)
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -89,6 +111,7 @@ class RefreshTokenView(APIView):
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
+        tags=["Account - Auth"],
         request=inline_serializer("RefreshTokenRequest", fields={"refresh": serializers.CharField()}),
         examples=[
             OpenApiExample(
@@ -113,28 +136,145 @@ class RefreshTokenView(APIView):
             return Response({"error": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class GoogleAuthView(APIView):
+    """Sign up or sign in with Google ID token"""
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        tags=["Account - Auth"],
+        request=GoogleAuthSerializer,
+        responses={200: inline_serializer("GoogleAuthResponse", fields={"refresh": serializers.CharField(), "access": serializers.CharField(), "user": ProfileSerializer()})}
+    )
+    def post(self, request):
+        serializer = GoogleAuthSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data["id_token"]
+        phone_number = serializer.validated_data.get("phone_number")
+        referral_code = serializer.validated_data.get("referral_code")
+
+        try:
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
+            email = idinfo['email']
+            google_id = idinfo['sub']
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+            
+            # Find or create user
+            user = User.objects.filter(google_id=google_id).first()
+            if not user:
+                user = User.objects.filter(email=email).first()
+                if user:
+                    user.google_id = google_id
+                    user.save(update_fields=['google_id'])
+                else:
+                    # New user
+                    if not phone_number:
+                        return Response({
+                            "error": "Google account not linked to any existing user. Please provide phone number to complete signup.",
+                            "code": "PHONE_NUMBER_REQUIRED",
+                            "google_data": {
+                                "email": email,
+                                "first_name": first_name,
+                                "last_name": last_name,
+                                "google_id": google_id
+                            }
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Create user
+                    user = User.objects.create_user(
+                        phone_number=phone_number,
+                        email=email,
+                        google_id=google_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        is_active=True,
+                        email_verified=True,
+                    )
+                    user.is_verified = True
+                    user.save()
+                    
+                    # Handle referral if any
+                    if referral_code:
+                        try:
+                            referrer = User.objects.get(referral_code=referral_code)
+                            from .models import Referral
+                            Referral.objects.create(referrer=referrer, referred=user)
+                        except User.DoesNotExist:
+                            pass
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": ProfileSerializer(user).data
+            })
+        except ValueError:
+            return Response({"error": "Invalid Google token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class Verify2FAView(APIView):
+    """Verify 2FA code and complete login"""
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        tags=["Account - 2FA"],
+        request=Verify2FASerializer,
+        responses={200: inline_serializer("Verify2FAResponse", fields={"refresh": serializers.CharField(), "access": serializers.CharField(), "user": ProfileSerializer()})}
+    )
+    def post(self, request):
+        serializer = Verify2FASerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        identifier = serializer.validated_data["identifier"]
+        otp_code = serializer.validated_data["otp_code"]
+
+        try:
+            if "@" in identifier:
+                user = User.objects.get(email=identifier)
+            else:
+                user = User.objects.get(phone_number=identifier)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            otp = OTP.objects.get(user=user, code=otp_code, purpose="2fa", is_used=False)
+        except OTP.DoesNotExist:
+            return Response({"error": "Invalid or expired 2FA code"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark OTP as used
+        otp.is_used = True
+        otp.save()
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": ProfileSerializer(user).data
+        })
+
+
+@extend_schema(
+    tags=["Account - Auth"],
+    request=SignupSerializer,
+    examples=[
+        OpenApiExample(
+            "Signup Request",
+            value={
+                "phone_country_code": "+234",
+                "phone_number": "08012345678",
+                "email": "user@example.com",
+                "pin": "1234",
+                "first_name": "John",
+                "last_name": "Doe"
+            },
+            request_only=True
+        )
+    ],
+    responses={201: SignupSerializer}
+)
 class SignupView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
 
-    @extend_schema(
-        request=SignupSerializer,
-        examples=[
-            OpenApiExample(
-                "Signup Request",
-                value={
-                    "phone_country_code": "+234",
-                    "phone_number": "08012345678",
-                    "email": "user@example.com",
-                    "pin": "1234",
-                    "first_name": "John",
-                    "last_name": "Doe"
-                },
-                request_only=True
-            )
-        ],
-        responses={201: SignupSerializer}
-    )
     def perform_create(self, serializer):
         user = serializer.save(is_active=True)  # wait for OTP verification
         # send_otp_code(user, "activation")
@@ -142,6 +282,7 @@ class SignupView(generics.CreateAPIView):
 
 class ResendActivationCodeView(APIView):
     @extend_schema(
+        tags=["Account - Auth"],
         request=inline_serializer("ResendActivationCodeRequest", fields={
             "identifier": serializers.CharField(),
             "channel": serializers.CharField(required=False)
@@ -176,6 +317,7 @@ class ResendActivationCodeView(APIView):
 
 class ActivateAccountView(APIView):
     @extend_schema(
+        tags=["Account - Auth"],
         request=inline_serializer("ActivateAccountRequest", fields={"identifier": serializers.CharField(), "otp": serializers.CharField()}),
         examples=[
             OpenApiExample(
@@ -235,6 +377,7 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Profile"],
         responses={200: ProfileSerializer}
     )
     def get(self, request):
@@ -242,6 +385,7 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
+        tags=["Account - Profile"],
         request=UpdateProfileSerializer,
         examples=[
             OpenApiExample(
@@ -262,12 +406,38 @@ class ProfileView(APIView):
         serializer.save()
         return Response(serializer.data)
 
+
+class Update2FASettingsView(APIView):
+    """Update 2FA settings for the current user"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["Account - 2FA"],
+        request=inline_serializer("Update2FAStatusRequest", fields={
+            "is_2fa_enabled": serializers.BooleanField(),
+            "two_factor_method": serializers.ChoiceField(choices=User.TWO_FACTOR_METHODS)
+        }),
+        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+    )
+    def post(self, request):
+        is_enabled = request.data.get("is_2fa_enabled")
+        method = request.data.get("two_factor_method")
+
+        if is_enabled is not None:
+            request.user.is_2fa_enabled = is_enabled
+        if method:
+            request.user.two_factor_method = method
+        
+        request.user.save()
+        return Response({"message": "2FA settings updated successfully."})
+
 # ──────────────────────────────────────────────
 # Login PIN Management
 # ──────────────────────────────────────────────
 
 class PasswordResetRequestView(APIView):
     @extend_schema(
+        tags=["Account - Auth"],
         request=inline_serializer("PasswordResetRequest", fields={"identifier": serializers.CharField()}),
         examples=[
             OpenApiExample(
@@ -293,6 +463,7 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetConfirmView(APIView):
     @extend_schema(
+        tags=["Account - Auth"],
         request=PasswordResetSerializer,
         examples=[
             OpenApiExample(
@@ -313,6 +484,7 @@ class ChangePINView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Profile"],
         request=ChangePINSerializer,
         examples=[
             OpenApiExample(
@@ -338,6 +510,7 @@ class SetTransactionPinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Transaction PIN"],
         request=SetTransactionPinSerializer,
         examples=[
             OpenApiExample(
@@ -360,6 +533,7 @@ class ChangeTransactionPinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Transaction PIN"],
         request=ChangeTransactionPinSerializer,
         examples=[
             OpenApiExample(
@@ -382,6 +556,7 @@ class ResetTransactionPinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Transaction PIN"],
         request=ResetTransactionPinSerializer,
         examples=[
             OpenApiExample(
@@ -410,6 +585,7 @@ class RequestTransactionPinResetOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Transaction PIN"],
         request=None,
         responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
     )
@@ -423,6 +599,7 @@ class VerifyTransactionPinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Transaction PIN"],
         request=VerifyTransactionPinSerializer,
         examples=[
             OpenApiExample(
@@ -444,6 +621,7 @@ class VerifyTransactionPinView(APIView):
 # Referral System
 # ──────────────────────────────────────────────
 
+@extend_schema(tags=["Account - Referrals"])
 class ReferralListView(generics.ListAPIView):
     """List all users referred by the current user."""
     serializer_class = ReferralSerializer
@@ -458,6 +636,7 @@ class ReferralStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Referrals"],
         responses={
             200: inline_serializer(
                 "ReferralStatsResponse",
@@ -487,21 +666,22 @@ class ReferralStatsView(APIView):
 # FCM Token
 # ──────────────────────────────────────────────
 
+@extend_schema(
+    tags=["Account - Notifications"],
+    request=FCMTokenSerializer,
+    examples=[
+        OpenApiExample(
+            "Register FCM Token",
+            value={"token": "bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1..."},
+            request_only=True
+        )
+    ],
+    responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
+)
 class RegisterFCMTokenView(APIView):
     """Register or update FCM device token for push notifications."""
     permission_classes = [permissions.IsAuthenticated]
 
-    @extend_schema(
-        request=FCMTokenSerializer,
-        examples=[
-            OpenApiExample(
-                "Register FCM Token",
-                value={"token": "bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1..."},
-                request_only=True
-            )
-        ],
-        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
-    )
     def post(self, request):
         serializer = FCMTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -510,8 +690,9 @@ class RegisterFCMTokenView(APIView):
         return Response({"message": "FCM token registered successfully."})
 
 from django.utils import timezone
-from rest_framework.decorators import action
 
+
+@extend_schema(tags=["Account - Notifications"])
 class NotificationListView(generics.ListAPIView):
     """List all notifications for the current user."""
     serializer_class = UserNotificationSerializer
@@ -520,47 +701,40 @@ class NotificationListView(generics.ListAPIView):
     def get_queryset(self):
         return UserNotification.objects.filter(user=self.request.user).order_by('-created_at')
 
-    @extend_schema(
-        request=inline_serializer("NotificationActionRequest", fields={
-            "action": serializers.CharField(),
-            "notification_id": serializers.IntegerField(required=False)
-        }),
-        examples=[
-            OpenApiExample(
-                "Mark Read",
-                value={"action": "mark_read", "notification_id": 1},
-                request_only=True
-            ),
-            OpenApiExample(
-                "Mark All Read",
-                value={"action": "mark_all_read"},
-                request_only=True
-            )
-        ],
-        responses={200: inline_serializer("MessageResponse", fields={"message": serializers.CharField()})}
-    )
-    def post(self, request, *args, **kwargs):
-        """Mark a notification or all notifications as read."""
-        action_type = request.data.get("action")
-        
-        if action_type == "mark_read":
-            notification_id = request.data.get("notification_id")
-            if not notification_id:
-                return Response({"error": "notification_id is required"}, status=400)
-            
-            updated = UserNotification.objects.filter(
-                user=request.user, id=notification_id
-            ).update(is_read=True, read_at=timezone.now())
-            
-            return Response({"message": "Marked as read" if updated else "Not found"})
-            
-        elif action_type == "mark_all_read":
-            UserNotification.objects.filter(
-                user=request.user, is_read=False
-            ).update(is_read=True, read_at=timezone.now())
-            return Response({"message": "All notifications marked as read"})
 
-        return Response({"error": "Invalid action"}, status=400)
+@extend_schema(
+    tags=["Account - Notifications"],
+    request=None,
+    responses={200: inline_serializer("MarkReadResponse", fields={"message": serializers.CharField()})}
+)
+class MarkNotificationReadView(APIView):
+    """Mark a single notification as read."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, notification_id):
+        updated = UserNotification.objects.filter(
+            user=request.user, id=notification_id
+        ).update(is_read=True, read_at=timezone.now())
+
+        if not updated:
+            return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"message": "Notification marked as read"})
+
+
+@extend_schema(
+    tags=["Account - Notifications"],
+    request=None,
+    responses={200: inline_serializer("MarkAllReadResponse", fields={"message": serializers.CharField()})}
+)
+class MarkAllNotificationsReadView(APIView):
+    """Mark all notifications as read for the current user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        count = UserNotification.objects.filter(
+            user=request.user, is_read=False
+        ).update(is_read=True, read_at=timezone.now())
+        return Response({"message": f"{count} notifications marked as read"})
 
 
 # ──────────────────────────────────────────────
@@ -571,6 +745,7 @@ class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        tags=["Account - Auth"],
         request=inline_serializer("LogoutRequest", fields={"refresh": serializers.CharField()}),
         examples=[
             OpenApiExample(
@@ -593,6 +768,7 @@ class LogoutView(APIView):
 
 
 @extend_schema(
+    tags=["Account - Profile"],
     request=None,
     examples=[
         OpenApiExample(
@@ -626,6 +802,7 @@ def close_account(request):
 
 
 @extend_schema(
+    tags=["Account - Profile"],
     request=None,
     examples=[
         OpenApiExample(

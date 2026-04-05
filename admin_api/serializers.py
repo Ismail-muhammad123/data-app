@@ -9,7 +9,7 @@ from orders.models import (
 from payments.models import PaystackConfig, Deposit, Withdrawal
 from wallet.models import Wallet, WalletTransaction
 from support.models import SupportTicket, TicketMessage
-from notifications.models import Notification, UserNotification, Announcement
+from notifications.models import Notification, UserNotification, Announcement, NotificationTemplate
 
 
 # ─── Model Serializers ───
@@ -270,10 +270,15 @@ class ServiceCashbackSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AdminSiteConfigSerializer(serializers.ModelSerializer):
-    cashbacks = ServiceCashbackSerializer(many=True, read_only=True, source='servicecashback_set')
+    cashbacks = serializers.SerializerMethodField()
+
     class Meta:
         model = SiteConfig
         fields = '__all__'
+
+    def get_cashbacks(self, obj):
+        from summary.models import ServiceCashback
+        return ServiceCashbackSerializer(ServiceCashback.objects.all(), many=True).data
 
 class AdminTransferBeneficiarySerializer(serializers.ModelSerializer):
     class Meta:
@@ -375,12 +380,13 @@ class AdminManualAdjustmentRequestSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, help_text="Amount to credit or debit")
     type = serializers.ChoiceField(choices=['credit', 'debit'], help_text="Type of adjustment: 'credit' or 'debit'")
     reason = serializers.CharField(required=False, default="Admin Adjustment", help_text="Reason for the adjustment")
+    pin = serializers.CharField(help_text="Admin Authorization PIN")
 
 class AdminDepositMarkSuccessRequestSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, default="Manually confirmed by Admin", help_text="Admin remark for manual confirmation")
 
 class AdminWithdrawalActionRequestSerializer(serializers.Serializer):
-    otp = serializers.CharField(required=False, help_text="Admin 2FA OTP code (required if 2FA is enabled)")
+    pin = serializers.CharField(required=True, help_text="Admin Authorization PIN")
     reason = serializers.CharField(required=False, help_text="Reason for approval/rejection")
 
 class AdminCreatePurchaseRequestSerializer(serializers.Serializer):
@@ -393,6 +399,7 @@ class AdminCreatePurchaseRequestSerializer(serializers.Serializer):
     plan_id = serializers.CharField(required=False, help_text="Plan ID for the service")
     service_id = serializers.CharField(required=False, help_text="Service ID")
     network_id = serializers.CharField(required=False, help_text="Network ID")
+    pin = serializers.CharField(help_text="Admin Authorization PIN")
 
 class AdminSupportReplyRequestSerializer(serializers.Serializer):
     message = serializers.CharField(help_text="Reply message content")
@@ -400,7 +407,7 @@ class AdminSupportReplyRequestSerializer(serializers.Serializer):
 class AdminInitiateTransferRequestSerializer(serializers.Serializer):
     beneficiary_id = serializers.IntegerField(help_text="Admin beneficiary ID")
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, help_text="Transfer amount in Naira")
-    otp = serializers.CharField(required=False, help_text="Admin 2FA OTP code (required if 2FA is enabled)")
+    pin = serializers.CharField(required=True, help_text="Admin Authorization PIN")
 
 
 # ─── Admin Action Response Serializers ───
@@ -421,6 +428,61 @@ class AdminStatusResponseSerializer(serializers.Serializer):
     message = serializers.CharField(help_text="Human-readable result message")
 
 class AdminDashboardStatsResponseSerializer(serializers.Serializer):
+    class FinancialStatsSerializer(serializers.Serializer):
+        total_deposits = serializers.FloatField()
+        total_withdrawals = serializers.FloatField()
+        total_transfers = serializers.FloatField()
+        paystack_balance = serializers.FloatField()
+        total_payouts = serializers.FloatField()
+
+    class WalletsStatsSerializer(serializers.Serializer):
+        total_balance = serializers.FloatField()
+        total_credits = serializers.FloatField()
+        total_debits = serializers.FloatField()
+
+    class PurchaseStatsSerializer(serializers.Serializer):
+        success_count = serializers.IntegerField()
+        failed_count = serializers.IntegerField()
+        pending_count = serializers.IntegerField()
+        total_volume = serializers.FloatField()
+        
+        class ServiceTotalSerializer(serializers.Serializer):
+            total_amount = serializers.FloatField()
+            count = serializers.IntegerField()
+            success = serializers.IntegerField()
+            failed = serializers.IntegerField()
+            pending = serializers.IntegerField()
+        
+        totals_by_service = serializers.DictField(child=ServiceTotalSerializer())
+        total_commissions = serializers.FloatField()
+        total_profit = serializers.FloatField()
+        
+        class ProfitPeriodsSerializer(serializers.Serializer):
+            today = serializers.FloatField()
+            weekly = serializers.FloatField()
+            monthly = serializers.FloatField()
+        profit_periods = ProfitPeriodsSerializer()
+
+    class UsersStatsSerializer(serializers.Serializer):
+        total = serializers.IntegerField()
+        active = serializers.IntegerField()
+        inactive = serializers.IntegerField()
+        agents = serializers.IntegerField()
+        customers = serializers.IntegerField()
+        admins = serializers.IntegerField()
+        active_today = serializers.IntegerField()
+
+    class VTUProviderStatsSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        name = serializers.CharField()
+        provider_key = serializers.CharField()
+        is_active = serializers.BooleanField()
+        balance = serializers.FloatField()
+        active_services = serializers.IntegerField()
+        total_transactions = serializers.IntegerField()
+        success_transactions = serializers.IntegerField()
+        success_rate = serializers.FloatField()
+
     class BusinessMetricsSerializer(serializers.Serializer):
         total_users = serializers.IntegerField()
         active_users_today = serializers.IntegerField()
@@ -476,10 +538,16 @@ class AdminDashboardStatsResponseSerializer(serializers.Serializer):
             total_amount = serializers.FloatField()
             approved_count = serializers.IntegerField()
             pending_count = serializers.IntegerField()
+            rejected_count = serializers.IntegerField()
             
         deposits = DepositStatsSerializer()
         withdrawals = WithdrawalStatsSerializer()
 
+    financial = FinancialStatsSerializer()
+    wallets = WalletsStatsSerializer()
+    purchases = PurchaseStatsSerializer()
+    users = UsersStatsSerializer()
+    vtu_providers = VTUProviderStatsSerializer(many=True)
     business_metrics = BusinessMetricsSerializer()
     service_health = ServiceHealthSerializer()
     provider_balances = ProviderBalancesSerializer()
@@ -510,12 +578,25 @@ class AutomationOverviewResponseSerializer(serializers.Serializer):
     global_settings = AutomationGlobalSettingsSerializer()
     services = ServiceAutomationConfigSerializer(many=True)
 
+class NotificationTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationTemplate
+        fields = ['id', 'slug', 'title', 'body', 'use_fcm', 'use_email', 'use_sms', 'use_whatsapp', 'is_active']
+
 class AdminNotificationOverviewSerializer(serializers.Serializer):
     notifications = AdminNotificationSerializer(many=True)
     announcements = AdminAnnouncementSerializer(many=True)
+    templates = NotificationTemplateSerializer(many=True)
 
 class AdminBulkSendNotificationSerializer(serializers.Serializer):
-    user_ids = serializers.ListField(child=serializers.IntegerField(), help_text="IDs of target users")
+    RECIPIENT_CHOICES = [
+        ('all', 'All Users'),
+        ('customers', 'All Customers'),
+        ('agents', 'All Agents'),
+        ('individuals', 'Specific Individuals'),
+    ]
+    recipient_type = serializers.ChoiceField(choices=RECIPIENT_CHOICES, default='individuals')
+    user_ids = serializers.ListField(child=serializers.IntegerField(), required=False, help_text="IDs of target users (required if recipient_type is 'individuals')")
     title = serializers.CharField()
     body = serializers.CharField()
     channels = serializers.ListField(child=serializers.CharField(), help_text="List of channels: 'fcm', 'email', 'sms', 'whatsapp'")
