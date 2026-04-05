@@ -53,11 +53,40 @@ class PaystackGateway:
         }
         res = self._post("/transaction/initialize", payload)
         return {
-            "status": True,
             "checkout_url": res["data"]["authorization_url"],
             "reference": res["data"]["reference"],
+            "status": True,
             "raw_response": res
         }
+
+    def create_virtual_account(self, email: str, first_name: str, last_name: str, phone: str) -> Dict[str, Any]:
+        """
+        Provision a dedicated virtual account for a customer.
+        1. Fetch/Create Paystack Customer
+        2. Assign Dedicated Account
+        """
+        # Ensure customer exists
+        try:
+             # Try to get existing customer by email
+             res = self._get(f"/customer/{email}")
+             customer_id = res["data"]["id"]
+        except:
+             # Create new customer if not found
+             payload = {
+                 "email": email,
+                 "first_name": first_name,
+                 "last_name": last_name,
+                 "phone": phone
+             }
+             res = self._post("/customer", payload)
+             customer_id = res["data"]["id"]
+
+        # Assign Dedicated Account
+        payload = {
+            "customer": customer_id,
+            "preferred_bank": "wema-bank"
+        }
+        return self._post("/dedicated_account", payload)
 
     def verify_transaction(self, reference: str) -> Dict[str, Any]:
         res = self._get(f"/transaction/verify/{reference}")

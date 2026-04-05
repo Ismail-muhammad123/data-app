@@ -364,33 +364,65 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     def create_virtual_account(self, request, pk=None):
         user = self.get_object()
         
+        # Check if already exists
         if hasattr(user, 'virtual_account') and user.virtual_account:
              return Response({"status": "ERROR", "message": "User already has a virtual account"}, status=400)
 
+        # Base requirement for Paystack KYC
         if not user.first_name or not user.last_name or not user.email:
-            return Response({"status": "ERROR", "message": "User profile information is incomplete. First name, last name, and email are required."}, status=400)
+            return Response({"status": "ERROR", "message": "User profile information is incomplete. First name, last name, and email are required for virtual account provisioning."}, status=400)
 
         try:
             from payments.utils import PaystackGateway
+            from wallet.models import VirtualAccount
             from django.conf import settings
             client = PaystackGateway(settings.PAYSTACK_SECRET_KEY)
 
+            # Initiate call to Paystack
+            # Note: Paystack needs a cleaned phone number
+            phone = user.phone_country_code + user.phone_number
+            if phone.startswith('+'):
+                phone = phone[1:]
+            
             account_res = client.create_virtual_account(
-                user.email,
-                user.first_name,
-                user.middle_name or "",
-                user.last_name,
-                user.phone_country_code + user.phone_number,
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                phone=phone
             )
 
             if account_res and account_res.get('status'):
-                return Response({"status": "SUCCESS", "message": account_res['message']}, status=200)
+                # Extract data from Paystack response
+                data = account_res['data']
+                bank = data.get('bank', {})
+                
+                # Save to database
+                va = VirtualAccount.objects.create(
+                    user=user,
+                    account_number=data['account_number'],
+                    bank_name=bank.get('name', 'Wema Bank'),
+                    account_name=data['account_name'],
+                    account_reference=data.get('assignment', {}).get('integration', 'PAYSTACK'),
+                    customer_email=user.email,
+                    customer_name=f"{user.first_name} {user.last_name}",
+                    status='ACTIVE'
+                )
+
+                return Response({
+                    "status": "SUCCESS", 
+                    "message": "Virtual account provisioned successfully",
+                    "data": {
+                        "account_number": va.account_number,
+                        "bank_name": va.bank_name,
+                        "account_name": va.account_name
+                    }
+                }, status=200)
             else:
                 msg = account_res.get('message') if account_res else "Unexpected error during virtual account creation"
                 return Response({"status": "ERROR", "message": msg}, status=500)
 
         except Exception as e:
-            return Response({"status": "ERROR", "message": str(e)}, status=500)
+            return Response({"status": "ERROR", "message": f"An error occurred: {str(e)}"}, status=500)
 
     # ─── Reset User Login PIN (Admin) ───
 

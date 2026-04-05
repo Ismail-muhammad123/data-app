@@ -98,7 +98,6 @@ class UserAdmin(BaseUserAdmin):
         "created_at",
         "referral_code",
         "transaction_pin_set",
-        "two_factor_enabled",
     ]
     actions = ["create_virtual_account", "deactivate_user", "activate_user", "set_as_verified", "upgrade_to_agent", "downgrade_to_customer"]
 

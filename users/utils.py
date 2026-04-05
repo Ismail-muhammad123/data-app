@@ -1,6 +1,7 @@
 import random
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 from config.utils import send_email_otp, send_sms_otp, send_whatsapp_otp
 from users.models import OTP
 
@@ -13,6 +14,8 @@ def otp_expiry():
 def send_otp_code(user, purpose, preferred_channel=None):
     print(f"DEBUG: Processing OTP for user: {user} (ID: {user.id}) - Phone: {user.phone_number}")
     otp = generate_otp()
+    if settings.DEBUG:
+        print(f"\n[DEBUG OTP] Generated {purpose} OTP for {user.phone_number}: {otp}\n")
     expiry = otp_expiry()
 
     OTP.objects.create(
