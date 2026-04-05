@@ -21,7 +21,7 @@ services:
       - key: PRODUCTION
         value: "True"
       - key: DEBUG
-        value: "False"
+        value: "True"
       - key: WEB_CONCURRENCY
         value: "4"
       - key: DJANGO_ALLOWED_HOSTS
