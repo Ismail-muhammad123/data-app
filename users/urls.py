@@ -28,9 +28,9 @@ urlpatterns = [
     # PROFILE  (authenticated)
     # ═══════════════════════════════════════════
     path("profile/", ProfileView.as_view(), name="profile"),
-    path("profile/change-pin/", ChangePINView.as_view(), name="change-pin"),
-    path("profile/close-account/", close_account, name="close-account"),
-    path("profile/generate-virtual-account/", generate_virtual_account, name="generate-virtual-account"),
+    path("change-pin/", ChangePINView.as_view(), name="change-pin"),
+    path("close-account/", close_account, name="close-account"),
+    path("generate-virtual-account/", generate_virtual_account, name="generate-virtual-account"),
 
     # ═══════════════════════════════════════════
     # TWO-FACTOR AUTHENTICATION  (authenticated)
@@ -40,11 +40,11 @@ urlpatterns = [
     # ═══════════════════════════════════════════
     # TRANSACTION PIN  (authenticated)
     # ═══════════════════════════════════════════
-    path("transaction-pin/set/", SetTransactionPinView.as_view(), name="set-transaction-pin"),
-    path("transaction-pin/change/", ChangeTransactionPinView.as_view(), name="change-transaction-pin"),
-    path("transaction-pin/reset/", ResetTransactionPinView.as_view(), name="reset-transaction-pin"),
-    path("transaction-pin/request-reset-otp/", RequestTransactionPinResetOTPView.as_view(), name="request-transaction-pin-reset"),
-    path("transaction-pin/verify/", VerifyTransactionPinView.as_view(), name="verify-transaction-pin"),
+    path("set-transaction-pin/", SetTransactionPinView.as_view(), name="set-transaction-pin"),
+    path("change-transaction-pin/", ChangeTransactionPinView.as_view(), name="change-transaction-pin"),
+    path("reset-transaction-pin/", ResetTransactionPinView.as_view(), name="reset-transaction-pin"),
+    path("request-transaction-pin-reset-otp/", RequestTransactionPinResetOTPView.as_view(), name="request-transaction-pin-reset"),
+    path("verify-transaction-pin/", VerifyTransactionPinView.as_view(), name="verify-transaction-pin"),
 
     # ═══════════════════════════════════════════
     # NOTIFICATIONS  (authenticated)

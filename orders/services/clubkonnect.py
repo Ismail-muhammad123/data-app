@@ -16,10 +16,10 @@ class ClubKonnectClient(VTUInterface):
     def __init__(self, config=None):
         if config is None:
             self.provider_config = VTUProviderConfig.objects.filter(name='clubkonnect', is_active=True).first()
-            cfg_data = self.provider_config.get_config() if self.provider_config else {}
+            cfg_data = self.provider_config.get_config_dict() if self.provider_config else {}
         else:
             self.provider_config = config
-            cfg_data = config.get_config()
+            cfg_data = config.get_config_dict()
 
         self.base_url = cfg_data.get('base_url') or getattr(settings, 'CLUBKONNECT_BASE_URL', "")
         self.user_id = cfg_data.get('user_id') or getattr(settings, 'CLUBKONNECT_USER_ID', "")

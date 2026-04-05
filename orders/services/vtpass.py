@@ -11,10 +11,10 @@ class VTPassClient(VTUInterface):
     def __init__(self, config=None):
         if config is None:
             self.provider_config = VTUProviderConfig.objects.filter(name='vtpass', is_active=True).first()
-            cfg_data = self.provider_config.get_config() if self.provider_config else {}
+            cfg_data = self.provider_config.get_config_dict() if self.provider_config else {}
         else:
             self.provider_config = config
-            cfg_data = config.get_config()
+            cfg_data = config.get_config_dict()
 
         self.api_key = cfg_data.get('api_key')
         self.public_key = cfg_data.get('public_key')
