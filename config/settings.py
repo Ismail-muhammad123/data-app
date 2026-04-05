@@ -36,8 +36,8 @@ if DEBUG:
 CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*',
-    'http://*',
+    'https://data-app-backend.onrender.com',
+    'https://data-app-backend-9yxa.onrender.com',
     'https://z9trades-backend-production.up.railway.app'
 ]
 
