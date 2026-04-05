@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from drf_spectacular.utils import extend_schema_view, extend_schema
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample
 import pyotp
 from payments.models import Deposit, Withdrawal, PaystackConfig
 from wallet.models import WalletTransaction
@@ -234,7 +234,41 @@ class AdminTransferViewSet(viewsets.ModelViewSet):
         summary="Initiate admin transfer",
         description="Initiate a bank transfer using Paystack to a saved beneficiary.",
         request=AdminInitiateTransferRequestSerializer,
-        responses={200: AdminStatusResponseSerializer, 400: AdminErrorResponseSerializer}
+        responses={200: AdminStatusResponseSerializer, 400: AdminErrorResponseSerializer},
+        examples=[
+            OpenApiExample(
+                'Initiate Transfer Request',
+                description='Example payload for initiating a manual admin transfer to a beneficiary.',
+                value={
+                    "beneficiary_id": 1,
+                    "amount": 5000.00,
+                    "pin": "123456"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Initiate Transfer Success Response',
+                description='Success response when a transfer is successfully initiated.',
+                value={
+                    "status": "SUCCESS",
+                    "message": "Transfer initiated successfully",
+                    "data": {
+                        "id": 12,
+                        "amount": "5000.00",
+                        "status": "PENDING",
+                        "reference": "ADM-TXN-ABC123XYZ",
+                        "created_at": "2024-04-05T12:00:00Z",
+                        "beneficiary_details": {
+                            "id": 1,
+                            "name": "John Doe",
+                            "bank_name": "Access Bank",
+                            "account_number": "0123456789"
+                        }
+                    }
+                },
+                response_only=True
+            )
+        ]
     )
     def create(self, request, *args, **kwargs):
         serializer = AdminInitiateTransferRequestSerializer(data=request.data)
