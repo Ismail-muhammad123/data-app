@@ -1,148 +1,156 @@
 import random
-from twilio.rest import Client
-from django.core.mail import send_mail
-from django.conf import settings
 import requests
+import json
+import logging
+from django.conf import settings
+from typing import Optional, Dict, Any
 
+logger = logging.getLogger(__name__)
 
-class TermiiClient:
-    BASE_URL = "https://v3.api.termii.com"
-
-    def __init__(self, api_key: str, sender_id: str, email_configuration_id: str = None):
-        self.api_key = api_key
-        self.sender_id = sender_id
-        self.email_configuration_id = email_configuration_id
-
-    # -----------------------------------------
-    # 1️⃣ Send OTP via SMS
-    # -----------------------------------------
-    def send_otp_sms(self, phone_number: str, message: str = "") -> dict:
+class ZohoService:
+    @staticmethod
+    def send_sms(phone_number: str, message: str) -> bool:
         """
-        Send SMS via Termii's Number API.
-        Endpoint: https://v3.api.termii.com/api/sms/send
+        Sends SMS via Zoho SMS API.
         """
-        url = f"{self.BASE_URL}/api/sms/send"
+        api_key = getattr(settings, 'ZOHO_API_KEY', None)
+        sender_id = getattr(settings, 'ZOHO_SMS_SENDER_ID', 'AStarData')
 
-        if phone_number.startswith("+"):
-            phone_number = phone_number[1:]
-            
-        payload = {
-            "to": phone_number,
-            "from": self.sender_id,
-            "sms": message,
-            "type": "plain",
-            "channel": "generic",
-            "api_key": self.api_key,
-        }
-        
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        
-        response = requests.post(url, json=payload, headers=headers)
-        data = response.json()
-        
-        if not response.ok:
-            raise Exception(f"SMS via Number API failed: {data}")
-        else:
-            print(f"SMS sent successfully via Number API to {phone_number}")
-        return data
-       
+        if not api_key:
+            logger.error("ZOHO_API_KEY not configured")
+            return False
 
-    # -----------------------------------------
-    # 2️⃣ Send OTP via WhatsApp
-    # -----------------------------------------
-    def send_otp_whatsapp(self, phone_number: str, message: str = "") -> dict:
-        """
-        Send OTP via WhatsApp using Termii's WhatsApp channel.
-        """
-        url = f"{self.BASE_URL}/api/sms/send"
-        if phone_number.startswith("+"):
+        # Clean phone number
+        if phone_number.startswith('+'):
             phone_number = phone_number[1:]
 
-        payload = {
-            "api_key": self.api_key,
-            "to": phone_number,
-            "from": self.sender_id,
-            "type": "plain",
-            "sms": message,
-            "channel": "whatsapp",
-        }
-
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        
         try:
-            response = requests.post(url, json=payload, headers=headers)
-            print("WhatsApp OTP res: ", response.content)
-            data = response.json()
-            if not response.ok:
-                raise Exception(f"OTP WhatsApp failed: {data}")
-            return data
+            # Note: Using Zoho SMS API v2 endpoint
+            response = requests.post(
+                "https://sms.zoho.com/api/v2/send",
+                headers={
+                    "Authorization": f"Zoho-enczapikey {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "to": phone_number,
+                    "from": sender_id,
+                    "message": message
+                },
+                timeout=15
+            )
+            return response.status_code == 200
         except Exception as e:
-            print(f"Error sending WhatsApp OTP: {e}")
-    
-    def send_email_otp(self, recipient_email: str, otp_code:  str):
-        url = f"{self.BASE_URL}/api/email/otp/send"
-        payload = {
-                    "api_key" : self.api_key,
-                    "email_address" : recipient_email,
-                    "code": otp_code,
-                    "email_configuration_id": self.email_configuration_id
-            }
-        headers = {
-        'Content-Type': 'application/json',
-        }
-        response = requests.request("POST", url, headers=headers, json=payload)
-        print(response.text)
+            logger.error(f"Zoho SMS error: {e}")
+            return False
 
-    def get_balance(self) -> dict:
-        url = f"{self.BASE_URL}/api/get-balance?api_key={self.api_key}"
-        response = requests.get(url)
-        if response.ok:
-            return response.json()
-        return {"error": "Failed to get balance"}
+    @staticmethod
+    def send_whatsapp(phone_number: str, message: str) -> bool:
+        """
+        Sends WhatsApp message via Zoho WhatsApp API.
+        """
+        api_key = getattr(settings, 'ZOHO_API_KEY', None)
+        wa_number = getattr(settings, 'ZOHO_WHATSAPP_NUMBER', '')
+
+        if not api_key:
+            logger.error("ZOHO_API_KEY not configured")
+            return False
+
+        if phone_number.startswith('+'):
+            phone_number = phone_number[1:]
+
+        try:
+            # Note: Zoho WhatsApp integration usually uses these parameters
+            response = requests.post(
+                "https://whatsapp.zoho.com/api/v1/send",
+                headers={
+                    "Authorization": f"Zoho-enczapikey {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "to": phone_number,
+                    "from": wa_number,
+                    "message": message
+                },
+                timeout=15
+            )
+            return response.status_code == 200
+        except Exception as e:
+            logger.error(f"Zoho WhatsApp error: {e}")
+            return False
+
+    @staticmethod
+    def send_email_zepto(email: str, subject: str, html_content: str) -> bool:
+        """
+        Sends email via Zoho ZeptoMail API.
+        """
+        zepto_url = getattr(settings, 'ZOHO_MAIL_API_URL', "https://api.zeptomail.com/v1.1/email")
+        api_key = getattr(settings, 'ZOHO_API_KEY', None)
+        from_email = getattr(settings, 'ZOHO_EMAIL_USER', 'noreply@astardata.com')
+
+        if not api_key:
+            logger.error("ZOHO_API_KEY not configured for ZeptoMail")
+            return False
+
+        payload = {
+            "from": {"address": from_email, "name": "A-Star Data"},
+            "to": [
+                {
+                    "email_address": {
+                        "address": email,
+                        "name": email.split('@')[0]
+                    }
+                }
+            ],
+            "subject": subject,
+            "htmlbody": html_content
+        }
+
+        try:
+            response = requests.post(
+                zepto_url,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": f"Zoho-enczapikey {api_key}"
+                },
+                json=payload,
+                timeout=15
+            )
+            return response.status_code == 200 or response.status_code == 201
+        except Exception as e:
+            logger.error(f"ZeptoMail error: {e}")
+            return False
 
 
 def send_sms_otp(phone_number, message):
     """
-    Send OTP via SMS using Termii
-    :param phone_number: Recipient phone number (+234.... format)
-    :param message: The message to send
+    Send OTP via SMS using Zoho
     """
-    print(f"DEBUG: Preparing to send SMS to {phone_number}")
-    client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
-
-    res = client.send_otp_sms(
-        phone_number=phone_number,
-        message=message
-    )
-    return res
+    print(f"DEBUG: Preparing to send Zoho SMS to {phone_number}")
+    return ZohoService.send_sms(phone_number, message)
 
 
 def send_whatsapp_otp(phone_number, message):
     """
-    Send OTP via WhatsApp using Termii
-    :param phone_number: Recipient WhatsApp number (+234.... format)
-    :param message: The message to send
+    Send OTP via WhatsApp using Zoho
     """
-    print(f"DEBUG: Preparing to send WhatsApp to {phone_number}")
-    client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID)
-
-    res = client.send_otp_whatsapp(
-        phone_number=phone_number,
-        message=message
-    )
-    return res
+    print(f"DEBUG: Preparing to send Zoho WhatsApp to {phone_number}")
+    return ZohoService.send_whatsapp(phone_number, message)
 
 
 def send_email_otp(email, otp):
     """
-    Send OTP via Email using Termii
+    Send OTP via Email using ZeptoMail
     """
-    print(f"DEBUG: Preparing to send Email to {email}")
-    client = TermiiClient(settings.TERMII_API_KEY, settings.TERMII_SENDER_ID, settings.TERMII_EMAIL_CONFIG_ID)
-
-    client.send_email_otp(email, otp)
-    return True
+    print(f"DEBUG: Preparing to send ZeptoMail OTP to {email}")
+    subject = "Verification Code - A-Star Data"
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Verification Code</h2>
+        <p>Your verification code is: <strong>{otp}</strong></p>
+        <p>This code will expire in 5 minutes.</p>
+        <p>If you did not request this code, please ignore this email.</p>
+    </div>
+    """
+    return ZohoService.send_email_zepto(email, subject, html_content)
