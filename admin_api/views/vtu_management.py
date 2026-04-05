@@ -30,9 +30,14 @@ from django.db import transaction
     retrieve=extend_schema(tags=["Admin Purchases"]),
 )
 class AdminPurchaseViewSet(viewsets.ModelViewSet):
-    queryset = Purchase.objects.all().order_by('-time')
+    """View and manage all purchases (VTU transactions) in the system."""
+    queryset = Purchase.objects.select_related('user').all().order_by('-time')
     serializer_class = AdminPurchaseSerializer
     permission_classes = [CanManageVTU]
+
+    def get_queryset(self):
+        # Return all purchase records system-wide
+        return self.queryset
 
     @extend_schema(
         tags=["Admin Purchases"],

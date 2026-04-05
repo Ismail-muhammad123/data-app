@@ -30,10 +30,15 @@ from admin_api.views.user_management import UserPagination
     retrieve=extend_schema(tags=["Admin Wallets"]),
 )
 class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = WalletTransaction.objects.all().order_by('-timestamp')
+    """List and retrieve all wallet transactions in the system."""
+    queryset = WalletTransaction.objects.select_related('user', 'wallet').all().order_by('-timestamp')
     serializer_class = AdminWalletTransactionSerializer
     permission_classes = [CanManageWallets]
     pagination_class = UserPagination
+
+    def get_queryset(self):
+        # Explicitly return all records to avoid any confusion with user-facing endpoints
+        return self.queryset
     filterset_fields = {
         'wallet': ['exact'],
         'user': ['exact'],
@@ -80,9 +85,14 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     partial_update=extend_schema(tags=["Admin Payments"]),
 )
 class AdminDepositViewSet(viewsets.ModelViewSet):
-    queryset = Deposit.objects.all().order_by('-timestamp')
+    """View and manage all deposits in the system."""
+    queryset = Deposit.objects.select_related('user', 'processed_by').all().order_by('-timestamp')
     serializer_class = AdminDepositSerializer
     permission_classes = [CanManagePayments]
+
+    def get_queryset(self):
+        # Return all deposit records in the app
+        return self.queryset
 
     @extend_schema(
         tags=["Admin Payments"],
@@ -112,9 +122,14 @@ class AdminDepositViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(tags=["Admin Payments"]),
 )
 class AdminWithdrawalViewSet(viewsets.ModelViewSet):
-    queryset = Withdrawal.objects.all().order_by('-created_at')
+    """View and manage all withdrawals in the system."""
+    queryset = Withdrawal.objects.select_related('user', 'processed_by').all().order_by('-created_at')
     serializer_class = AdminWithdrawalSerializer
     permission_classes = [CanManagePayments]
+
+    def get_queryset(self):
+        # Return all withdrawal records in the app
+        return self.queryset
 
     @extend_schema(
         tags=["Admin Payments"],
@@ -183,11 +198,15 @@ class AdminPaystackConfigViewSet(viewsets.ModelViewSet):
     retrieve=extend_schema(tags=["Admin Wallets"]),
 )
 class AdminWalletViewSet(viewsets.ReadOnlyModelViewSet):
-    """List and retrieve all user wallets (via User objects)."""
+    """List and retrieve all user wallets in the system."""
     queryset = User.objects.select_related('wallet').all().order_by('-created_at')
     serializer_class = AdminUserListSerializer 
     permission_classes = [CanManageWallets]
     pagination_class = UserPagination
+
+    def get_queryset(self):
+        # Explicitly return all users with their wallets
+        return self.queryset
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Transfers"]),
