@@ -62,7 +62,7 @@ class PurchaseDataVariationView(APIView):
             service_name=f"{plan.service.service_name} Data Bundle",
             reference=reference,
             phone=phone_number,
-            network_id=plan.service.service_id,
+            network=plan.service.service_id,
             plan_id=plan.variation_id,
             data_variation=plan
         )
@@ -118,7 +118,7 @@ class PurchaseAirtimeView(APIView):
             service_name=f"{network.service_name} Airtime",
             reference=reference,
             phone=phone_number,
-            network_id=network.service_id,
+            network=network.service_id,
             airtime_service=network
         )
 
@@ -399,10 +399,10 @@ class RepeatPurchaseView(APIView):
 
         if old_purchase.airtime_service: 
             kwargs['airtime_service'] = old_purchase.airtime_service
-            kwargs['network_id'] = old_purchase.airtime_service.service_id
+            kwargs['network'] = old_purchase.airtime_service.service_id
         if old_purchase.data_variation: 
             kwargs['data_variation'] = old_purchase.data_variation
-            kwargs['network_id'] = old_purchase.data_variation.service.service_id
+            kwargs['network'] = old_purchase.data_variation.service.service_id
             kwargs['plan_id'] = old_purchase.data_variation.variation_id
         if old_purchase.tv_variation:
             kwargs['tv_variation'] = old_purchase.tv_variation

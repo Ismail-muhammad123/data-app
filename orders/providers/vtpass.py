@@ -108,14 +108,38 @@ class VTPassProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
         payload = {
             "request_id": reference,
-            "serviceID": service_type, # e.g. dstv, gotv, ikedc-postpaid
-            "billersCode": identifier,
-            "variation_code": plan_id,
+            "serviceID": tv_id, # e.g. dstv, gotv
+            "billersCode": smart_card_number,
+            "variation_code": package_id,
             "amount": float(amount),
-            "phone": metadata.get('phone') if metadata else identifier
+            "phone": phone
+        }
+        res = self._post("/pay", payload)
+        
+        status = "PENDING"
+        if res.get('code') == '000':
+            status = "SUCCESS"
+        elif res.get('code') in ['011', '012', '013', '014', '015', '016']:
+            status = "FAILED"
+            
+        return {
+            "status": status,
+            "provider_reference": res.get('requestId'),
+            "message": res.get('response_description'),
+            "raw_response": res
+        }
+
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "request_id": reference,
+            "serviceID": disco_id,
+            "billersCode": meter_number,
+            "variation_code": plan_id, # usually prepriod/postpaid
+            "amount": float(amount),
+            "phone": phone
         }
         res = self._post("/pay", payload)
         
@@ -133,8 +157,19 @@ class VTPassProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def query_transaction(self, reference: str) -> Dict[str, Any]:
-        res = self._post("/requery", {"request_id": reference})
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        # Usually requires service_type (smile, spectranet) via kwargs or split
+        service_id = kwargs.get('internet_variation', plan_id) # Example fallback
+        
+        payload = {
+            "request_id": reference,
+            "serviceID": service_id,
+            "billersCode": phone,
+            "variation_code": plan_id,
+            "amount": float(amount),
+            "phone": phone
+        }
+        res = self._post("/pay", payload)
         
         status = "PENDING"
         if res.get('code') == '000':
@@ -144,8 +179,51 @@ class VTPassProvider(BaseVTUProvider):
             
         return {
             "status": status,
+            "provider_reference": res.get('requestId'),
+            "message": res.get('response_description'),
             "raw_response": res
         }
+
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "request_id": reference,
+            "serviceID": exam_type,
+            "variation_code": variation_id,
+            "amount": float(amount),
+            "phone": kwargs.get('phone', '08000000000') # WAEC/JAMB mostly uses pin
+        }
+        res = self._post("/pay", payload)
+        
+        status = "PENDING"
+        if res.get('code') == '000':
+            status = "SUCCESS"
+        elif res.get('code') in ['011', '012', '013', '014', '015', '016']:
+            status = "FAILED"
+            
+        return {
+            "status": status,
+            "provider_reference": res.get('requestId'),
+            "message": res.get('response_description'),
+            "token": res.get('purchased_code'), # mostly for education pins
+            "raw_response": res
+        }
+
+    def query_transaction(self, reference: str) -> Dict[str, Any]:
+        """Check status of VTPass Transaction"""
+        res = self._get(f"/requery?request_id={reference}")
+        status = "PENDING"
+        if res.get('code') == '000':
+            content = res.get('content', {})
+            trans = content.get('transactions', {})
+            v_status = trans.get('status')
+            if v_status == 'delivered': status = "SUCCESS"
+            elif v_status in ['failed', 'reversed']: status = "FAILED"
+            
+        return {"status": status, "raw_response": res}
+
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        """Not supported on VTPass."""
+        return {"status": "FAILED", "message": "Cancellation not supported"}
 
     def handle_webhook(self, data: Dict[str, Any]) -> bool:
         """Processes VTpass webhook notifications."""
@@ -234,10 +312,10 @@ class VTPassProvider(BaseVTUProvider):
         ]
 
 
-    def get_airtime_networks(self) -> List[Any]:
+    def sync_airtime(self) -> int:
         res = self._get("/services?identifier=airtime")
         raw_list = res.get('content', [{}])[0].get('services', []) if isinstance(res.get('content'), list) else []
-        return self._deserialize_airtime(raw_list)
+        return len(self._deserialize_airtime(raw_list))
 
     def _deserialize_airtime(self, raw_list: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
@@ -253,22 +331,17 @@ class VTPassProvider(BaseVTUProvider):
             services.append(net)
         return services
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
-        services_list = []
-        if not network_id:
-            res_nets = self._get("/services?identifier=data")
-            networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
-            for n in networks:
-                services_list.append(n.get("serviceID"))
-        else:
-            services_list = [network_id]
-            
+    def sync_data(self) -> int:
+        res_nets = self._get("/services?identifier=data")
+        networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+        services_list = [n.get("serviceID") for n in networks]
+        
         created_variations = []
         for sid in services_list:
             res = self._get(f"/service-variations?serviceID={sid}")
             variations = res.get('content', {}).get('varations', [])
             created_variations.extend(self._deserialize_data(sid, variations))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_data(self, sid: str, variations: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
@@ -290,22 +363,17 @@ class VTPassProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
-        services_list = []
-        if not service_id:
-            res_nets = self._get("/services?identifier=tv-subscription")
-            networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
-            for n in networks:
-                services_list.append(n.get("serviceID"))
-        else:
-            services_list = [service_id]
+    def sync_cable(self) -> int:
+        res_nets = self._get("/services?identifier=tv-subscription")
+        networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
+        services_list = [n.get("serviceID") for n in networks]
             
         created_variations = []
         for sid in services_list:
             res = self._get(f"/service-variations?serviceID={sid}")
             variations = res.get('content', {}).get('varations', [])
             created_variations.extend(self._deserialize_tv(sid, variations))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_tv(self, sid: str, variations: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
@@ -327,10 +395,10 @@ class VTPassProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_electricity_services(self) -> List[Any]:
+    def sync_electricity(self) -> int:
         res = self._get("/services?identifier=electricity-bill")
         raw_list = res.get('content', [{}])[0].get('services', []) if isinstance(res.get('content'), list) else []
-        return self._deserialize_electricity(raw_list)
+        return len(self._deserialize_electricity(raw_list))
 
     def _deserialize_electricity(self, raw_list: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
@@ -354,7 +422,7 @@ class VTPassProvider(BaseVTUProvider):
             services.append(variation)
         return services
 
-    def get_internet_packages(self) -> List[Any]:
+    def sync_internet(self) -> int:
         res_nets = self._get("/services?identifier=internet")
         networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
         created_variations = []
@@ -363,7 +431,7 @@ class VTPassProvider(BaseVTUProvider):
             res = self._get(f"/service-variations?serviceID={sid}")
             variations = res.get('content', {}).get('varations', [])
             created_variations.extend(self._deserialize_internet(sid, n.get("name"), variations))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_internet(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
         from orders.models import InternetService, InternetVariation
@@ -385,7 +453,7 @@ class VTPassProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_education_services(self) -> List[Any]:
+    def sync_education(self) -> int:
         res_nets = self._get("/services?identifier=education")
         networks = res_nets.get('content', [{}])[0].get('services', []) if isinstance(res_nets.get('content'), list) else []
         created_variations = []
@@ -394,7 +462,7 @@ class VTPassProvider(BaseVTUProvider):
             res = self._get(f"/service-variations?serviceID={sid}")
             variations = res.get('content', {}).get('varations', [])
             created_variations.extend(self._deserialize_education(sid, n.get("name"), variations))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_education(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
         from orders.models import EducationService, EducationVariation

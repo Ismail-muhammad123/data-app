@@ -14,7 +14,7 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, **kwargs):
+def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
     Unified logic for processing VTU purchases.
     """
@@ -44,7 +44,8 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
         user.id, 
         final_amount, 
         f"{service_name} purchase: {reference}",
-        initiator="self"
+        initiator=initiator,
+        initiated_by=initiated_by
     )
     if not debit_success:
         return {"status": "FAILED", "error": f"Wallet debit failed: {msg}"}
@@ -74,7 +75,9 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             reference=reference,
             status=status,
             provider_response=res,
-            provider=provider_obj
+            provider=provider_obj,
+            initiator=initiator,
+            initiated_by=initiated_by
         )
         
         # Link extras

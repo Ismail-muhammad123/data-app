@@ -100,22 +100,16 @@ class ClubKonnectProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
-        # service_type for CK usually includes 'CableTV', 'Electricity'
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
         params = {
-            "MobileNumber": identifier,
+            "MobileNumber": phone,
             "Amount": int(amount),
-            "RequestID": reference
+            "RequestID": reference,
+            "CableTV": tv_id,
+            "Package": package_id,
+            "SmartCardNo": smart_card_number
         }
-        # CK uses different endpoints for different services
-        if service_type.lower() in ['dstv', 'gotv', 'startimes']:
-             endpoint = "/CableTV.asp"
-             params.update({"CableTV": service_type, "Package": plan_id})
-        else:
-             endpoint = "/Electricity.asp"
-             params.update({"ElectricCompany": service_id, "MeterNo": identifier, "MeterType": "01"}) # PREPAID
-
-        res = self._get(endpoint, params)
+        res = self._get("/CableTV.asp", params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -130,8 +124,16 @@ class ClubKonnectProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def query_transaction(self, reference: str) -> Dict[str, Any]:
-        res = self._get("/Query.asp", {"RequestID": reference})
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        params = {
+            "MobileNumber": phone,
+            "Amount": int(amount),
+            "RequestID": reference,
+            "ElectricCompany": disco_id,
+            "MeterNo": meter_number,
+            "MeterType": "01" # PREPAID
+        }
+        res = self._get("/Electricity.asp", params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -141,6 +143,73 @@ class ClubKonnectProvider(BaseVTUProvider):
             
         return {
             "status": status,
+            "provider_reference": res.get('orderid'),
+            "message": res.get('remark'),
+            "raw_response": res
+        }
+
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        params = {
+            "MobileNetwork": "internet-direct", # or map if multiple
+            "DataPlan": plan_id,
+            "MobileNumber": phone,
+            "RequestID": reference
+        }
+        res = self._get("/APISmileV1.asp", params)
+        
+        status = "PENDING"
+        if res.get('status') == 'ORDER_COMPLETED':
+            status = "SUCCESS"
+        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
+            status = "FAILED"
+            
+        return {
+            "status": status,
+            "provider_reference": res.get('orderid'),
+            "message": res.get('remark'),
+            "raw_response": res
+        }
+
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        params = {
+            "Exam": exam_type,
+            "Quantity": quantity,
+            "RequestID": reference
+        }
+        res = self._get("/Education.asp", params)
+        
+        status = "PENDING"
+        if res.get('status') == 'ORDER_COMPLETED':
+            status = "SUCCESS"
+        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
+            status = "FAILED"
+            
+        return {
+            "status": status,
+            "provider_reference": res.get('orderid'),
+            "message": res.get('remark'),
+            "token": res.get('pin'),
+            "raw_response": res
+        }
+
+    def query_transaction(self, reference: str) -> Dict[str, Any]:
+        res = self._get("/Query.asp", {"RequestID": reference})
+        
+        status = "PENDING"
+        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
+            status = "SUCCESS"
+        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
+            status = "FAILED"
+            
+        return {
+            "status": status,
+            "raw_response": res
+        }
+
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        res = self._get("/Cancel.asp", {"RequestID": reference})
+        return {
+            "status": "CANCELLED" if res.get('statuscode') == '200' else "FAILED",
             "raw_response": res
         }
 
@@ -189,6 +258,17 @@ class ClubKonnectProvider(BaseVTUProvider):
         purchase.last_error = error_msg
         purchase.save()
         
+        # 1. Attempt Cancellation
+        try:
+            cancel_res = self.cancel_transaction(purchase.reference)
+            if purchase.provider_response is None:
+                purchase.provider_response = {}
+            purchase.provider_response["cancel_request_response"] = cancel_res
+            purchase.save()
+        except Exception as e:
+            logger.error(f"ClubKonnect Cancellation Failed: {e}")
+            
+        # 2. Trigger Refund/Fallback
         from orders.utils.purchase_logic import handle_vtu_async_failure
         handle_vtu_async_failure(purchase)
 
@@ -225,14 +305,14 @@ class ClubKonnectProvider(BaseVTUProvider):
             {"type": "education", "endpoint": "/EducationPackages.asp"},
         ]
     
-    def get_airtime_networks(self) -> List[Any]:
+    def sync_airtime(self) -> int:
         res = self._get("/APIAirtimeDiscountV2.asp", {})
         networks = res.get("MOBILE_NETWORK") or {}
         created_networks = []
         for network_name, product_list in networks.items():
             if not product_list: continue
             created_networks.extend(self._deserialize_airtime(network_name, product_list))
-        return created_networks
+        return len(created_networks)
 
     def _deserialize_airtime(self, network_name: str, product_list: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
@@ -255,15 +335,15 @@ class ClubKonnectProvider(BaseVTUProvider):
             created.append(net)
         return created
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
-        params = {"MobileNetwork": network_id} if network_id else {}
+    def sync_data(self) -> int:
+        params = {}
         res = self._get("/APIDatabundlePlansV2.asp", params)
         networks = res.get("MOBILE_NETWORK") or {}
         created_variations = []
         for network_name, network_list in networks.items():
             if not network_list: continue
             created_variations.extend(self._deserialize_data(network_name, network_list))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_data(self, network_name: str, network_list: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
@@ -288,15 +368,15 @@ class ClubKonnectProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
-        params = {"CableTV": service_id} if service_id else {}
+    def sync_cable(self) -> int:
+        params = {}
         res = self._get("/APICableTVPackagesV2.asp", params)
         networks = res.get("MOBILE_NETWORK") or res.get("TV_ID") or res.get("CABLETV") or {}
         created_variations = []
         for network_name, network_list in networks.items():
             if not network_list: continue
             created_variations.extend(self._deserialize_tv(network_name, network_list))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_tv(self, network_name: str, network_list: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
@@ -322,14 +402,14 @@ class ClubKonnectProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_electricity_services(self) -> List[Any]:
+    def sync_electricity(self) -> int:
         res = self._get("/APIElectricityDiscosV2.asp", {})
         companies = res.get("ELECTRIC_COMPANY") or res.get("ELECTRICCOMPANIES") or {}
         created_variations = []
         for name, company_infos in companies.items():
             if not company_infos: continue
             created_variations.extend(self._deserialize_electricity(name, company_infos))
-        return created_variations
+        return len(created_variations)
 
     def _deserialize_electricity(self, name: str, company_infos: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
@@ -354,7 +434,7 @@ class ClubKonnectProvider(BaseVTUProvider):
                 created.append(variation)
         return created
 
-    def get_internet_packages(self) -> List[Any]:
+    def sync_internet(self) -> int:
         # res = self._get("/APISmileDiscountV1.asp", {}) 
         # internet_networks = res.get("MOBILE_NETWORK") or {}
         
@@ -365,7 +445,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         #     service = self._deserialize_internet(network_name, network_list)
         #     if service:
         #         services.append(service)
-        return services
+        return len(services)
 
     def _deserialize_internet(self, network_name: str, network_list: List[Dict]) -> Optional[Any]:
         from orders.models import InternetVariation, InternetService
@@ -391,5 +471,5 @@ class ClubKonnectProvider(BaseVTUProvider):
             )
         return service
 
-    def get_education_services(self) -> List[Any]:
-        return []
+    def sync_education(self) -> int:
+        return 0

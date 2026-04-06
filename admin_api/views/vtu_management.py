@@ -78,6 +78,8 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
             amount=amount,
             beneficiary=beneficiary,
             action=action_name,
+            initiator='admin',
+            initiated_by=request.user,
             **purchase_kwargs
         )
         return Response(res)
@@ -256,15 +258,15 @@ class FetchFromProviderView(APIView):
         if not impl:
             return Response({"error": "Implementation not found"}, status=400)
             
-        objects = []
-        if service_type == 'data': objects = impl.get_data_plans()
-        elif service_type == 'airtime': objects = impl.get_airtime_networks()
-        elif service_type == 'tv': objects = impl.get_cable_tv_packages()
-        elif service_type == 'electricity': objects = impl.get_electricity_services()
-        elif service_type == 'internet': objects = impl.get_internet_packages()
-        elif service_type == 'education': objects = impl.get_education_services()
+        count = 0
+        if service_type == 'data': count = impl.sync_data()
+        elif service_type == 'airtime': count = impl.sync_airtime()
+        elif service_type == 'tv': count = impl.sync_cable()
+        elif service_type == 'electricity': count = impl.sync_electricity()
+        elif service_type == 'internet': count = impl.sync_internet()
+        elif service_type == 'education': count = impl.sync_education()
         
-        return Response({"status": "SUCCESS", "message": f"Successfully synced {len(objects)} {service_type} from {provider.name}"})
+        return Response({"status": "SUCCESS", "message": f"Successfully synced {count} {service_type} from {provider.name}"})
 
 class VariationUpdatePriceView(APIView):
     permission_classes = [CanManageVTU]

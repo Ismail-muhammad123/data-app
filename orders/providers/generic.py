@@ -72,32 +72,68 @@ class GenericLocalProvider(BaseVTUProvider):
         except Exception as e:
             return {"status": "FAILED", "message": str(e)}
 
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
-        # Implementation depends on whether it's TV, Electricity or Education
-        # Generic APIs usually separate these. We'll branch based on service_type or identifier hints.
-        if any(x in service_type.lower() for x in ['dstv', 'gotv', 'startimes']):
-            # TV
-            payload = {
-                "cablename": service_type,
-                "smart_card_number": identifier,
-                "cableplan": plan_id,
-            }
-            url = f"{self.base_url}/cablesub/"
-        else:
-            # Electricity
-            payload = {
-                "disco_name": service_type,
-                "meter_number": identifier,
-                "Meter_Type": "Prepaid",
-                "amount": int(amount),
-            }
-            url = f"{self.base_url}/billpayment/"
-
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "cablename": tv_id,
+            "smart_card_number": smart_card_number,
+            "cableplan": package_id,
+        }
+        url = f"{self.base_url}/cablesub/"
         try:
             response = requests.post(url, headers=self._get_headers(), json=payload, timeout=20)
             data = response.json()
             if data.get('Status') == 'successful':
                 return {"status": "SUCCESS", "token": data.get('main_token'), "raw_response": data}
+            return {"status": "FAILED", "message": data.get('error', 'Transaction failed'), "raw_response": data}
+        except Exception as e:
+            return {"status": "FAILED", "message": str(e)}
+
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "disco_name": disco_id,
+            "meter_number": meter_number,
+            "Meter_Type": "Prepaid",
+            "amount": int(amount),
+        }
+        url = f"{self.base_url}/billpayment/"
+        try:
+            response = requests.post(url, headers=self._get_headers(), json=payload, timeout=20)
+            data = response.json()
+            if data.get('Status') == 'successful':
+                return {"status": "SUCCESS", "token": data.get('main_token'), "raw_response": data}
+            return {"status": "FAILED", "message": data.get('error', 'Transaction failed'), "raw_response": data}
+        except Exception as e:
+            return {"status": "FAILED", "message": str(e)}
+
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "network": kwargs.get('internet_variation', plan_id), # Try to map network or use generalized payload
+            "mobile_number": phone,
+            "plan": plan_id,
+            "Ported_number": True
+        }
+        url = f"{self.base_url}/internet/"
+        try:
+            response = requests.post(url, headers=self._get_headers(), json=payload, timeout=20)
+            data = response.json()
+            if data.get('Status') == 'successful':
+                return {"status": "SUCCESS", "provider_reference": data.get('id'), "raw_response": data}
+            return {"status": "FAILED", "message": data.get('error', 'Transaction failed'), "raw_response": data}
+        except Exception as e:
+            return {"status": "FAILED", "message": str(e)}
+
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "exam_name": exam_type,
+            "quantity": quantity,
+            "amount": amount
+        }
+        url = f"{self.base_url}/education/"
+        try:
+            response = requests.post(url, headers=self._get_headers(), json=payload, timeout=20)
+            data = response.json()
+            if data.get('Status') == 'successful':
+                return {"status": "SUCCESS", "token": data.get('pin'), "raw_response": data}
             return {"status": "FAILED", "message": data.get('error', 'Transaction failed'), "raw_response": data}
         except Exception as e:
             return {"status": "FAILED", "message": str(e)}
@@ -111,6 +147,10 @@ class GenericLocalProvider(BaseVTUProvider):
             return {"status": status, "raw_response": data}
         except:
             return {"status": "PENDING", "error": "Query failed"}
+
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        """Simulation: Cancellation not supported by generic mock."""
+        return {"status": "FAILED", "message": "Cancellation not supported"}
 
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         url = f"{self.base_url}/validate_meter/?meternumber={meter_number}&disconame={service}&mtype=Prepaid"
@@ -144,13 +184,13 @@ class GenericLocalProvider(BaseVTUProvider):
             {"type": "data", "id": "1", "name": "MTN Data"},
         ]
 
-    def get_airtime_networks(self) -> List[Any]:
+    def sync_airtime(self) -> int:
         try:
             url = f"{self.base_url}/networks/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
             data = response.json()
-            return self._deserialize_airtime(data)
-        except: return []
+            return len(self._deserialize_airtime(data))
+        except: return 0
 
     def _deserialize_airtime(self, data: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
@@ -166,13 +206,13 @@ class GenericLocalProvider(BaseVTUProvider):
             created.append(net)
         return created
 
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Any]:
+    def sync_data(self) -> int:
         try:
-            url = f"{self.base_url}/dataplans/?network={network_id}" if network_id else f"{self.base_url}/dataplans/"
+            url = f"{self.base_url}/dataplans/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
             data = response.json()
-            return self._deserialize_data(data)
-        except: return []
+            return len(self._deserialize_data(data))
+        except: return 0
 
     def _deserialize_data(self, data: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
@@ -195,13 +235,13 @@ class GenericLocalProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Any]:
+    def sync_cable(self) -> int:
         try:
-            url = f"{self.base_url}/cableplans/?cablename={service_id}" if service_id else f"{self.base_url}/cableplans/"
+            url = f"{self.base_url}/cableplans/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
             data = response.json()
-            return self._deserialize_tv(data)
-        except: return []
+            return len(self._deserialize_tv(data))
+        except: return 0
 
     def _deserialize_tv(self, data: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
@@ -224,13 +264,13 @@ class GenericLocalProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_electricity_services(self) -> List[Any]:
+    def sync_electricity(self) -> int:
         try:
             url = f"{self.base_url}/discos/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
             data = response.json()
-            return self._deserialize_electricity(data)
-        except: return []
+            return len(self._deserialize_electricity(data))
+        except: return 0
 
     def _deserialize_electricity(self, data: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
@@ -251,16 +291,16 @@ class GenericLocalProvider(BaseVTUProvider):
             created.append(variation)
         return created
 
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        return []
+    def sync_internet(self) -> int:
+        return 0
 
-    def get_education_services(self) -> List[Any]:
+    def sync_education(self) -> int:
         try:
             url = f"{self.base_url}/education/"
             response = requests.get(url, headers=self._get_headers(), timeout=10)
             data = response.json()
-            return self._deserialize_education(data)
-        except: return []
+            return len(self._deserialize_education(data))
+        except: return 0
 
     def _deserialize_education(self, data: List[Dict]) -> List[Any]:
         from orders.models import EducationService, EducationVariation

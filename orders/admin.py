@@ -6,78 +6,116 @@ from .models import (
     InternetVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
     InternetService, EducationService, EducationVariation
 )
-from .services.clubkonnect import ClubKonnectClient
-from django.utils.html import format_html
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
 from django.db import transaction as db_transaction
 from wallet.utils import fund_wallet
+from .router import ProviderRouter
 
 
-class ClubKonnectSyncMixin:
-    def sync_all_clubkonnect_services(self, request, queryset):
-        client = ClubKonnectClient()
+class ProviderSyncMixin:
+    def sync_all_services(self, request, queryset):
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            success = client.sync_all_services()
-            if success:
-                self.message_user(request, "Successfully synced all services from ClubKonnect")
-            else:
-                self.message_user(request, "Failed to sync services from ClubKonnect", level='error')
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += sum([
+                        impl.sync_airtime(), impl.sync_data(), impl.sync_cable(),
+                        impl.sync_electricity(), impl.sync_internet(), impl.sync_education()
+                    ])
+            self.message_user(request, f"Successfully synced {total_synced} items from active providers")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_all_clubkonnect_services.short_description = "Sync all ClubKonnect services"
+    sync_all_services.short_description = "Sync all services from Active Providers"
 
     def sync_airtime_services(self, request, queryset):
-        client = ClubKonnectClient()
+        from .router import ProviderRouter
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            count = client.sync_airtime()
-            self.message_user(request, f"Successfully synced {count} airtime networks")
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_airtime()
+            self.message_user(request, f"Successfully synced {total_synced} airtime networks")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_airtime_services.short_description = "Sync Airtime from ClubKonnect"
+    sync_airtime_services.short_description = "Sync Airtime from Active Providers"
+
     def sync_data_services(self, request, queryset):
-        client = ClubKonnectClient()
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            count = client.sync_data()
-            self.message_user(request, f"Successfully synced {count} data plans")
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_data()
+            self.message_user(request, f"Successfully synced {total_synced} data plans")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_data_services.short_description = "Sync Data from ClubKonnect"
+    sync_data_services.short_description = "Sync Data from Active Providers"
 
     def sync_cable_services(self, request, queryset):
-        client = ClubKonnectClient()
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            count = client.sync_cable()
-            self.message_user(request, f"Successfully synced {count} cable packages")
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_cable()
+            self.message_user(request, f"Successfully synced {total_synced} cable packages")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_cable_services.short_description = "Sync Cable from ClubKonnect"
+    sync_cable_services.short_description = "Sync Cable from Active Providers"
 
     def sync_electricity_services(self, request, queryset):
-        client = ClubKonnectClient()
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            count = client.sync_electricity()
-            self.message_user(request, f"Successfully synced {count} electricity discos")
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_electricity()
+            self.message_user(request, f"Successfully synced {total_synced} electricity discos")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_electricity_services.short_description = "Sync Electricity from ClubKonnect"
+    sync_electricity_services.short_description = "Sync Electricity from Active Providers"
 
     def sync_internet_services(self, request, queryset):
-        client = ClubKonnectClient()
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
         try:
-            count = client.sync_internet()
-            self.message_user(request, f"Successfully synced {count} internet packages")
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_internet()
+            self.message_user(request, f"Successfully synced {total_synced} internet packages")
         except Exception as e:
             self.message_user(request, f"An error occurred: {str(e)}", level='error')
-    sync_internet_services.short_description = "Sync Internet from ClubKonnect"
+    sync_internet_services.short_description = "Sync Internet from Active Providers"
+
+    def sync_education_services(self, request, queryset):
+        configs = VTUProviderConfig.objects.filter(is_active=True)
+        total_synced = 0
+        try:
+            for config in configs:
+                impl = ProviderRouter.get_provider_implementation(config.name)
+                if impl:
+                    total_synced += impl.sync_education()
+            self.message_user(request, f"Successfully synced {total_synced} education pins")
+        except Exception as e:
+            self.message_user(request, f"An error occurred: {str(e)}", level='error')
+    sync_education_services.short_description = "Sync Education from Active Providers"
 
 
 @admin.register(DataService)
-class DataServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class DataServiceAdmin(admin.ModelAdmin, ProviderSyncMixin):
     list_display= ["network_image", "service_name", "service_id", "provider", "is_active", "data_plans_count"]
     list_display_links = ["service_name", "network_image"]
     list_filter = ["provider", "is_active"]
-    actions = ["sync_data_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_data_services", "sync_all_services"]
     
     def network_image(self, obj):
         if obj.image:
@@ -128,7 +166,7 @@ class DataVariationAdmin(admin.ModelAdmin):
 
 
 @admin.register(ElectricityService)
-class ElectricityServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class ElectricityServiceAdmin(admin.ModelAdmin, ProviderSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
@@ -139,7 +177,7 @@ class ElectricityServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display_links = ["service_name"]
     list_filter = ["provider", "is_active"]
     list_per_page= 100
-    actions = ["sync_electricity_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_electricity_services", "sync_all_services"]
 
     def variation_count(self, obj):
         from django.urls import reverse
@@ -163,7 +201,7 @@ class ElectricityVariationAdmin(admin.ModelAdmin):
 
 
 @admin.register(TVService)
-class TVServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class TVServiceAdmin(admin.ModelAdmin, ProviderSyncMixin):
     list_display= [
         "service_name", 
         "service_id", 
@@ -174,7 +212,7 @@ class TVServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     list_display_links = ["service_name"]
     list_filter = ["provider", "is_active"]
     list_per_page= 100
-    actions = ["sync_cable_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_cable_services", "sync_all_services"]
 
     def variation_count(self, obj):
         from django.urls import reverse
@@ -217,10 +255,10 @@ class TVVariationAdmin(admin.ModelAdmin):
 
 
 @admin.register(InternetService)
-class InternetServiceAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class InternetServiceAdmin(admin.ModelAdmin, ProviderSyncMixin):
     list_display = ["service_name", "service_id", "provider", "is_active"]
     list_filter = ["provider", "is_active"]
-    actions = ["sync_internet_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_internet_services", "sync_all_services"]
 
 @admin.register(InternetVariation)
 class InternetVariationAdmin(admin.ModelAdmin):
@@ -238,7 +276,7 @@ class InternetVariationAdmin(admin.ModelAdmin):
     list_filter = ["service", "is_active"]
     ordering = ["name", "selling_price"]
     list_per_page = 50
-    actions = ["make_as_active", "sync_internet_services", "sync_all_clubkonnect_services"]
+    actions = ["make_as_active", "sync_internet_services", "sync_all_services"]
 
     def sales_count(self, obj):
         from django.urls import reverse
@@ -295,19 +333,15 @@ class PurchaseAdmin(admin.ModelAdmin):
     list_per_page = 100    
     change_list_template = "admin/orders/purchase/change_list.html"
 
-    actions = ["query_status", "cancel_transaction_action", "cancel_and_refund"]
+    actions = ["query_status", "mark_as_failed_and_refund"]
 
-    def cancel_and_refund(self, request, queryset):
-        client = ClubKonnectClient()
+    def mark_as_failed_and_refund(self, request, queryset):
         for purchase in queryset:
             if purchase.status == "failed":
                 self.message_user(request, f"Purchase {purchase.reference} is already failed.", level='warning')
                 continue
 
             try:
-                cancel_resp = client.cancel_transaction(request_id=purchase.reference)
-                purchase.provider_response["admin_cancel_request"] = cancel_resp
-                
                 with db_transaction.atomic():
                     purchase.status = "failed"
                     purchase.save()
@@ -315,82 +349,74 @@ class PurchaseAdmin(admin.ModelAdmin):
                     fund_wallet(
                         user_id=purchase.user.id,
                         amount=purchase.amount,
-                        description=f"Refund: Admin cancelled {purchase.purchase_type} purchase ({purchase.reference})",
+                        description=f"Refund: Admin marked {purchase.purchase_type} purchase failed ({purchase.reference})",
                         initiator="admin",
                         initiated_by=request.user
                     )
                 
-                self.message_user(request, f"Successfully cancelled and refunded {purchase.reference}")
+                self.message_user(request, f"Successfully refunded {purchase.reference}")
             except Exception as e:
                 self.message_user(request, f"Error processing {purchase.reference}: {str(e)}", level='error')
 
-    cancel_and_refund.short_description = "Cancel Purchase and Refund"
+    mark_as_failed_and_refund.short_description = "Mark as Failed and Refund"
 
     def query_status(self, request, queryset):
-        client = ClubKonnectClient()
+        from .router import ProviderRouter
         success_count = 0
         failed_count = 0
         
         for purchase in queryset:
+            if not purchase.provider:
+                self.message_user(request, f"Purchase {purchase.reference} has no known provider to query.", level='warning')
+                continue
+                
             try:
-                # Use reference as RequestID
-                resp = client.query_transaction(request_id=purchase.reference)
-                
-                # Update purchase details
-                purchase.provider_response = resp
-                status_code = resp.get("statuscode")
+                impl = ProviderRouter.get_provider_implementation(purchase.provider.name)
+                if not impl:
+                    self.message_user(request, f"Provider {purchase.provider.name} implementation not found.", level='warning')
+                    continue
 
-                # Map Status Codes
-                terminal_failure = False
+                resp = impl.query_transaction(reference=purchase.reference)
                 
-                if status_code == "200":
+                # Update purchase details safely
+                if isinstance(purchase.provider_response, dict):
+                    purchase.provider_response["query_response"] = resp
+                else:
+                    purchase.provider_response = {"query_response": resp}
+
+                new_status = resp.get("status")
+                
+                terminal_fail = False
+                if new_status == "SUCCESS":
                     purchase.status = "success"
                     success_count += 1
-                elif status_code in ["100", "101", "102"]:
-                    purchase.status = "pending"
-                else:
+                elif new_status == "FAILED":
                     if purchase.status != "failed":
                         purchase.status = "failed"
-                        terminal_failure = True
+                        terminal_fail = True
                         failed_count += 1
-
+                
                 with db_transaction.atomic():
                     purchase.save()
-
-                    if terminal_failure:
-                        # 1. Send Cancel Request (reference is RequestID)
-                        cancel_resp = client.cancel_transaction(request_id=purchase.reference)
-                        purchase.provider_response["cancel_request_response"] = cancel_resp
-                        purchase.save()
-
-                        # 2. Reverse funds
+                    if terminal_fail:
                         fund_wallet(
                             user_id=purchase.user.id,
                             amount=purchase.amount,
-                            description=f"Refund: Admin check failed {purchase.purchase_type} purchase ({purchase.reference})",
+                            description=f"Refund: Query returned failed for {purchase.purchase_type} ({purchase.reference})",
                             initiator="admin",
                             initiated_by=request.user
                         )
                 
                 self.message_user(request, f"Updated {purchase.reference}: {purchase.status}")
             
+            except NotImplementedError:
+                self.message_user(request, f"Provider {purchase.provider.name} does not support query_transaction.", level='warning')
             except Exception as e:
                 self.message_user(request, f"Error querying {purchase.reference}: {str(e)}", level='error')
 
-        self.message_user(request, f"Query completed. Found {success_count} success and {failed_count} terminal failures.")
+        self.message_user(request, f"Query completed. Found {success_count} success and {failed_count} new terminal failures.")
 
-    query_status.short_description = "Recheck Status"
-
-    def cancel_transaction_action(self, request, queryset):
-        client = ClubKonnectClient()
-        for purchase in queryset:
-            resp = client.cancel_transaction(request_id=purchase.reference)
-            if resp.get("status") == "success":
-                self.message_user(request, f"Cancelled {purchase.reference}: {resp.get('message')}")
-            else:
-                self.message_user(request, f"Failed to cancel {purchase.reference}: {resp.get('message')}", level='error')
-
-    cancel_transaction_action.short_description = "Cancel on ClubKonnect"
+    query_status.short_description = "Recheck Status from Provider"
 
     def service_name(self, obj):
         if obj.airtime_service:
@@ -426,8 +452,7 @@ class PurchaseAdmin(admin.ModelAdmin):
         from django.shortcuts import render, redirect
         from django.contrib import messages
         from users.models import User
-        from wallet.utils import debit_wallet
-        from .services.clubkonnect import ClubKonnectClient
+        from orders.utils.purchase_logic import process_vtu_purchase
         import uuid
 
         if request.method == "POST":
@@ -437,69 +462,57 @@ class PurchaseAdmin(admin.ModelAdmin):
             
             try:
                 user = User.objects.get(id=user_id)
-                client = ClubKonnectClient()
                 
                 if purchase_type == "AIRTIME":
                     network_id = request.POST.get("network")
                     amount = float(request.POST.get("amount"))
                     network = AirtimeNetwork.objects.get(id=network_id)
                     
-                    # 1. Debit wallet first
-                    debit_success, msg = debit_wallet(user.id, amount, f"Admin Airtime Purchase: {network.service_name}", initiator="admin", initiated_by=request.user)
-                    if not debit_success:
-                        messages.error(request, f"Debit failed: {msg}")
+                    ref = f"ADM-AIR-{uuid.uuid4().hex[:8].upper()}"
+                    res = process_vtu_purchase(
+                        user=user,
+                        purchase_type="airtime",
+                        amount=amount,
+                        beneficiary=beneficiary,
+                        action="buy_airtime",
+                        initiator="admin",
+                        initiated_by=request.user,
+                        service_name=f"{network.service_name} Airtime",
+                        reference=ref,
+                        phone=beneficiary,
+                        network=network.service_id,
+                        airtime_service=network
+                    )
+                    if res.get('status') == 'failed':
+                        messages.error(request, f"Purchase Failed: {res.get('error', res.get('res', {}).get('message', 'Unknown Error'))}")
                     else:
-                        # 2. Call ClubKonnect
-                        ref = f"ADM-AIR-{uuid.uuid4().hex[:8].upper()}"
-                        resp = client.buy_airtime(network.service_id, amount, beneficiary, ref)
-                        
-                        # 3. Create Purchase record
-                        Purchase.objects.create(
-                            user=user,
-                            purchase_type="airtime",
-                            airtime_service=network,
-                            amount=amount,
-                            beneficiary=beneficiary,
-                            reference=ref,
-                            status="success" if resp.get("status") == "success" else "failed",
-                            initiator="admin",
-                            initiated_by=request.user
-                        )
-                        if resp.get("status") == "success":
-                            messages.success(request, "Airtime purchase successful")
-                        else:
-                            messages.error(request, f"ClubKonnect Error: {resp.get('message')}")
+                        messages.success(request, "Airtime purchase successful")
 
                 elif purchase_type == "DATA":
                     variation_id = request.POST.get("variation")
                     variation = DataVariation.objects.get(id=variation_id)
                     amount = float(variation.selling_price)
                     
-                    # 1. Debit wallet
-                    debit_success, msg = debit_wallet(user.id, amount, f"Admin Data Purchase: {variation.name}", initiator="admin", initiated_by=request.user)
-                    if not debit_success:
-                        messages.error(request, f"Debit failed: {msg}")
+                    ref = f"ADM-DAT-{uuid.uuid4().hex[:8].upper()}"
+                    res = process_vtu_purchase(
+                        user=user,
+                        purchase_type="data",
+                        amount=amount,
+                        beneficiary=beneficiary,
+                        action="buy_data",
+                        initiator="admin",
+                        initiated_by=request.user,
+                        service_name=f"{variation.name} Data",
+                        reference=ref,
+                        phone=beneficiary,
+                        network=variation.service.service_id,
+                        plan_id=variation.variation_id,
+                        data_variation=variation
+                    )
+                    if res.get('status') == 'failed':
+                        messages.error(request, f"Purchase Failed: {res.get('error', res.get('res', {}).get('message', 'Unknown Error'))}")
                     else:
-                        # 2. Call ClubKonnect
-                        ref = f"ADM-DAT-{uuid.uuid4().hex[:8].upper()}"
-                        resp = client.buy_data(variation.service.service_id, variation.variation_id, beneficiary, ref)
-                        
-                        # 3. Create Purchase record
-                        Purchase.objects.create(
-                            user=user,
-                            purchase_type="data",
-                            data_variation=variation,
-                            amount=amount,
-                            beneficiary=beneficiary,
-                            reference=ref,
-                            status="success" if resp.get("status") == "success" else "failed",
-                            initiator="admin",
-                            initiated_by=request.user
-                        )
-                        if resp.get("status") == "success":
-                            messages.success(request, "Data purchase successful")
-                        else:
-                            messages.error(request, f"ClubKonnect Error: {resp.get('message')}")
+                        messages.success(request, "Data purchase successful")
                 
             except Exception as e:
                 messages.error(request, f"Error: {str(e)}")
@@ -521,7 +534,7 @@ class PurchaseAdmin(admin.ModelAdmin):
 
 
 @admin.register(AirtimeNetwork)
-class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
+class AirtimeNetworkAdmin(admin.ModelAdmin, ProviderSyncMixin):
     list_display= [
         "network_image",
         "service_name", 
@@ -533,7 +546,7 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
 
     list_display_links = ["network_image","service_name"]
     list_filter = ["provider", "is_active"]
-    actions = ["sync_airtime_services", "sync_all_clubkonnect_services"]
+    actions = ["sync_airtime_services", "sync_all_services"]
 
     def network_image(self, obj):
         if obj.image:
@@ -552,6 +565,49 @@ class AirtimeNetworkAdmin(admin.ModelAdmin, ClubKonnectSyncMixin):
     sales_count.short_description = "Sales"
 
     list_per_page= 100
+
+@admin.register(EducationService)
+class EducationServiceAdmin(admin.ModelAdmin, ProviderSyncMixin):
+    list_display = ["service_name", "service_id", "provider", "is_active", "variation_count"]
+    list_display_links = ["service_name"]
+    list_filter = ["provider", "is_active"]
+    list_per_page = 100
+    actions = ["sync_education_services", "sync_all_services"]
+
+    def variation_count(self, obj):
+        from django.urls import reverse
+        count = obj.variations.count()
+        url = reverse('admin:orders_educationvariation_changelist') + f'?service__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Plans</a>', url, count)
+    variation_count.short_description = "Packages"
+
+@admin.register(EducationVariation)
+class EducationVariationAdmin(admin.ModelAdmin):
+    list_display = [
+        "name", 
+        "service_name", 
+        "variation_id", 
+        "selling_price", 
+        "agent_price",
+        "is_active",
+        "sales_count"
+    ]
+    list_filter = ["service", "is_active"]
+    ordering = ["name", "selling_price"]
+    list_per_page = 50
+
+    def service_name(self, obj):
+        return obj.service.service_name
+    service_name.short_description = "Service"
+
+    def sales_count(self, obj):
+        from django.urls import reverse
+        count = obj.sales.count()
+        url = reverse('admin:orders_purchase_changelist') + f'?education_variation__id__exact={obj.id}'
+        return format_html('<a href="{}">{} Sales</a>', url, count)
+    sales_count.short_description = "Sales"
+
+
 # ─── VTU Routing Admin ───
 
 class ServiceFallbackInline(admin.TabularInline):

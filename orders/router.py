@@ -7,6 +7,7 @@ import logging
 from .providers.vtpass import VTPassProvider
 from .providers.clubkonnect import ClubKonnectProvider
 from .providers.generic import GenericLocalProvider
+from .providers.arewa_global import ArewaGlobalProvider
 
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,10 @@ class ProviderRouter:
     FACTORIES = {
         'vtpass': VTPassProvider,
         'clubkonnect': ClubKonnectProvider,
+        'arewa_global': ArewaGlobalProvider,
         'alrahuz': GenericLocalProvider,
         'mobilenig': GenericLocalProvider,
         'otapay': GenericLocalProvider,
-        'arewa_global': GenericLocalProvider,
         'mightydata': GenericLocalProvider,
         'smedata': GenericLocalProvider,
         'mobilevtu': GenericLocalProvider,

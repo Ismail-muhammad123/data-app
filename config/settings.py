@@ -187,13 +187,13 @@ DATABASES = {
     }
 }
 
-if PRODUCTION:
-    DATABASES = {
-     'default':  dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
-        conn_max_age=600
-        )
-    }
+# if PRODUCTION:
+#     DATABASES = {
+#      'default':  dj_database_url.config(
+#         default=os.getenv('DATABASE_URL'),
+#         conn_max_age=600
+#         )
+#     }
         
 
 

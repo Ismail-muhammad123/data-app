@@ -47,10 +47,23 @@ class BaseVTUProvider(ABC):
         pass
 
     @abstractmethod
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
-        """
-        Generic bill payment (CableTV, Electricity, Education).
-        """
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        """Buy Cable TV Subscription"""
+        pass
+
+    @abstractmethod
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        """Buy Electricity Token"""
+        pass
+
+    @abstractmethod
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        """Buy Internet Data"""
+        pass
+
+    @abstractmethod
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        """Buy Education Pin (WAEC/NECO/JAMB)"""
         pass
 
     @abstractmethod
@@ -61,85 +74,62 @@ class BaseVTUProvider(ABC):
         pass
 
     @abstractmethod
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        """
+        Cancel a pending/failed transaction.
+        """
+        pass
+
+    @abstractmethod
     def handle_webhook(self, data: Dict[str, Any]) -> bool:
-        """
-        Logic for processing incoming webhooks.
-        """
         pass
 
     @abstractmethod
     def handle_callback(self, data: Dict[str, Any]) -> bool:
-        """
-        Logic for processing callback redirects.
-        """
         pass
 
     @abstractmethod
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
-        """
-        Validate electricity meter before payment.
-        """
         pass
 
     @abstractmethod
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
-        """
-        Validate smartcard number for Cable TV.
-        """
         pass
 
     @abstractmethod
     def get_wallet_balance(self) -> float:
-        """
-        Get the balance of the platform's wallet with this provider.
-        """
         pass
 
     @abstractmethod
     def get_available_services(self) -> List[Dict[str, Any]]:
-        """
-        Get all services/networks and plans available on this provider.
-        """
         pass
 
     @abstractmethod
-    def get_airtime_networks(self) -> List[Dict[str, Any]]:
-        """
-        Fetch available airtime networks from the provider API.
-        """
+    def sync_airtime(self) -> int:
+        """Fetch and sync airtime networks"""
         pass
 
     @abstractmethod
-    def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Fetch available data plans/variations from the provider API.
-        """
+    def sync_data(self) -> int:
+        """Fetch and sync data variations"""
         pass
 
     @abstractmethod
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Fetch available Cable TV packages from the provider API.
-        """
+    def sync_cable(self) -> int:
+        """Fetch and sync cable tv packages"""
         pass
 
     @abstractmethod
-    def get_electricity_services(self) -> List[Dict[str, Any]]:
-        """
-        Fetch available electricity services/discos from the provider API.
-        """
+    def sync_electricity(self) -> int:
+        """Fetch and sync electricity variations"""
         pass
 
     @abstractmethod
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        """
-        Fetch available Internet variations from the provider API.
-        """
+    def sync_internet(self) -> int:
+        """Fetch and sync internet variations"""
         pass
 
     @abstractmethod
-    def get_education_services(self) -> List[Dict[str, Any]]:
-        """
-        Fetch available education services/variations from the provider API.
-        """
+    def sync_education(self) -> int:
+        """Fetch and sync education variations"""
         pass
