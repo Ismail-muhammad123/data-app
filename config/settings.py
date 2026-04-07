@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'notifications',
     'admin_api',
     'support',
+    'developer_api',
     'django_filters',
 ]
 
@@ -418,3 +419,13 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# Twilio & SendGrid Notifications
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+TWILIO_MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID")
+TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM")
+TWILIO_WHATSAPP_CONTENT_SID = os.environ.get("TWILIO_WHATSAPP_CONTENT_SID")
+TWILIO_DEBUG_PHONE = os.environ.get("TWILIO_DEBUG_PHONE")
+
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")

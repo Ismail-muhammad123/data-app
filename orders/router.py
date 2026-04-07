@@ -1,4 +1,5 @@
 from .models import VTUProviderConfig, ServiceRouting, ServiceFallback
+from django.db import models
 from .interfaces import BaseVTUProvider
 from typing import Optional, List, Dict, Any
 import logging
@@ -39,19 +40,52 @@ class ProviderRouter:
     def get_provider_implementation(cls, provider_name: str) -> Optional[BaseVTUProvider]:
         """
         Instantiate the provider implementation class.
-        Uses a registry or factory pattern to associate the provider choice with its implementation.
+        Checks for dynamic providers first, then hardcoded factories.
         """
+        from .models import DynamicVTUProvider
+        from .providers.dynamic import DynamicProvider
+
+        # 1. Try Dynamic Provider matching slug or name
+        dynamic = DynamicVTUProvider.objects.filter(is_active=True).filter(
+            models.Q(name__iexact=provider_name) | models.Q(slug__iexact=provider_name)
+        ).first()
+
+        if dynamic:
+            # Build config from many-to-one relations
+            ops = {}
+            for op in dynamic.operations.all():
+                ops[op.operation_type] = {
+                    'endpoint_path': op.endpoint_path,
+                    'method': op.method,
+                    'request_params': op.request_params,
+                    'static_params': op.static_params,
+                    'success_condition': op.success_condition,
+                }
+            
+            config = {
+                'name': dynamic.name,
+                'slug': dynamic.slug,
+                'base_url': dynamic.base_url,
+                'api_key': dynamic.api_key,
+                'api_key_header': dynamic.api_key_header,
+                'api_key_prefix': dynamic.api_key_prefix,
+                'request_format': dynamic.request_format,
+                'operations': ops
+            }
+            return DynamicProvider(config)
+
+        # 2. Try hardcoded factories
         provider_class = cls.FACTORIES.get(provider_name.lower())
         if not provider_class:
             return None
 
-        config = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
-        if not config:
+        config_obj = VTUProviderConfig.objects.filter(name=provider_name, is_active=True).first()
+        if not config_obj:
             return None
 
         try:     
-            instance = provider_class(config.get_config_dict())
-            instance.provider_config = config
+            instance = provider_class(config_obj.get_config_dict())
+            instance.provider_config = config_obj
             return instance
         except Exception as e:
             logger.error(f"Error instantiating provider {provider_name}: {e}")

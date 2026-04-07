@@ -413,3 +413,43 @@ class PurchasePromoUsed(models.Model):
     def __str__(self):
         return f"Promo {self.promo_code.code} on {self.purchase.reference}"
 
+
+class DynamicVTUProvider(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    base_url = models.URLField()
+    api_key_header = models.CharField(max_length=100, default="Authorization")
+    api_key_prefix = models.CharField(max_length=100, default="Token ", blank=True)
+    api_key = models.CharField(max_length=500)
+    is_active = models.BooleanField(default=True)
+    
+    # Generic Config
+    request_format = models.CharField(max_length=10, choices=[('json', 'JSON'), ('params', 'Query Params')], default='json')
+    response_format = models.CharField(max_length=10, choices=[('json', 'JSON')], default='json')
+    
+    def __str__(self):
+        return self.name
+
+class DynamicOperationConfig(models.Model):
+    OPERATIONS = [
+        ('get_networks', 'Get Networks'),
+        ('get_variations', 'Get Variations/Packages'),
+        ('purchase', 'Purchase Service'),
+        ('verify', 'Verify Status'),
+    ]
+    provider = models.ForeignKey(DynamicVTUProvider, on_delete=models.CASCADE, related_name="operations")
+    operation_type = models.CharField(max_length=50, choices=OPERATIONS)
+    endpoint_path = models.CharField(max_length=255, help_text="e.g. /api/data/")
+    method = models.CharField(max_length=10, choices=[('GET', 'GET'), ('POST', 'POST')], default='POST')
+    
+    # Mapping fields (JSON)
+    # Params mapping: {"network_id": "network", "amount": "amount"}
+    request_params = models.JSONField(default=dict, blank=True, help_text="Mapping from our internal names to theirs")
+    static_params = models.JSONField(default=dict, blank=True, help_text="Always sent with request")
+    
+    # Response mapping: {"status_field": "status", "success_value": "success", "msg_field": "message"}
+    success_condition = models.JSONField(default=dict, blank=True, help_text="e.g. {'field': 'status', 'value': 'true'}")
+    
+    def __str__(self):
+        return f"{self.provider.name} - {self.get_operation_type_display()}"
+

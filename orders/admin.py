@@ -1,16 +1,35 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     DataService, DataVariation, AirtimeNetwork, 
     ElectricityService, ElectricityVariation, 
     Purchase, TVService, TVVariation,
     InternetVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
-    InternetService, EducationService, EducationVariation
+    InternetService, EducationService, EducationVariation,
+    DynamicVTUProvider, DynamicOperationConfig
 )
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
 from django.db import transaction as db_transaction
 from wallet.utils import fund_wallet
 from .router import ProviderRouter
+
+
+class DynamicOperationConfigInline(admin.TabularInline):
+    model = DynamicOperationConfig
+    extra = 1
+
+@admin.register(DynamicVTUProvider)
+class DynamicVTUProviderAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'base_url', 'is_active')
+    search_fields = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [DynamicOperationConfigInline]
+
+@admin.register(DynamicOperationConfig)
+class DynamicOperationConfigAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'operation_type', 'endpoint_path', 'method')
+    list_filter = ('provider', 'operation_type', 'method')
 
 
 class ProviderSyncMixin:

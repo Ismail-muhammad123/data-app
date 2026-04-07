@@ -4,8 +4,91 @@ import json
 import logging
 from django.conf import settings
 from typing import Optional, Dict, Any
+from twilio.rest import Client
+
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 logger = logging.getLogger(__name__)
+
+class SendGridService:
+    @staticmethod
+    def send_email(to_email: str, subject: str, html_content: str) -> bool:
+        api_key = getattr(settings, 'SENDGRID_API_KEY', None)
+        from_email = getattr(settings, 'ZOHO_EMAIL_USER', 'noreply@starboyglobal.com.ng')
+        if not api_key: return False
+        try:
+            sg = SendGridAPIClient(api_key)
+            mail = Mail(from_email=from_email, to_emails=to_email, subject=subject, html_content=html_content)
+            response = sg.send(mail)
+            return response.status_code in [200, 201, 202]
+        except Exception as e:
+            logger.error(f"SendGrid Error: {e}")
+            return False
+
+class TwilioService:
+    @staticmethod
+    def send_sms(to_phone: str, message_body: str) -> bool:
+        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+        messaging_service_sid = getattr(settings, 'TWILIO_MESSAGING_SERVICE_SID', None)
+        debug_phone = getattr(settings, 'TWILIO_DEBUG_PHONE', None)
+
+        if not all([account_sid, auth_token, messaging_service_sid]):
+            logger.error("Twilio credentials not fully configured")
+            return False
+
+        # Debug mode logic: in debug, redirect all SMS to the debug phone
+        if settings.DEBUG and debug_phone:
+            logger.info(f"DEBUG MODE: Redirecting SMS from {to_phone} to {debug_phone}")
+            to_phone = debug_phone
+
+        try:
+            client = Client(account_sid, auth_token)
+            message = client.messages.create(
+                messaging_service_sid=messaging_service_sid,
+                body=message_body,
+                to=to_phone
+            )
+            logger.info(f"Twilio SMS sent: {message.sid}")
+            return True
+        except Exception as e:
+            logger.error(f"Twilio SMS Error: {e}")
+            return False
+
+    @staticmethod
+    def send_whatsapp(to_phone: str, otp_code: str) -> bool:
+        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+        from_wa = getattr(settings, 'TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886')
+        content_sid = getattr(settings, 'TWILIO_WHATSAPP_CONTENT_SID', 'HX229f5a04fd0510ce1b071852155d3e75')
+        debug_phone = getattr(settings, 'TWILIO_DEBUG_PHONE', None)
+
+        if not all([account_sid, auth_token]):
+            logger.error("Twilio credentials not fully configured for WhatsApp")
+            return False
+
+        # Format recipient: ensure whatsapp:+prefix
+        if not to_phone.startswith('whatsapp:'):
+            if not to_phone.startswith('+'): to_phone = f'+{to_phone}'
+            to_phone = f'whatsapp:{to_phone}'
+
+        if settings.DEBUG and debug_phone:
+            to_phone = f'whatsapp:{debug_phone}'
+
+        try:
+            client = Client(account_sid, auth_token)
+            message = client.messages.create(
+                from_=from_wa,
+                content_sid=content_sid,
+                content_variables=json.dumps({"1": str(otp_code)}),
+                to=to_phone
+            )
+            logger.info(f"Twilio WhatsApp sent: {message.sid}")
+            return True
+        except Exception as e:
+            logger.error(f"Twilio WhatsApp Error: {e}")
+            return False
 
 class ZohoService:
     @staticmethod
@@ -117,6 +200,7 @@ class ZohoService:
                 json=payload,
                 timeout=15
             )
+            print(response.json())
             return response.status_code == 200 or response.status_code == 201
         except Exception as e:
             logger.error(f"ZeptoMail error: {e}")
@@ -125,32 +209,62 @@ class ZohoService:
 
 def send_sms_otp(phone_number, message):
     """
-    Send OTP via SMS using Zoho
+    Send OTP via SMS using Twilio (with Zoho fallback if needed)
     """
-    print(f"DEBUG: Preparing to send Zoho SMS to {phone_number}")
-    return ZohoService.send_sms(phone_number, message)
+    print(f"DEBUG: Preparing to send Twilio SMS to {phone_number}")
+    success = TwilioService.send_sms(phone_number, message)
+    if not success:
+         # Fallback to Zoho if Twilio fails
+         return ZohoService.send_sms(phone_number, message)
+    return success
 
 
-def send_whatsapp_otp(phone_number, message):
+def send_whatsapp_otp(phone_number, message_body):
     """
-    Send OTP via WhatsApp using Zoho
+    Send OTP via WhatsApp using Twilio (with Zoho fallback)
+    Twilio uses templates, so we try to extract the 6-digit code.
     """
-    print(f"DEBUG: Preparing to send Zoho WhatsApp to {phone_number}")
-    return ZohoService.send_whatsapp(phone_number, message)
+    import re
+    otp_match = re.search(r'\b\d{6}\b', message_body)
+    otp_code = otp_match.group(0) if otp_match else message_body
+
+    print(f"DEBUG: Preparing to send Twilio WhatsApp to {phone_number}")
+    success = TwilioService.send_whatsapp(phone_number, otp_code)
+    if not success:
+         return ZohoService.send_whatsapp(phone_number, message_body)
+    return success
 
 
 def send_email_otp(email, otp):
     """
-    Send OTP via Email using ZeptoMail
+    Send OTP via Email using ZeptoMail (with SendGrid fallback)
     """
     print(f"DEBUG: Preparing to send ZeptoMail OTP to {email}")
-    subject = "Verification Code - A-Star Data"
+    subject = "Verification Code - Starboy Global"
     html_content = f"""
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>Verification Code</h2>
-        <p>Your verification code is: <strong>{otp}</strong></p>
-        <p>This code will expire in 5 minutes.</p>
-        <p>If you did not request this code, please ignore this email.</p>
+    <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; padding: 40px; background: #f9fafb; color: #111827;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-size: 24px; font-weight: 800; color: #1f2937; margin: 0;">Starboy Global</h1>
+            </div>
+            
+            <h2 style="font-size: 20px; font-weight: 600; text-align: center; margin-bottom: 12px;">Verify your login</h2>
+            <p style="text-align: center; color: #4b5563; line-height: 1.5; margin-bottom: 32px;">Please use the verification code below to sign in to your accounts. This code will only be valid for 5 minutes.</p>
+            
+            <div style="background: #f3f4f6; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 32px;">
+                <span style="font-size: 36px; font-weight: 700; letter-spacing: 0.2em; color: #111827;">{otp}</span>
+            </div>
+            
+            <p style="font-size: 14px; text-align: center; color: #6b7280;">If you didn't request this code, you can safely ignore this email.</p>
+            
+            <div style="border-top: 1px solid #e5e7eb; margin-top: 32px; padding-top: 24px; text-align: center;">
+                <p style="font-size: 12px; color: #9ca3af;">&copy; 2026 Starboy Global - Data & Airtime. All rights reserved.</p>
+            </div>
+        </div>
     </div>
     """
-    return ZohoService.send_email_zepto(email, subject, html_content)
+    success = ZohoService.send_email_zepto(email, subject, html_content)
+    if not success:
+        print(f"DEBUG: ZeptoMail failed, falling back to SendGrid for {email}")
+        return SendGridService.send_email(email, subject, html_content)
+    return success

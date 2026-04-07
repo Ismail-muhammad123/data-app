@@ -82,19 +82,50 @@ class GoogleAuthView(APIView):
         try:
             idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
             email, google_id = idinfo['email'], idinfo['sub']
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+            
             user = User.objects.filter(google_id=google_id).first() or User.objects.filter(email=email).first()
+            is_new_user = False
+            
             if not user:
+                is_new_user = True
                 if not phone_number:
-                    return Response({"error": "Phone number required", "code": "PHONE_NUMBER_REQUIRED", "google_data": idinfo}, status=status.HTTP_400_BAD_REQUEST)
-                user = User.objects.create_user(phone_number=phone_number, email=email, google_id=google_id, is_active=True, email_verified=True, is_verified=True)
+                    return Response({
+                        "error": "Phone number required", 
+                        "code": "PHONE_NUMBER_REQUIRED", 
+                        "google_data": idinfo,
+                        "is_new_user": True
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                user = User.objects.create_user(
+                    phone_number=phone_number, 
+                    email=email, 
+                    google_id=google_id, 
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=True, 
+                    email_verified=True, 
+                    is_verified=True
+                )
                 if referral_code:
                     try:
                         referrer = User.objects.get(referral_code=referral_code)
                         Referral.objects.create(referrer=referrer, referred=user)
                     except User.DoesNotExist: pass
-            elif not user.google_id:
-                user.google_id = google_id
-                user.save(update_fields=['google_id'])
+            else:
+                updated = False
+                if not user.google_id:
+                    user.google_id = google_id
+                    updated = True
+                if not user.first_name and first_name:
+                    user.first_name = first_name
+                    updated = True
+                if not user.last_name and last_name:
+                    user.last_name = last_name
+                    updated = True
+                if updated:
+                    user.save()
             
             # 2FA check for Google auth too (regular users only)
             if user.is_2fa_enabled and not user.is_staff and not user.is_superuser:
@@ -106,7 +137,12 @@ class GoogleAuthView(APIView):
                 }, status=status.HTTP_202_ACCEPTED)
             
             refresh = RefreshToken.for_user(user)
-            return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": ProfileSerializer(user).data})
+            return Response({
+                "refresh": str(refresh), 
+                "access": str(refresh.access_token), 
+                "user": ProfileSerializer(user).data,
+                "is_new_user": is_new_user
+            })
         except ValueError:
             return Response({"error": "Invalid Google token"}, status=status.HTTP_400_BAD_REQUEST)
 

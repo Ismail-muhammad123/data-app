@@ -556,6 +556,9 @@ class SiteConfig(models.Model):
     sms_enabled = models.BooleanField(default=False, verbose_name="Enable SMS Notifications")
     whatsapp_enabled = models.BooleanField(default=False, verbose_name="Enable WhatsApp Notifications")
     
+    # Developer API Settings
+    developer_upgrade_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Amount charged to upgrade to developer status.")
+    
     class Meta:
         verbose_name = "Site Configuration"
         verbose_name_plural = "Site Configuration"

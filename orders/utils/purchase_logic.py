@@ -11,8 +11,61 @@ from orders.models import (
 from orders.router import ProviderRouter
 from notifications.utils import NotificationService
 import uuid
+import requests
+import json
+import hmac
+import hashlib
+from threading import Thread
 
 logger = logging.getLogger(__name__)
+
+def dispatch_developer_webhook(purchase_obj):
+    """
+    Sends a webhook notification to the developer's registered URL.
+    Runs in a background thread to avoid blocking the purchase flow.
+    """
+    try:
+        profile = getattr(purchase_obj.user, 'developer_profile', None)
+        if not profile or not profile.webhook_url:
+            return
+
+        payload = {
+            "event": "transaction.updated",
+            "data": {
+                "reference": purchase_obj.reference,
+                "status": purchase_obj.status,
+                "amount": float(purchase_obj.amount),
+                "beneficiary": purchase_obj.beneficiary,
+                "type": purchase_obj.purchase_type,
+                "timestamp": str(purchase_obj.time),
+                "remarks": purchase_obj.remarks
+            }
+        }
+
+        # Calculate signature
+        secret = profile.webhook_secret.encode('utf-8')
+        signature = hmac.new(
+            secret,
+            json.dumps(payload, separators=(',', ':')).encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        def send_request():
+            try:
+                requests.post(
+                    profile.webhook_url,
+                    json=payload,
+                    headers={'X-Starboy-Signature': signature},
+                    timeout=10
+                )
+            except Exception as e:
+                logger.error(f"Webhook dispatch failed for {purchase_obj.reference}: {e}")
+
+        # Dispatch async
+        Thread(target=send_request).start()
+
+    except Exception as e:
+        logger.error(f"Error preparing webhook for {purchase_obj.reference}: {e}")
 
 def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
@@ -124,6 +177,10 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             from wallet.utils import process_cashback, process_referral_reward
             process_cashback(user, purchase_type, final_amount)
             process_referral_reward(user, trigger_event='transaction', transaction_amount=final_amount)
+ 
+        # Dispatch Webhook if it's a developer
+        if hasattr(user, 'developer_profile'):
+            dispatch_developer_webhook(purchase)
 
     return {"status": status, "purchase_id": purchase.id, "res": res}
 
