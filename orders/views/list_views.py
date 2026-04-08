@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from orders.models import (
     DataService, DataVariation, AirtimeNetwork, 
@@ -14,6 +15,29 @@ from orders.serializers import (
     ElectricityServiceSerializer, ElectricityVariationSerializer
 )
 
+def _active_services_with_routing_fallback(model, service_type):
+    """
+    Prefer active services for the routed provider.
+    If no rows exist for that provider, gracefully fall back to all active services.
+    """
+    active_qs = model.objects.filter(is_active=True)
+    routing = ServiceRouting.objects.filter(service=service_type).first()
+    if routing and routing.primary_provider:
+        routed_qs = active_qs.filter(provider=routing.primary_provider)
+        if routed_qs.exists():
+            return routed_qs
+    return active_qs
+
+
+def _filter_variations_by_service_param(queryset, service_param):
+    """
+    Accept both internal PK (`service.id`) and provider service code (`service.service_id`)
+    for compatibility with different clients.
+    """
+    if not service_param:
+        return queryset
+    return queryset.filter(Q(service__id=service_param) | Q(service__service_id=service_param))
+
 
 @extend_schema(tags=["Orders - Data"])
 class DataServicesListView(generics.ListAPIView):
@@ -22,10 +46,7 @@ class DataServicesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='data').first()
-        if routing and routing.primary_provider:
-            return DataService.objects.filter(provider=routing.primary_provider, is_active=True)
-        return DataService.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(DataService, 'data')
 
 
 @extend_schema(tags=["Orders - Data"])
@@ -41,9 +62,7 @@ class DataVariationsListView(generics.ListAPIView):
             return queryset.filter(service__id=network_id)
         
         service_id = self.request.query_params.get("service_id")
-        if service_id:
-            queryset = queryset.filter(service__id=service_id)
-        return queryset
+        return _filter_variations_by_service_param(queryset, service_id)
 
 
 @extend_schema(tags=["Orders - Airtime"])
@@ -53,10 +72,7 @@ class AirtimeNetworkListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='airtime').first()
-        if routing and routing.primary_provider:
-            return AirtimeNetwork.objects.filter(provider=routing.primary_provider, is_active=True)
-        return AirtimeNetwork.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(AirtimeNetwork, 'airtime')
 
 
 @extend_schema(tags=["Orders - Electricity"])
@@ -66,10 +82,7 @@ class ElectricityServiceListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='electricity').first()
-        if routing and routing.primary_provider:
-            return ElectricityService.objects.filter(provider=routing.primary_provider, is_active=True)
-        return ElectricityService.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(ElectricityService, 'electricity')
 
 
 @extend_schema(tags=["Orders - Electricity"])
@@ -79,13 +92,12 @@ class ElectricityVariationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = ElectricityVariation.objects.filter(is_active=True)
         network_id = self.kwargs.get("network_id")
         if network_id:
-            return ElectricityVariation.objects.filter(is_active=True, service__id=network_id)
+            return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
-        if service_id:
-            return ElectricityVariation.objects.filter(service__service_id=service_id, is_active=True)
-        return ElectricityVariation.objects.filter(is_active=True)
+        return _filter_variations_by_service_param(queryset, service_id)
 
 
 @extend_schema(tags=["Orders - Cable TV"])
@@ -95,10 +107,7 @@ class TVServicesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='tv').first()
-        if routing and routing.primary_provider:
-            return TVService.objects.filter(provider=routing.primary_provider, is_active=True)
-        return TVService.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(TVService, 'tv')
 
 
 @extend_schema(tags=["Orders - Cable TV"])
@@ -108,13 +117,14 @@ class TVPackagesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = TVVariation.objects.filter(is_active=True)
         network_id = self.kwargs.get("network_id")
         if network_id:
-            return TVVariation.objects.filter(is_active=True, service__id=network_id)
+            return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
         if not service_id:
-            return TVVariation.objects.filter(is_active=True)
-        return TVVariation.objects.filter(is_active=True, service__service_id=service_id)
+            return queryset
+        return _filter_variations_by_service_param(queryset, service_id)
 
 
 @extend_schema(tags=["Orders - Internet"])
@@ -124,10 +134,7 @@ class InternetServicesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='internet').first()
-        if routing and routing.primary_provider:
-            return InternetService.objects.filter(provider=routing.primary_provider, is_active=True)
-        return InternetService.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(InternetService, 'internet')
 
 
 @extend_schema(tags=["Orders - Internet"])
@@ -137,13 +144,12 @@ class InternetPackagesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = InternetVariation.objects.filter(is_active=True)
         network_id = self.kwargs.get("network_id")
         if network_id:
-            return InternetVariation.objects.filter(is_active=True, service__id=network_id)
+            return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
-        if service_id:
-            return InternetVariation.objects.filter(service__service_id=service_id, is_active=True)
-        return InternetVariation.objects.filter(is_active=True)
+        return _filter_variations_by_service_param(queryset, service_id)
 
 
 @extend_schema(tags=["Orders - Education"])
@@ -153,10 +159,7 @@ class EducationServiceListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        routing = ServiceRouting.objects.filter(service='education').first()
-        if routing and routing.primary_provider:
-            return EducationService.objects.filter(provider=routing.primary_provider, is_active=True)
-        return EducationService.objects.filter(is_active=True)
+        return _active_services_with_routing_fallback(EducationService, 'education')
 
 
 @extend_schema(tags=["Orders - Education"])
@@ -166,10 +169,9 @@ class EducationVariationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = EducationVariation.objects.filter(is_active=True)
         network_id = self.kwargs.get("network_id")
         if network_id:
-            return EducationVariation.objects.filter(is_active=True, service__id=network_id)
+            return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
-        if service_id:
-            return EducationVariation.objects.filter(service__service_id=service_id, is_active=True)
-        return EducationVariation.objects.filter(is_active=True)
+        return _filter_variations_by_service_param(queryset, service_id)
