@@ -53,6 +53,8 @@ class VerifyRecipientView(APIView):
         phone = request.query_params.get('phone_number')
         if not phone: return Response({"error": "Phone required"}, status=400)
         search_phone = phone[1:] if phone.startswith('0') else phone
+
+        if search_phone == request.user.phone_number: return Response({"error": "Cannot transfer to yourself"}, status=400)
         try:
             r = User.objects.get(phone_number__icontains=search_phone)
             return Response({"full_name": r.full_name, "phone_number": r.phone_number, "profile_image": r.profile_image.url if r.profile_image else None})
