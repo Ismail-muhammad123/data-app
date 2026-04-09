@@ -2,9 +2,11 @@ from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, inline_serializer
-from notifications.models import UserNotification
-from notifications.serializers import UserNotificationSerializer, FCMTokenSerializer
+from notifications.models import UserNotification, Announcement
+from notifications.serializers import UserNotificationSerializer, UserAnnouncementSerializer, FCMTokenSerializer
 
 class RegisterFCMTokenView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -26,7 +28,11 @@ class MarkNotificationReadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     @extend_schema(tags=["Account - Notifications"], responses={200: inline_serializer("MarkReadResponse", fields={"message": serializers.CharField()})})
     def post(self, request, notification_id):
-        UserNotification.objects.filter(user=request.user, id=notification_id).update(is_read=True, read_at=timezone.now())
+        notification = get_object_or_404(UserNotification, user=request.user, id=notification_id)
+        if not notification.is_read:
+            notification.is_read = True
+            notification.read_at = timezone.now()
+            notification.save(update_fields=["is_read", "read_at"])
         return Response({"message": "Marked read"})
 
 class MarkAllNotificationsReadView(APIView):
@@ -35,3 +41,30 @@ class MarkAllNotificationsReadView(APIView):
     def post(self, request):
         cnt = UserNotification.objects.filter(user=request.user, is_read=False).update(is_read=True, read_at=timezone.now())
         return Response({"message": f"{cnt} notifications marked read"})
+
+
+@extend_schema(tags=["Account - Notifications"])
+class AnnouncementListView(generics.ListAPIView):
+    serializer_class = UserAnnouncementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        now = timezone.now()
+        user = self.request.user
+
+        audience_filter = Q(audience='all')
+        if user.role == 'agent':
+            audience_filter |= Q(audience='agents')
+        else:
+            audience_filter |= Q(audience='customers')
+
+        return (
+            Announcement.objects
+            .filter(
+                audience_filter,
+                is_active=True,
+            )
+            .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gte=now))
+            .order_by('-created_at')
+        )

@@ -32,6 +32,19 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ["email", "first_name", "last_name", "middle_name", "profile_image"]
 
+    def validate_email(self, value):
+        if not value:
+            return value
+        normalized_email = value.strip().lower()
+        duplicate_exists = (
+            User.objects.exclude(pk=self.instance.pk)
+            .filter(email__iexact=normalized_email)
+            .exists()
+        )
+        if duplicate_exists:
+            raise serializers.ValidationError("A user with this email already exists.")
+        return normalized_email
+
 class PasswordResetSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     otp_code = serializers.CharField()

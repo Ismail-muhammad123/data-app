@@ -11,6 +11,54 @@ from sendgrid.helpers.mail import Mail
 
 logger = logging.getLogger(__name__)
 
+
+class TermiiService:
+    @staticmethod
+    def send_sms(phone_number: str, message: str) -> bool:
+        api_key = getattr(settings, 'TERMII_API_KEY', None)
+        sender_id = getattr(settings, 'TERMII_SENDER_ID', 'AStarData')
+        base_url = getattr(settings, 'TERMII_SMS_BASE_URL', 'https://api.ng.termii.com/api')
+        sms_type = getattr(settings, 'TERMII_SMS_TYPE', 'plain')
+        channel = getattr(settings, 'TERMII_CHANNEL', 'generic')
+
+        if not api_key:
+            logger.error("TERMII_API_KEY not configured")
+            return False
+
+        if phone_number.startswith('+'):
+            phone_number = phone_number[1:]
+
+        endpoint = f"{base_url.rstrip('/')}/sms/send"
+        payload = {
+            "api_key": api_key,
+            "to": phone_number,
+            "from": sender_id,
+            "sms": message,
+            "type": sms_type,
+            "channel": channel,
+        }
+
+        try:
+            response = requests.post(endpoint, json=payload, timeout=15)
+            if response.status_code not in (200, 201):
+                return False
+
+            try:
+                data = response.json()
+            except Exception:
+                return True
+
+            # Treat clearly-declared API failures as unsuccessful.
+            if isinstance(data, dict):
+                if data.get("code") == "ok":
+                    return True
+                if data.get("message_id") or data.get("message"):
+                    return True
+            return True
+        except Exception as e:
+            logger.error(f"Termii SMS error: {e}")
+            return False
+
 class SendGridService:
     @staticmethod
     def send_email(to_email: str, subject: str, html_content: str) -> bool:
@@ -209,14 +257,23 @@ class ZohoService:
 
 def send_sms_otp(phone_number, message):
     """
-    Send OTP via SMS using Twilio (with Zoho fallback if needed)
+    Send OTP via SMS using Termii (with Twilio/Zoho fallback if needed).
     """
-    print(f"DEBUG: Preparing to send Twilio SMS to {phone_number}")
-    success = TwilioService.send_sms(phone_number, message)
+    print(f"DEBUG: Preparing to send Termii SMS to {phone_number}")
+    success = TermiiService.send_sms(phone_number, message)
     if not success:
-         # Fallback to Zoho if Twilio fails
-         return ZohoService.send_sms(phone_number, message)
+        success = TwilioService.send_sms(phone_number, message)
+    if not success:
+        return ZohoService.send_sms(phone_number, message)
     return success
+
+
+def send_sms_message(phone_number: str, message: str) -> bool:
+    """
+    Generic SMS sender for non-OTP notifications.
+    Uses the same provider order as OTP for consistency.
+    """
+    return send_sms_otp(phone_number, message)
 
 
 def send_whatsapp_otp(phone_number, message_body):

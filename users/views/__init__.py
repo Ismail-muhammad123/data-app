@@ -11,6 +11,6 @@ from .profile import (
 )
 from .notifications import (
     RegisterFCMTokenView, NotificationListView, MarkNotificationReadView, 
-    MarkAllNotificationsReadView
+    MarkAllNotificationsReadView, AnnouncementListView
 )
 from .referrals import ReferralListView, ReferralStatsView

@@ -41,6 +41,14 @@ class SignupSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Invalid referral code.")
         return value
 
+    def validate_email(self, value):
+        if not value:
+            return value
+        normalized_email = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized_email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return normalized_email
+
     def create(self, validated_data):
         pin = validated_data.pop("pin")
         referral_code_input = validated_data.pop("referral_code", None)

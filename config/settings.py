@@ -429,3 +429,13 @@ TWILIO_WHATSAPP_CONTENT_SID = os.environ.get("TWILIO_WHATSAPP_CONTENT_SID")
 TWILIO_DEBUG_PHONE = os.environ.get("TWILIO_DEBUG_PHONE")
 
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+
+# Firebase Cloud Messaging
+FCM_SERVER_KEY = os.environ.get("FCM_SERVER_KEY")
+
+# Termii SMS (primary SMS provider)
+TERMII_API_KEY = os.environ.get("TERMII_API_KEY")
+TERMII_SENDER_ID = os.environ.get("TERMII_SENDER_ID", "AStarData")
+TERMII_SMS_BASE_URL = os.environ.get("TERMII_SMS_BASE_URL", "https://api.ng.termii.com/api")
+TERMII_SMS_TYPE = os.environ.get("TERMII_SMS_TYPE", "plain")
+TERMII_CHANNEL = os.environ.get("TERMII_CHANNEL", "generic")

@@ -6,7 +6,7 @@ from .views import (
     SetTransactionPinView, ChangeTransactionPinView, ResetTransactionPinView, 
     RequestTransactionPinResetOTPView, VerifyTransactionPinView, NotificationListView, 
     MarkNotificationReadView, MarkAllNotificationsReadView, ReferralListView, 
-    ReferralStatsView, RegisterFCMTokenView, KYCView,
+    ReferralStatsView, RegisterFCMTokenView, KYCView, AnnouncementListView,
     Resend2FACodeView, Reset2FAView
 )
 
@@ -56,6 +56,7 @@ urlpatterns = [
     path("notifications/", NotificationListView.as_view(), name="notification-list"),
     path("notifications/<int:notification_id>/mark-as-read/", MarkNotificationReadView.as_view(), name="notification-mark-read"),
     path("notifications/mark-all-as-read/", MarkAllNotificationsReadView.as_view(), name="notification-mark-all-read"),
+    path("announcements/", AnnouncementListView.as_view(), name="announcement-list"),
 
     # ═══════════════════════════════════════════
     # REFERRALS  (authenticated)

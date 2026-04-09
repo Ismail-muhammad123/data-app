@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.hashers import make_password, check_password as django_check_password
 from django.db import models
+from django.core.exceptions import ValidationError
 import uuid
 import string
 import random
@@ -289,7 +290,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('email', 'Email'),
         ('all', 'All Channels (SMS, WhatsApp, Email)'),
     ]
-    two_factor_method = models.CharField(max_length=20, choices=TWO_FACTOR_METHODS, default='none')
+    two_factor_method = models.CharField(max_length=20, choices=TWO_FACTOR_METHODS, default='all')
     is_2fa_enabled = models.BooleanField(default=False)
 
     # ─── Profile Picture ───
@@ -314,6 +315,28 @@ class User(AbstractBaseUser, PermissionsMixin):
                 return code
 
     def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+            should_validate_email = True
+
+            if self.pk:
+                previous_email = (
+                    User.objects.filter(pk=self.pk)
+                    .values_list("email", flat=True)
+                    .first()
+                )
+                if (previous_email or "").strip().lower() == self.email:
+                    should_validate_email = False
+
+            if should_validate_email:
+                duplicate_exists = (
+                    User.objects.exclude(pk=self.pk)
+                    .filter(email__iexact=self.email)
+                    .exists()
+                )
+                if duplicate_exists:
+                    raise ValidationError({"email": "A user with this email already exists."})
+
         if not self.referral_code:
             self.referral_code = self._generate_referral_code()
         super().save(*args, **kwargs)

@@ -5,6 +5,7 @@ import logging
 from django.conf import settings
 from .models import Notification, UserNotification, NotificationTemplate
 from typing import Optional, Dict, Any
+from config.utils import send_sms_message
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,28 @@ class FCMProvider:
             return False
 
 class NotificationService:
+    @staticmethod
+    def _is_channel_enabled(channel: str) -> bool:
+        """
+        Enforce global channel toggles from SiteConfig for every dispatch path
+        (template-based and direct create_notification/bulk-send paths).
+        """
+        try:
+            from summary.models import SiteConfig
+            config = SiteConfig.objects.first()
+            if not config:
+                return True
+
+            mapping = {
+                "fcm": config.fcm_enabled,
+                "email": config.email_enabled,
+                "sms": config.sms_enabled,
+                "whatsapp": config.whatsapp_enabled,
+            }
+            return mapping.get(channel, True)
+        except Exception:
+            return True
+
     @staticmethod
     def create_notification(users, title: str, body: str, channel: str, data: Optional[Dict[str, Any]] = None, created_by=None) -> Notification:
         notification = Notification.objects.create(
@@ -66,6 +89,14 @@ class NotificationService:
             error_msg = None
             
             try:
+                if not NotificationService._is_channel_enabled(channel):
+                    success = False
+                    error_msg = f"{channel} channel is disabled in SiteConfig"
+                    un.status = 'FAILED'
+                    un.error_message = error_msg
+                    un.save(update_fields=['status', 'error_message'])
+                    continue
+
                 if channel == 'fcm':
                     success = NotificationService.send_push(un.user, notification.title, notification.body, notification.data)
                 elif channel == 'sms':
@@ -99,18 +130,10 @@ class NotificationService:
 
     @staticmethod
     def send_sms(user, body: str) -> bool:
-        # Using Zoho SMS via generic endpoint or integration
-        zoho_api_key = getattr(settings, 'ZOHO_SMS_API_KEY', None)
-        if not zoho_api_key:
+        phone_number = f"{getattr(user, 'phone_country_code', '')}{getattr(user, 'phone_number', '')}".strip()
+        if not phone_number:
             return False
-            
-        # Implementation for Zoho SMS sending
-        try:
-            # Placeholder for Zoho SMS API call
-            # response = requests.post("https://sms.zoho.com/api/v2/send", ...)
-            return True
-        except Exception:
-            return False
+        return send_sms_message(phone_number, body)
 
     @staticmethod
     def send_whatsapp(user, body: str) -> bool:

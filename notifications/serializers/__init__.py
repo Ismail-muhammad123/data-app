@@ -1,2 +1,2 @@
-from .user_notifications import UserNotificationSerializer
+from .user_notifications import UserNotificationSerializer, UserAnnouncementSerializer
 from .fcm import FCMTokenSerializer
