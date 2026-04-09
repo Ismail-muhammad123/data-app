@@ -1,6 +1,7 @@
 import requests
 import logging
 from typing import Dict, Any, List, Optional
+from ..interfaces import BaseVTUProvider
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +94,17 @@ class SMEDataProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
-        return {"status": "FAILED", "message": "Bill payment service not detailed in documentation."}
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Cable TV not supported by SMEData."}
+
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Electricity not supported by SMEData."}
+
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Internet service not supported by SMEData."}
+
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Education service not supported by SMEData."}
 
     def query_transaction(self, reference: str) -> Dict[str, Any]:
         """
@@ -118,6 +128,9 @@ class SMEDataProvider(BaseVTUProvider):
             "status": status,
             "raw_response": res
         }
+
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Cancellation not supported by SMEData."}
 
     def handle_webhook(self, data: Dict[str, Any]) -> bool:
         """
@@ -145,6 +158,24 @@ class SMEDataProvider(BaseVTUProvider):
 
     def get_available_services(self) -> List[Dict[str, Any]]:
         return [{"type": "data"}]
+
+    def sync_airtime(self) -> int:
+        return 0
+
+    def sync_data(self) -> int:
+        return 0
+
+    def sync_cable(self) -> int:
+        return 0
+
+    def sync_electricity(self) -> int:
+        return 0
+
+    def sync_internet(self) -> int:
+        return 0
+
+    def sync_education(self) -> int:
+        return 0
 
     def get_airtime_networks(self) -> List[Dict[str, Any]]:
         return []
@@ -177,15 +208,3 @@ class SMEDataProvider(BaseVTUProvider):
         
         # Return all plans flattened
         return [item for sublist in plans.values() for item in sublist]
-
-    def get_cable_tv_packages(self, service_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        return []
-
-    def get_electricity_services(self) -> List[Dict[str, Any]]:
-        return []
-
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        return []
-
-    def get_education_services(self) -> List[Dict[str, Any]]:
-        return []

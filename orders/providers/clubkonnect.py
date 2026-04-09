@@ -435,17 +435,16 @@ class ClubKonnectProvider(BaseVTUProvider):
         return created
 
     def sync_internet(self) -> int:
-        # res = self._get("/APISmileDiscountV1.asp", {}) 
-        # internet_networks = res.get("MOBILE_NETWORK") or {}
+        res = self._get("/APISmileDiscountV1.asp", {}) 
+        internet_networks = res.get("MOBILE_NETWORK") or {}
         
-        # We explicitly return the InternetService object(s) created
-        services = []
-        # for network_name, network_list in internet_networks.items():
-        #     if not network_list: continue
-        #     service = self._deserialize_internet(network_name, network_list)
-        #     if service:
-        #         services.append(service)
-        return len(services)
+        created_services = []
+        for network_name, network_list in internet_networks.items():
+            if not network_list: continue
+            service = self._deserialize_internet(network_name, network_list)
+            if service:
+                created_services.append(service)
+        return len(created_services)
 
     def _deserialize_internet(self, network_name: str, network_list: List[Dict]) -> Optional[Any]:
         from orders.models import InternetVariation, InternetService
@@ -472,4 +471,34 @@ class ClubKonnectProvider(BaseVTUProvider):
         return service
 
     def sync_education(self) -> int:
-        return 0
+        res = self._get("/APIEducationPinsV2.asp", {})
+        networks = res.get("EDUCATION") or {}
+        created_variations = []
+        for name, network_list in networks.items():
+            if not network_list: continue
+            created_variations.extend(self._deserialize_education(name, network_list))
+        return len(created_variations)
+
+    def _deserialize_education(self, name: str, network_list: List[Dict]) -> List[Any]:
+        from orders.models import EducationService, EducationVariation
+        created = []
+        net_info = network_list[0]
+        s_id = net_info.get("ID") or name.lower().replace(" ", "-")
+        products = net_info.get("PRODUCT") or []
+        
+        service, _ = EducationService.objects.get_or_create(
+            service_id=s_id,
+            defaults={"service_name": name, "provider": getattr(self, "provider_config", None)}
+        )
+        for product in products:
+            variation, _ = EducationVariation.objects.update_or_create(
+                variation_id=product.get("PRODUCT_ID"),
+                service=service,
+                defaults={
+                    "name": product.get("PRODUCT_NAME", "Education PIN"),
+                    "selling_price": product.get("PRODUCT_AMOUNT", 0),
+                    "is_active": True
+                }
+            )
+            created.append(variation)
+        return created

@@ -1,6 +1,7 @@
 import requests
 import logging
 from typing import Dict, Any, List, Optional
+from ..interfaces import BaseVTUProvider
 
 logger = logging.getLogger(__name__)
 
@@ -90,26 +91,14 @@ class AlrahuzDataProvider(BaseVTUProvider):
             "raw_response": res
         }
 
-    def pay_bill(self, service_type: str, identifier: str, amount: float, plan_id: str, reference: str, metadata: dict = None) -> Dict[str, Any]:
-        if service_type.lower() in ['dstv', 'gotv', 'startimes']:
-            cable_map = {'gotv': 1, 'dstv': 2, 'startimes': 3}
-            payload = {
-                "cablename": cable_map.get(service_type.lower()),
-                "cableplan": plan_id,
-                "smart_card_number": identifier
-            }
-            endpoint = "/api/cablesub/"
-        else:
-            # Electricity
-            payload = {
-                "disco_name": service_type, # Use Disco ID
-                "amount": int(amount),
-                "meter_number": identifier,
-                "Meter_Type": metadata.get('meter_type', 'Prepaid')
-            }
-            endpoint = "/api/billpayment/"
-
-        res = self._request("POST", endpoint, payload)
+    def buy_tv(self, tv_id: str, package_id: str, smart_card_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        cable_map = {'gotv': 1, 'dstv': 2, 'startimes': 3}
+        payload = {
+            "cablename": cable_map.get(tv_id.lower()),
+            "cableplan": package_id,
+            "smart_card_number": smart_card_number
+        }
+        res = self._request("POST", "/api/cablesub/", payload)
         status = "SUCCESS" if res.get('Status') == 'success' else "FAILED"
         
         return {
@@ -118,10 +107,35 @@ class AlrahuzDataProvider(BaseVTUProvider):
             "raw_response": res
         }
 
+    def buy_electricity(self, disco_id: str, plan_id: str, meter_number: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        payload = {
+            "disco_name": disco_id, # Use Disco ID
+            "amount": int(amount),
+            "meter_number": meter_number,
+            "Meter_Type": kwargs.get('meter_type', 'Prepaid')
+        }
+        res = self._request("POST", "/api/billpayment/", payload)
+        status = "SUCCESS" if res.get('Status') == 'success' else "FAILED"
+        
+        return {
+            "status": status,
+            "provider_reference": res.get('id'),
+            "raw_response": res
+        }
+
+    def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Internet service not supported by Alrahuz."}
+
+    def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Education service not supported by Alrahuz."}
+
     def query_transaction(self, reference: str) -> Dict[str, Any]:
         # Documentation specifies querying by the ID returned during creation
         res = self._request("GET", f"/api/data/{reference}")
         return {"status": "SUCCESS" if res.get('Status') == 'success' else "FAILED", "raw_response": res}
+
+    def cancel_transaction(self, reference: str) -> Dict[str, Any]:
+        return {"status": "FAILED", "message": "Cancellation not supported by Alrahuz."}
 
     def handle_webhook(self, data: Dict[str, Any]) -> bool:
         return data.get('status') == 'success'
@@ -148,6 +162,24 @@ class AlrahuzDataProvider(BaseVTUProvider):
             {"type": "tv", "cables": self.get_cable_tv_packages()},
             {"type": "electricity", "discos": self.get_electricity_services()}
         ]
+
+    def sync_airtime(self) -> int:
+        return 0
+
+    def sync_data(self) -> int:
+        return 0
+
+    def sync_cable(self) -> int:
+        return 0
+
+    def sync_electricity(self) -> int:
+        return 0
+
+    def sync_internet(self) -> int:
+        return 0
+
+    def sync_education(self) -> int:
+        return 0
 
     def get_airtime_networks(self) -> List[Dict[str, Any]]:
         return [
@@ -188,9 +220,3 @@ class AlrahuzDataProvider(BaseVTUProvider):
             {"id": 3, "name": "Abuja Electric"},
             {"id": 7, "name": "Ibadan Electric"}
         ]
-
-    def get_internet_packages(self) -> List[Dict[str, Any]]:
-        return []
-
-    def get_education_services(self) -> List[Dict[str, Any]]:
-        return []
