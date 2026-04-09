@@ -8,13 +8,13 @@ AVAILABLE_PROVIDERS = [
     ('clubkonnect', 'ClubKonnect'),
     ('arewa_global', 'Arewa Global'),
     ('alrahuz', 'Alrahuz Data'),
+    ('smedata', 'SMEDATA.NG'),
     
     # Planned or available for generic configuration
     # ----------------------------------------------
     # ('mobilenig', 'MobileNig'),
     # ('otapay', 'OTAPAY'),
     # ('mightydata', 'MightyData'),
-    # ('smedata', 'SMEDATA.NG'),
     # ('mobilevtu', 'MobileVTU'),
     # ('aimtoget', 'Aimtoget'),
     # ('nata', 'Nata API'),
