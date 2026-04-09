@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     # 3rd party apps
     'drf_spectacular',
     'corsheaders',
-    
 
     # custom apps
     'users',
@@ -229,6 +228,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# Backward compatibility for third-party apps like django-cloudinary-storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage' if PRODUCTION else 'django.core.files.storage.FileSystemStorage'
 
 # Media Files (Cloudinary Setup for Production, Local for Dev)
 MEDIA_URL = '/media/'
