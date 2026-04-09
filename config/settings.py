@@ -229,6 +229,9 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+WHITENOISE_MANIFEST_STRICT = False
+
+
 # Backward compatibility for third-party apps like django-cloudinary-storage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage' if PRODUCTION else 'django.core.files.storage.FileSystemStorage'
