@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample
@@ -51,7 +52,7 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     }
     search_fields = ['reference', 'description', 'user__email', 'user__first_name', 'user__last_name', 'user__phone_number']
     ordering_fields = ['timestamp', 'amount']
-    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     @extend_schema(
         tags=["Admin Wallets"],
@@ -102,7 +103,7 @@ class AdminDepositViewSet(viewsets.ModelViewSet):
         # Return all deposit records in the app
         return self.queryset
 
-    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'status': ['exact'],
         'payment_method': ['exact'],
@@ -232,7 +233,7 @@ class AdminWalletViewSet(viewsets.ReadOnlyModelViewSet):
         # Explicitly return all users with their wallets
         return self.queryset
 
-    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'role': ['exact'],
         'is_active': ['exact'],

@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.views import APIView
@@ -39,7 +40,7 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
         # Return all purchase records system-wide
         return self.queryset
 
-    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'status': ['exact', 'in'],
         'purchase_type': ['exact'],
