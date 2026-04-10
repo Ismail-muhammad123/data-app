@@ -93,15 +93,16 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     reference = kwargs.get('reference')
     
     # 3. Debit Wallet
-    debit_success, msg = debit_wallet(
-        user.id, 
-        final_amount, 
-        f"{service_name} purchase: {reference}",
-        initiator=initiator,
-        initiated_by=initiated_by
-    )
-    if not debit_success:
-        return {"status": "FAILED", "error": f"Wallet debit failed: {msg}"}
+    try:
+        debit_wallet(
+            user.id, 
+            final_amount, 
+            f"{service_name} purchase: {reference}",
+            initiator=initiator,
+            initiated_by=initiated_by
+        )
+    except ValueError as e:
+        return {"status": "FAILED", "error": f"Wallet debit failed: {e}"}
 
     # 4. Execute via Router
     res = ProviderRouter.execute_with_fallback(purchase_type, action, **kwargs)
