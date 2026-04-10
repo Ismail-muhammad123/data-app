@@ -106,7 +106,7 @@ class AdminDepositViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'status': ['exact'],
-        'payment_method': ['exact'],
+        'payment_type': ['exact'],
         'timestamp': ['exact', 'gte', 'lte', 'gt', 'lt'],
     }
     search_fields = ['reference', 'user__email', 'user__phone_number', 'user__first_name', 'user__last_name']
