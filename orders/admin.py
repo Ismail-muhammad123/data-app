@@ -6,7 +6,8 @@ from .models import (
     Purchase, TVService, TVVariation,
     InternetVariation, ServiceRouting, VTUProviderConfig, ServiceFallback,
     InternetService, EducationService, EducationVariation,
-    DynamicVTUProvider, DynamicOperationConfig
+    DynamicVTUProvider, DynamicOperationConfig,
+    DynamicProviderHeader, DynamicOperationHeader, DynamicOperationPayload
 )
 from django.db.models import Sum, Count, F
 from django.contrib.admin import SimpleListFilter
@@ -15,8 +16,20 @@ from wallet.utils import fund_wallet
 from .router import ProviderRouter
 
 
+class DynamicOperationHeaderInline(admin.TabularInline):
+    model = DynamicOperationHeader
+    extra = 1
+
+class DynamicOperationPayloadInline(admin.TabularInline):
+    model = DynamicOperationPayload
+    extra = 1
+
 class DynamicOperationConfigInline(admin.TabularInline):
     model = DynamicOperationConfig
+    extra = 1
+
+class DynamicProviderHeaderInline(admin.TabularInline):
+    model = DynamicProviderHeader
     extra = 1
 
 @admin.register(DynamicVTUProvider)
@@ -24,12 +37,22 @@ class DynamicVTUProviderAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug', 'base_url', 'is_active')
     search_fields = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [DynamicOperationConfigInline]
+    inlines = [DynamicProviderHeaderInline, DynamicOperationConfigInline]
 
 @admin.register(DynamicOperationConfig)
 class DynamicOperationConfigAdmin(admin.ModelAdmin):
     list_display = ('provider', 'operation_type', 'endpoint_path', 'method')
     list_filter = ('provider', 'operation_type', 'method')
+    inlines = [DynamicOperationHeaderInline, DynamicOperationPayloadInline]
+    fieldsets = (
+        (None, {
+            'fields': ('provider', 'operation_type', 'endpoint_path', 'method', 'request_format')
+        }),
+        ('Mapping & Config', {
+            'fields': ('request_params', 'static_params', 'success_mapping', 'failure_mapping', 'response_data_mapping'),
+            'description': 'Use {variable} syntax in endpoints, headers, and payloads.'
+        }),
+    )
 
 
 class ProviderSyncMixin:

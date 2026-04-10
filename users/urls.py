@@ -7,7 +7,8 @@ from .views import (
     RequestTransactionPinResetOTPView, VerifyTransactionPinView, NotificationListView, 
     MarkNotificationReadView, MarkAllNotificationsReadView, ReferralListView, 
     ReferralStatsView, RegisterFCMTokenView, KYCView, AnnouncementListView,
-    Resend2FACodeView, Reset2FAView
+    Resend2FACodeView, Reset2FAView,
+    RoleUpgradeFeesView, RoleUpgradeView, AgentUpgradeView
 )
 
 urlpatterns = [
@@ -68,4 +69,11 @@ urlpatterns = [
     # DEVICE / FCM  (authenticated)
     # ═══════════════════════════════════════════
     path("device/register-fcm-token/", RegisterFCMTokenView.as_view(), name="register-fcm-token"),
+
+    # ═══════════════════════════════════════════
+    # ROLE UPGRADE  (authenticated)
+    # ═══════════════════════════════════════════
+    path("upgrade/fees/", RoleUpgradeFeesView.as_view(), name="role-upgrade-fees"),
+    path("upgrade/", RoleUpgradeView.as_view(), name="role-upgrade"),
+    path("upgrade/agent/", AgentUpgradeView.as_view(), name="agent-upgrade"),
 ]

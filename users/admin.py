@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from users.models import OTP, User, Referral, ReferralConfig, Beneficiary
+from users.models import OTP, User, Referral, ReferralConfig, Beneficiary, RoleUpgradeConfig, RoleUpgradeLog
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from rest_framework.authtoken.models import Token
 
@@ -383,3 +383,41 @@ class BeneficiaryAdmin(admin.ModelAdmin):
     list_filter = ('service_type', 'created_at')
     search_fields = ('user__phone_number', 'identifier', 'nickname')
     readonly_fields = ('created_at',)
+
+
+# ─── Role Upgrade Config ───
+
+@admin.register(RoleUpgradeConfig)
+class RoleUpgradeConfigAdmin(admin.ModelAdmin):
+    list_display = ('is_active', 'customer_to_agent_fee', 'customer_to_developer_fee', 'agent_to_developer_fee', 'updated_at')
+    fieldsets = (
+        ("Program Status", {
+            "fields": ("is_active",),
+        }),
+        ("Upgrade Fees", {
+            "fields": ("customer_to_agent_fee", "customer_to_developer_fee", "agent_to_developer_fee"),
+            "description": "Set ₦0.00 for a free upgrade. These fees are charged from the user's wallet."
+        }),
+    )
+
+    def has_add_permission(self, request):
+        if RoleUpgradeConfig.objects.exists():
+            return False
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(RoleUpgradeLog)
+class RoleUpgradeLogAdmin(admin.ModelAdmin):
+    list_display = ('user', 'from_role', 'to_role', 'fee_charged', 'upgraded_at')
+    list_filter = ('from_role', 'to_role', 'upgraded_at')
+    search_fields = ('user__phone_number', 'user__email')
+    readonly_fields = ('user', 'from_role', 'to_role', 'fee_charged', 'upgraded_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

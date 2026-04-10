@@ -430,12 +430,22 @@ class DynamicVTUProvider(models.Model):
     def __str__(self):
         return self.name
 
+class DynamicProviderHeader(models.Model):
+    provider = models.ForeignKey(DynamicVTUProvider, on_delete=models.CASCADE, related_name="custom_headers")
+    key = models.CharField(max_length=100)
+    value = models.CharField(max_length=500, help_text="Can use {api_key}")
+
+    def __str__(self):
+        return f"{self.key}: {self.value}"
+
 class DynamicOperationConfig(models.Model):
     OPERATIONS = [
         ('get_networks', 'Get Networks'),
         ('get_variations', 'Get Variations/Packages'),
         ('purchase', 'Purchase Service'),
         ('verify', 'Verify Status'),
+        ('balance', 'Check Balance'),
+        ('verify_customer', 'Verify Customer/Meter'),
     ]
     provider = models.ForeignKey(DynamicVTUProvider, on_delete=models.CASCADE, related_name="operations")
     operation_type = models.CharField(max_length=50, choices=OPERATIONS)
@@ -447,9 +457,24 @@ class DynamicOperationConfig(models.Model):
     request_params = models.JSONField(default=dict, blank=True, help_text="Mapping from our internal names to theirs")
     static_params = models.JSONField(default=dict, blank=True, help_text="Always sent with request")
     
-    # Response mapping: {"status_field": "status", "success_value": "success", "msg_field": "message"}
-    success_condition = models.JSONField(default=dict, blank=True, help_text="e.g. {'field': 'status', 'value': 'true'}")
+    # Response mapping
+    success_mapping = models.JSONField(default=dict, blank=True, help_text="e.g. {'status': 'success', 'code': 200}")
+    failure_mapping = models.JSONField(default=dict, blank=True, help_text="e.g. {'status': 'fail'}")
     
+    # Data extraction mapping: maps provider field to our internal field
+    # e.g. {'provider_reference': 'order_id', 'token': 'pin_code'}
+    response_data_mapping = models.JSONField(default=dict, blank=True, help_text="Map provider fields to internal fields")
+
     def __str__(self):
         return f"{self.provider.name} - {self.get_operation_type_display()}"
+
+class DynamicOperationHeader(models.Model):
+    operation = models.ForeignKey(DynamicOperationConfig, on_delete=models.CASCADE, related_name="custom_headers")
+    key = models.CharField(max_length=100)
+    value = models.CharField(max_length=500, help_text="Can use {api_key}, {phone}, etc.")
+
+class DynamicOperationPayload(models.Model):
+    operation = models.ForeignKey(DynamicOperationConfig, on_delete=models.CASCADE, related_name="custom_payload")
+    key = models.CharField(max_length=100)
+    value = models.CharField(max_length=500, help_text="Can use {phone}, {amount}, etc.")
 

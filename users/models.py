@@ -229,6 +229,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('customer', 'Customer'),
         ('agent', 'Agent/Reseller'),
+        ('developer', 'Developer'),
         ('staff', 'Staff'),
     ]
 
@@ -515,3 +516,62 @@ class KYC(models.Model):
 
     class Meta:
         verbose_name_plural = "KYC Records"
+
+
+class RoleUpgradeConfig(models.Model):
+    """
+    Singleton model to configure the fees for self-service role upgrades.
+    Managed only through the Django Admin.
+    """
+    customer_to_agent_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Fee charged to upgrade a Customer to Agent."
+    )
+    customer_to_developer_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Fee charged to upgrade a Customer directly to Developer."
+    )
+    agent_to_developer_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Fee charged to upgrade an Agent to Developer."
+    )
+    is_active = models.BooleanField(default=True, help_text="Enable/disable self-service role upgrades.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Role Upgrade Configuration"
+        verbose_name_plural = "Role Upgrade Configuration"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and RoleUpgradeConfig.objects.exists():
+            return  # Singleton
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Role Upgrade Config (Agent: ₦{self.customer_to_agent_fee}, Developer: ₦{self.customer_to_developer_fee})"
+
+    def get_upgrade_fee(self, from_role: str, to_role: str) -> 'Decimal':
+        """Returns the required fee for the given role transition."""
+        mapping = {
+            ('customer', 'agent'): self.customer_to_agent_fee,
+            ('customer', 'developer'): self.customer_to_developer_fee,
+            ('agent', 'developer'): self.agent_to_developer_fee,
+        }
+        return mapping.get((from_role, to_role))
+
+
+class RoleUpgradeLog(models.Model):
+    """Immutable audit log for every self-service role upgrade."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='role_upgrade_logs')
+    from_role = models.CharField(max_length=20)
+    to_role = models.CharField(max_length=20)
+    fee_charged = models.DecimalField(max_digits=10, decimal_places=2)
+    upgraded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-upgraded_at']
+        verbose_name = "Role Upgrade Log"
+        verbose_name_plural = "Role Upgrade Logs"
+
+    def __str__(self):
+        return f"{self.user.phone_number}: {self.from_role} → {self.to_role} (₦{self.fee_charged})"

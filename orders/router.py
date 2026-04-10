@@ -59,7 +59,11 @@ class ProviderRouter:
                     'method': op.method,
                     'request_params': op.request_params,
                     'static_params': op.static_params,
-                    'success_condition': op.success_condition,
+                    'success_mapping': op.success_mapping,
+                    'failure_mapping': op.failure_mapping,
+                    'response_data_mapping': op.response_data_mapping,
+                    'custom_headers': {h.key: h.value for h in op.custom_headers.all()},
+                    'custom_payload': {p.key: p.value for p in op.custom_payload.all()},
                 }
             
             config = {
@@ -70,6 +74,7 @@ class ProviderRouter:
                 'api_key_header': dynamic.api_key_header,
                 'api_key_prefix': dynamic.api_key_prefix,
                 'request_format': dynamic.request_format,
+                'global_headers': {h.key: h.value for h in dynamic.custom_headers.all()},
                 'operations': ops
             }
             return DynamicProvider(config)
