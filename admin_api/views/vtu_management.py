@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.views import APIView
@@ -38,6 +38,16 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Return all purchase records system-wide
         return self.queryset
+
+    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'status': ['exact', 'in'],
+        'purchase_type': ['exact'],
+        'time': ['exact', 'gte', 'lte', 'gt', 'lt'],
+        'user': ['exact'],
+    }
+    search_fields = ['reference', 'beneficiary', 'user__email', 'user__phone_number']
+    ordering_fields = ['time', 'amount']
 
     @extend_schema(
         tags=["Admin Purchases"],

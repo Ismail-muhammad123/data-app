@@ -330,17 +330,20 @@ class PurchaseEducationView(APIView):
 
         amount = plan.agent_price if user.role == 'agent' else plan.selling_price
 
+        phone_number = serializer.validated_data.get('phone_number')
+
         res = process_vtu_purchase(
             user=user,
             purchase_type="education",
             amount=amount,
-            beneficiary="N/A",
+            beneficiary=phone_number,
             action="buy_education",
             promo_code_str=promo_code,
             service_name=f"{plan.name} PIN",
             exam_type=service_id,
             variation_id=variation_id,
             quantity=1,
+            phone=phone_number,
             education_variation=plan
         )
 

@@ -149,46 +149,73 @@ class ClubKonnectProvider(BaseVTUProvider):
         }
 
     def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        variation = kwargs.get('internet_variation')
+        network_id = variation.service.service_id if variation else "smile-direct"
+        
         params = {
-            "MobileNetwork": "internet-direct", # or map if multiple
+            "MobileNetwork": network_id,
             "DataPlan": plan_id,
             "MobileNumber": phone,
             "RequestID": reference
         }
-        res = self._get("/APISmileV1.asp", params)
+        
+        # Determine endpoint based on network
+        if "smile" in network_id.lower():
+            endpoint = "/APISmileV1.asp"
+        elif "spectranet" in network_id.lower():
+            endpoint = "/APISpectranetV1.asp"
+        else:
+            endpoint = "/APISmileV1.asp" # default
+
+        res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
             status = "SUCCESS"
-        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
+        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
             status = "FAILED"
             
         return {
             "status": status,
             "provider_reference": res.get('orderid'),
-            "message": res.get('remark'),
+            "message": res.get('remark') or res.get('status'),
             "raw_response": res
         }
 
     def buy_education(self, exam_type: str, variation_id: str, quantity: int, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
+        phone = kwargs.get('beneficiary') or kwargs.get('phone') or kwargs.get('PhoneNo')
+        if not phone or phone == "N/A":
+             # Fallback to user phone if not provided for education
+             phone = getattr(self, 'user_phone', '08000000000') 
+
         params = {
-            "Exam": exam_type,
-            "Quantity": quantity,
+            "ExamType": variation_id,
+            "PhoneNo": phone,
             "RequestID": reference
         }
-        res = self._get("/Education.asp", params)
+        
+        # Determine endpoint based on exam_type (service_id)
+        if exam_type.lower() == 'waec':
+            endpoint = "/APIWAECV1.asp"
+        elif exam_type.lower() == 'jamb':
+            endpoint = "/APIJAMBV1.asp"
+        else:
+            # Fallback to generic if any other exists, though docs only showed WAEC/JAMB
+            endpoint = "/APIWAECV1.asp" if 'waec' in exam_type.lower() else "/APIJAMBV1.asp"
+
+        res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
             status = "SUCCESS"
-        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
+        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
             status = "FAILED"
             
         return {
             "status": status,
             "provider_reference": res.get('orderid'),
-            "message": res.get('remark'),
-            "token": res.get('pin'),
+            "message": res.get('remark') or res.get('status'),
+            "token": res.get('carddetails') or res.get('pin'),
             "raw_response": res
         }
 
@@ -435,70 +462,151 @@ class ClubKonnectProvider(BaseVTUProvider):
         return created
 
     def sync_internet(self) -> int:
-        res = self._get("/APISmileDiscountV1.asp", {}) 
-        internet_networks = res.get("MOBILE_NETWORK") or {}
-        
-        created_services = []
-        for network_name, network_list in internet_networks.items():
-            if not network_list: continue
-            service = self._deserialize_internet(network_name, network_list)
-            if service:
-                created_services.append(service)
-        return len(created_services)
+        count = 0
+        # 1. Sync Smile
+        try:
+            res_smile = self._get("/APISmilePackagesV2.asp", {})
+            count += self._process_internet_res(res_smile, "Smile", "smile-direct")
+        except Exception as e:
+            logger.error(f"ClubKonnect Smile Sync error: {e}")
 
-    def _deserialize_internet(self, network_name: str, network_list: List[Dict]) -> Optional[Any]:
-        from orders.models import InternetVariation, InternetService
-        net_info = network_list[0]
-        products = net_info.get("PRODUCT") or []
+        # 2. Sync Spectranet
+        try:
+            res_spectranet = self._get("/APISpectranetPackagesV2.asp", {})
+            count += self._process_internet_res(res_spectranet, "Spectranet", "spectranet")
+        except Exception as e:
+            logger.error(f"ClubKonnect Spectranet Sync error: {e}")
+            
+        return count
+
+    def _process_internet_res(self, res: dict, service_name: str, service_id: str) -> int:
+        from orders.models import InternetService, InternetVariation
+        
+        variations_list = []
+        if isinstance(res, list):
+            variations_list = res
+        elif isinstance(res, dict):
+            # Try common top-level keys
+            raw_data = res.get("MOBILE_NETWORK") or res.get("INTERNET") or res.get("PACKAGE") or res
+            if isinstance(raw_data, list):
+                variations_list = raw_data
+            elif isinstance(raw_data, dict):
+                for val in raw_data.values():
+                    if isinstance(val, list):
+                        variations_list = val
+                        break
+                        
         service, _ = InternetService.objects.get_or_create(
-            service_id=network_name.lower().replace(" ", "-"),
-            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+            service_id=service_id,
+            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
         )
-        for product in products:
-            variation_id = product.get("PACKAGE_ID") or product.get("PRODUCT_ID")
-            p_name = product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME")
-            amount = product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0
-            if not variation_id or not p_name: continue
-            InternetVariation.objects.update_or_create(
-                variation_id=variation_id,
-                defaults={
-                    "name": p_name,
-                    "service": service,
-                    "selling_price": amount,
-                    "is_active": True
-                }
-            )
-        return service
+        
+        synced_count = 0
+        for item in variations_list:
+            if isinstance(item, dict) and "PRODUCT" in item:
+                for product in item["PRODUCT"]:
+                    synced_count += self._create_internet_variation(service, product)
+            else:
+                synced_count += self._create_internet_variation(service, item)
+                
+        return synced_count
+
+    def _create_internet_variation(self, service: Any, item: Dict) -> int:
+        from orders.models import InternetVariation
+        if not isinstance(item, dict): return 0
+        
+        v_id = item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID")
+        v_name = item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
+        v_amount = item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
+        
+        if not v_id: return 0
+        
+        InternetVariation.objects.update_or_create(
+            variation_id=v_id,
+            service=service,
+            defaults={
+                "name": v_name,
+                "selling_price": v_amount,
+                "is_active": True
+            }
+        )
+        return 1
 
     def sync_education(self) -> int:
-        res = self._get("/APIEducationPinsV2.asp", {})
-        networks = res.get("EDUCATION") or {}
-        created_variations = []
-        for name, network_list in networks.items():
-            if not network_list: continue
-            created_variations.extend(self._deserialize_education(name, network_list))
-        return len(created_variations)
+        count = 0
+        # 1. Sync WAEC
+        try:
+            res_waec = self._get("/APIWAECPackagesV2.asp", {})
+            count += self._process_edu_res(res_waec, "WAEC", "waec")
+        except Exception as e:
+            logger.error(f"ClubKonnect WAEC Sync error: {e}")
 
-    def _deserialize_education(self, name: str, network_list: List[Dict]) -> List[Any]:
+        # 2. Sync JAMB
+        try:
+            res_jamb = self._get("/APIJAMBPackagesV2.asp", {})
+            count += self._process_edu_res(res_jamb, "JAMB", "jamb")
+        except Exception as e:
+            logger.error(f"ClubKonnect JAMB Sync error: {e}")
+            
+        return count
+
+    def _process_edu_res(self, res: dict, service_name: str, service_id: str) -> int:
         from orders.models import EducationService, EducationVariation
-        created = []
-        net_info = network_list[0]
-        s_id = net_info.get("ID") or name.lower().replace(" ", "-")
-        products = net_info.get("PRODUCT") or []
         
+        # ClubKonnect responses can have nested structures.
+        # We try to extract the list of products/variations.
+        variations_list = []
+        if isinstance(res, list):
+            variations_list = res
+        elif isinstance(res, dict):
+            # Try common top-level keys
+            raw_data = res.get("MOBILE_NETWORK") or res.get("EDUCATION") or res.get("VAR") or res.get("PACKAGE") or res
+            if isinstance(raw_data, list):
+                variations_list = raw_data
+            elif isinstance(raw_data, dict):
+                # If it's a dict, it might be { "WAEC": [...] }
+                for val in raw_data.values():
+                    if isinstance(val, list):
+                        variations_list = val
+                        break
+                        
+        if not variations_list and isinstance(res, dict):
+             # Final attempt: direct extraction if structure is simpler
+             pass
+
         service, _ = EducationService.objects.get_or_create(
-            service_id=s_id,
-            defaults={"service_name": name, "provider": getattr(self, "provider_config", None)}
+            service_id=service_id,
+            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
         )
-        for product in products:
-            variation, _ = EducationVariation.objects.update_or_create(
-                variation_id=product.get("PRODUCT_ID"),
-                service=service,
-                defaults={
-                    "name": product.get("PRODUCT_NAME", "Education PIN"),
-                    "selling_price": product.get("PRODUCT_AMOUNT", 0),
-                    "is_active": True
-                }
-            )
-            created.append(variation)
-        return created
+        
+        synced_count = 0
+        for item in variations_list:
+            # Check for nested PRODUCT list (common in ClubKonnect V2)
+            if isinstance(item, dict) and "PRODUCT" in item:
+                for product in item["PRODUCT"]:
+                    synced_count += self._create_edu_variation(service, product)
+            else:
+                synced_count += self._create_edu_variation(service, item)
+                
+        return synced_count
+
+    def _create_edu_variation(self, service: Any, item: Dict) -> int:
+        from orders.models import EducationVariation
+        if not isinstance(item, dict): return 0
+        
+        v_id = item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID") or item.get("exam_code")
+        v_name = item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
+        v_amount = item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
+        
+        if not v_id: return 0
+        
+        EducationVariation.objects.update_or_create(
+            variation_id=v_id,
+            service=service,
+            defaults={
+                "name": v_name or f"{service.service_name} PIN",
+                "selling_price": v_amount,
+                "is_active": True
+            }
+        )
+        return 1

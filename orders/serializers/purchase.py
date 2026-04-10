@@ -32,4 +32,7 @@ class InternetPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     plan_id = serializers.IntegerField(); phone_number = serializers.CharField()
 
 class EducationPurchaseRequestSerializer(BasePurchaseRequestSerializer):
-    service_id, variation_id = serializers.CharField(), serializers.CharField(); amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    service_id = serializers.CharField()
+    variation_id = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    phone_number = serializers.CharField(max_length=20)

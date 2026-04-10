@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample
@@ -47,10 +47,11 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         'transaction_type': ['exact'],
         'initiator': ['exact'],
         'initiated_by': ['exact'],
-        'timestamp': ['exact', 'gte', 'lte'],
+        'timestamp': ['exact', 'gte', 'lte', 'gt', 'lt'],
     }
-    search_fields = ['reference', 'description', 'user__email', 'user__full_name']
+    search_fields = ['reference', 'description', 'user__email', 'user__first_name', 'user__last_name', 'user__phone_number']
     ordering_fields = ['timestamp', 'amount']
+    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     @extend_schema(
         tags=["Admin Wallets"],
@@ -100,6 +101,15 @@ class AdminDepositViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Return all deposit records in the app
         return self.queryset
+
+    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'status': ['exact'],
+        'payment_method': ['exact'],
+        'timestamp': ['exact', 'gte', 'lte', 'gt', 'lt'],
+    }
+    search_fields = ['reference', 'user__email', 'user__phone_number', 'user__first_name', 'user__last_name']
+    ordering_fields = ['timestamp', 'amount']
 
     @extend_schema(
         tags=["Admin Payments"],
@@ -222,6 +232,14 @@ class AdminWalletViewSet(viewsets.ReadOnlyModelViewSet):
         # Explicitly return all users with their wallets
         return self.queryset
 
+    filter_backends = [filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'role': ['exact'],
+        'is_active': ['exact'],
+    }
+    search_fields = ['email', 'phone_number', 'first_name', 'last_name']
+    ordering_fields = ['created_at', 'wallet__balance']
+
 @extend_schema_view(
     list=extend_schema(tags=["Admin Transfers"]),
     retrieve=extend_schema(tags=["Admin Transfers"]),
@@ -343,8 +361,9 @@ class AdminPaystackDataViewSet(viewsets.ViewSet):
             return Response({"error": "Paystack is not configured"}, status=400)
             
         headers = {"Authorization": f"Bearer {config.secret_key}"}
+        params = request.query_params.dict()
         try:
-            response = requests.get("https://api.paystack.co/transfer", headers=headers)
+            response = requests.get("https://api.paystack.co/transfer", headers=headers, params=params)
             return Response(response.json())
         except Exception as e:
             return Response({"error": str(e)}, status=500)
@@ -360,8 +379,9 @@ class AdminPaystackDataViewSet(viewsets.ViewSet):
             return Response({"error": "Paystack is not configured"}, status=400)
             
         headers = {"Authorization": f"Bearer {config.secret_key}"}
+        params = request.query_params.dict()
         try:
-            response = requests.get("https://api.paystack.co/transaction", headers=headers)
+            response = requests.get("https://api.paystack.co/transaction", headers=headers, params=params)
             return Response(response.json())
         except Exception as e:
             return Response({"error": str(e)}, status=500)

@@ -113,7 +113,7 @@ SPECTACULAR_SETTINGS = {
         'email': 'support@astar.com',
     },
     'SERVERS': [
-        {'url': 'https://a-star-backend-staging.up.railway.app', 'description': 'Production Environment'},
+        {'url': 'https://backend.stardata.com.ng', 'description': 'Production Environment'},
         {'url': 'http://localhost:8000', 'description': 'Local Test Environment'},
     ],
     'SWAGGER_UI_SETTINGS': {
