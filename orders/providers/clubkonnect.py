@@ -560,7 +560,7 @@ class ClubKonnectProvider(BaseVTUProvider):
             variations_list = res
         elif isinstance(res, dict):
             # Try common top-level keys
-            raw_data = res.get("MOBILE_NETWORK") or res.get("EDUCATION") or res.get("VAR") or res.get("PACKAGE") or res
+            raw_data = res.get("EXAM_TYPE") or res.get("MOBILE_NETWORK") or res.get("EDUCATION") or res.get("VAR") or res.get("PACKAGE") or res
             if isinstance(raw_data, list):
                 variations_list = raw_data
             elif isinstance(raw_data, dict):
@@ -571,8 +571,11 @@ class ClubKonnectProvider(BaseVTUProvider):
                         break
                         
         if not variations_list and isinstance(res, dict):
-             # Final attempt: direct extraction if structure is simpler
-             pass
+             # Search deeply for lists if not found
+             for k, v in res.items():
+                 if isinstance(v, list):
+                     variations_list = v
+                     break
 
         service, _ = EducationService.objects.get_or_create(
             service_id=service_id,
@@ -594,9 +597,9 @@ class ClubKonnectProvider(BaseVTUProvider):
         from orders.models import EducationVariation
         if not isinstance(item, dict): return 0
         
-        v_id = item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID") or item.get("exam_code")
-        v_name = item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
-        v_amount = item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
+        v_id = item.get("PRODUCT_CODE") or item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID") or item.get("exam_code")
+        v_name = item.get("PRODUCT_DESCRIPTION") or item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
+        v_amount = item.get("PRODUCT_AMOUNT") or item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
         
         if not v_id: return 0
         
