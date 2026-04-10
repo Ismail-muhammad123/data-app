@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_view, extend_schema
 from summary.models import SiteConfig, ServiceCashback
 from admin_api.serializers import AdminSiteConfigSerializer, ServiceCashbackSerializer
 from admin_api.permissions import CanManageSiteConfig, IsSuperUserOnly
+from admin_api.utils import log_admin_action
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Site Configuration"]),
@@ -34,6 +35,16 @@ class AdminSiteConfigViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        log_admin_action(
+            user=self.request.user,
+            action_type="UPDATE_SITE_CONFIG",
+            description=f"Updated global site configuration.",
+            target=instance,
+            metadata=serializer.data
+        )
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Site Configuration"]),

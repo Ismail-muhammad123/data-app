@@ -16,6 +16,7 @@ from admin_api.serializers import (
     StaffPermissionSerializer, KYCSerializer, AdminKYCActionRequestSerializer
 )
 from admin_api.permissions import CanManageUsers
+from admin_api.utils import log_admin_action
 from wallet.models import Wallet, VirtualAccount
 from summary.models import SiteConfig
 import pyotp
@@ -114,6 +115,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             user.save(update_fields=['is_staff'])
             StaffPermission.objects.get_or_create(user=user)
 
+        log_admin_action(
+            user=request.user,
+            action_type="CREATE_USER",
+            description=f"Created new user {user.phone_number} with role {user.role}",
+            target=user
+        )
+
         return Response(AdminUserDetailSerializer(user).data, status=status.HTTP_201_CREATED)
 
     # ─── Activate / Deactivate ───
@@ -128,6 +136,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         user.is_active = True
         user.save(update_fields=['is_active'])
+        log_admin_action(
+            user=request.user,
+            action_type="ACTIVATE_USER",
+            description=f"Activated user {user.phone_number}",
+            target=user
+        )
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} activated."})
 
     @extend_schema(
@@ -140,6 +154,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         user.is_active = False
         user.save(update_fields=['is_active'])
+        log_admin_action(
+            user=request.user,
+            action_type="DEACTIVATE_USER",
+            description=f"Deactivated user {user.phone_number}",
+            target=user
+        )
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} deactivated."})
 
     # ─── Block / Unblock ───
@@ -158,6 +178,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.closed_at = timezone.now()
         user.closed_reason = request.data.get('reason', 'Blocked by Admin')
         user.save(update_fields=['is_closed', 'is_active', 'closed_at', 'closed_reason'])
+        log_admin_action(
+            user=request.user,
+            action_type="BLOCK_USER",
+            description=f"Blocked user {user.phone_number}. Reason: {user.closed_reason}",
+            target=user
+        )
         NotificationService.send_from_template(user, "account-blocked", {"reason": user.closed_reason})
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} blocked."})
 
@@ -174,6 +200,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.closed_at = None
         user.closed_reason = None
         user.save(update_fields=['is_closed', 'is_active', 'closed_at', 'closed_reason'])
+        log_admin_action(
+            user=request.user,
+            action_type="UNBLOCK_USER",
+            description=f"Unblocked user {user.phone_number}.",
+            target=user
+        )
         NotificationService.send_from_template(user, "account-unblocked", {})
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} unblocked."})
 
@@ -197,6 +229,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         kyc.remarks = request.data.get('reason', 'Approved by Admin')
         kyc.processed_by = request.user
         kyc.save()
+        log_admin_action(
+            user=request.user,
+            action_type="APPROVE_KYC",
+            description=f"Approved KYC for user {user.phone_number}",
+            target=kyc
+        )
         NotificationService.send_from_template(user, "kyc-approved", {})
         return Response({"status": "SUCCESS", "message": "User KYC approved."})
 
@@ -218,6 +256,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         kyc.remarks = request.data.get('reason', 'Rejected by Admin')
         kyc.processed_by = request.user
         kyc.save()
+        log_admin_action(
+            user=request.user,
+            action_type="REJECT_KYC",
+            description=f"Rejected KYC for user {user.phone_number}. Reason: {kyc.remarks}",
+            target=kyc
+        )
         NotificationService.send_from_template(user, "kyc-rejected", {"reason": kyc.remarks})
         return Response({"status": "REJECTED", "message": "User KYC rejected."})
 
@@ -271,6 +315,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             user.is_staff = False
 
         user.save()
+        log_admin_action(
+            user=request.user,
+            action_type="SET_USER_ROLE",
+            description=f"Set role of {user.phone_number} to {new_role}",
+            target=user,
+            metadata={"commission_rate": str(commission_rate)} if new_role == 'agent' else None
+        )
         return Response({"status": "SUCCESS", "message": f"User {user.phone_number} role set to '{new_role}'."})
 
     # ─── Update Permissions (for staff users) ───
@@ -294,6 +345,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         for field, value in serializer.validated_data.items():
             setattr(perms, field, value)
         perms.save()
+        log_admin_action(
+            user=request.user,
+            action_type="UPDATE_STAFF_PERMISSIONS",
+            description=f"Updated permissions for staff user {user.phone_number}",
+            target=user
+        )
 
         return Response({"status": "SUCCESS", "message": f"Permissions updated for {user.phone_number}."})
 
@@ -445,6 +502,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             return Response({"error": "A valid PIN (min 4 digits) is required."}, status=400)
         user.set_password(new_pin)
         user.save()
+        log_admin_action(
+            user=request.user,
+            action_type="RESET_LOGIN_PIN",
+            description=f"Reset login PIN for user {user.phone_number}",
+            target=user
+        )
         NotificationService.send_from_template(user, "login-pin-reset", {})
         return Response({"status": "SUCCESS", "message": f"Login PIN reset for user {user.phone_number}."})
 
@@ -516,5 +579,12 @@ class AdminKYCViewSet(viewsets.ModelViewSet):
         kyc.remarks = reason
         kyc.processed_by = request.user
         kyc.save()
+        
+        log_admin_action(
+            user=request.user,
+            action_type=f"{action_type}_KYC",
+            description=f"{action_type.capitalize()}d KYC for user {kyc.user.phone_number}",
+            target=kyc
+        )
         
         return Response({"status": "SUCCESS", "message": f"KYC status updated to {kyc.status}."})

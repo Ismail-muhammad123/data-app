@@ -8,6 +8,8 @@ from admin_api.serializers import (
     AdminSupportTicketSerializer, AdminSupportReplyRequestSerializer, 
     AdminStatusResponseSerializer
 )
+from admin_api.utils import log_admin_action
+from notifications.utils import NotificationService
 
 @extend_schema_view(
     list=extend_schema(tags=["Admin Support"], summary="List all support tickets"),
@@ -63,6 +65,23 @@ class AdminSupportTicketViewSet(viewsets.ModelViewSet):
         if ticket.status == 'open':
             ticket.status = 'in_progress'
             ticket.save()
+
+        # Log admin action
+        log_admin_action(
+            user=request.user,
+            action_type="REPLY_SUPPORT",
+            description=f"Replied to support ticket #{ticket.id}",
+            target=ticket
+        )
+
+        # Notify user (FCM)
+        NotificationService.send_push(
+            user=ticket.user,
+            title=f"Support Update: {ticket.subject}",
+            body=f"An admin has replied to your ticket: {serializer.validated_data['message'][:50]}...",
+            data={"ticket_id": str(ticket.id), "type": "support_reply"}
+        )
+
         return Response({"status": "SUCCESS", "message": "Reply sent successfully."})
 
     @extend_schema(
@@ -75,4 +94,21 @@ class AdminSupportTicketViewSet(viewsets.ModelViewSet):
         ticket = self.get_object()
         ticket.status = 'closed'
         ticket.save()
+
+        # Log admin action
+        log_admin_action(
+            user=request.user,
+            action_type="CLOSE_SUPPORT",
+            description=f"Closed support ticket #{ticket.id}",
+            target=ticket
+        )
+        
+        # Notify user (FCM)
+        NotificationService.send_push(
+            user=ticket.user,
+            title=f"Ticket Closed: {ticket.subject}",
+            body="Your support ticket has been marked as closed.",
+            data={"ticket_id": str(ticket.id), "type": "support_closed"}
+        )
+
         return Response({"status": "SUCCESS", "message": "Ticket closed successfully."})

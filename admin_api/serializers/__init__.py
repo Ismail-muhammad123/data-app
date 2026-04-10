@@ -37,7 +37,7 @@ from .actions import (
     AutomationGlobalSettingsSerializer, AutomationOverviewResponseSerializer, VariationPriceUpdateSerializer, 
     BulkVariationPriceItemSerializer, BulkVariationPriceUpdateSerializer, 
     VariationToggleSerializer, ServiceTypeToggleSerializer, ServiceRetryConfigSerializer, 
-    ServicePricingModeSerializer
+    ServicePricingModeSerializer, AdminActionLogSerializer
 )
 from .permissions import (
     PermissionSerializer, GroupSerializer, GroupListSerializer, 

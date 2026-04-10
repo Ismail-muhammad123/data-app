@@ -42,7 +42,8 @@ from .views import (
     AdminPaystackDataViewSet, AdminReferralViewSet, AdminSiteConfigViewSet, AdminServiceCashbackViewSet,
     AdminExportUsersView, AdminExportWalletTransactionsView, AdminExportDepositsView, AdminExportWithdrawalsView, AdminExportPurchasesView,
     # Permissions & Groups
-    AdminPermissionViewSet, AdminGroupViewSet, AdminUserPermissionView, AdminUserGroupView
+    AdminPermissionViewSet, AdminGroupViewSet, AdminUserPermissionView, AdminUserGroupView,
+    AdminActionLogViewSet
 )
 
 router = DefaultRouter()
@@ -84,6 +85,7 @@ router.register(r'settings/service-cashbacks', AdminServiceCashbackViewSet, base
 router.register(r'paystack/data', AdminPaystackDataViewSet, basename='admin-paystack-data')
 router.register(r'permissions/all', AdminPermissionViewSet, basename='admin-permissions')
 router.register(r'permissions/groups', AdminGroupViewSet, basename='admin-groups')
+router.register(r'audit/action-logs', AdminActionLogViewSet, basename='admin-action-logs')
 
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='admin-stats'),

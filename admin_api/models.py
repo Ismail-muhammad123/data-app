@@ -36,3 +36,24 @@ class AdminTransferLog(models.Model):
 
     def __str__(self):
         return f"Transfer of {self.amount} to {self.beneficiary.name}"
+
+
+class AdminActionLog(models.Model):
+    """
+    Tracks administrative actions performed by staff members.
+    """
+    admin_user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='admin_action_logs')
+    action_type = models.CharField(max_length=50) # e.g. "UPDATE_SITE_CONFIG", "CREDIT_WALLET", "REPLY_SUPPORT"
+    target_model = models.CharField(max_length=100, blank=True, null=True)
+    target_id = models.CharField(max_length=100, blank=True, null=True)
+    description = models.TextField()
+    metadata = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Admin Action Log"
+        verbose_name_plural = "Admin Action Logs"
+
+    def __str__(self):
+        return f"{self.admin_user.phone_number} - {self.action_type} - {self.created_at}"

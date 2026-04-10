@@ -15,6 +15,7 @@ from admin_api.serializers import (
     AdminUserListSerializer
 )
 from admin_api.permissions import CanManageWallets, CanManagePayments, IsSuperUserOnly, CanInitiateTransfers
+from admin_api.utils import log_admin_action
 from payments.models import AdminTransfer, AdminTransferBeneficiary
 from wallet.models import Wallet
 import requests
@@ -77,6 +78,12 @@ class AdminWalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             debit_wallet(user_id, amount, description=reason, initiator='admin', initiated_by=request.user)
         
+        log_admin_action(
+            user=request.user,
+            action_type="MANUAL_WALLET_ADJUSTMENT",
+            description=f"{adj_type.capitalize()}ed user {user_id} wallet with {amount}. Reason: {reason}",
+            target=user_id
+        )
         return Response({"status": "Wallet adjusted successfully"})
 
 @extend_schema_view(
@@ -114,6 +121,13 @@ class AdminDepositViewSet(viewsets.ModelViewSet):
         deposit.save()
         
         fund_wallet(deposit.user.id, deposit.amount, description=f"Manual Deposit: {deposit.reference}", initiator='admin', initiated_by=request.user)
+
+        log_admin_action(
+            user=request.user,
+            action_type="MARK_DEPOSIT_SUCCESS",
+            description=f"Marked deposit {deposit.reference} as success for user {deposit.user.phone_number}",
+            target=deposit
+        )
         return Response({"status": "SUCCESS", "message": "Deposit marked as success and wallet credited."})
 
 @extend_schema_view(

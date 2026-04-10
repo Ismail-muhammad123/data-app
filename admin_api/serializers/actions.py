@@ -72,3 +72,13 @@ class ServicePricingModeSerializer(serializers.Serializer):
 class AutomationOverviewResponseSerializer(serializers.Serializer):
     global_settings = AutomationGlobalSettingsSerializer()
     services = serializers.ListField(child=serializers.DictField())
+
+
+class AdminActionLogSerializer(serializers.ModelSerializer):
+    admin_phone = serializers.CharField(source='admin_user.phone_number', read_only=True)
+    admin_name = serializers.CharField(source='admin_user.full_name', read_only=True)
+
+    class Meta:
+        from admin_api.models import AdminActionLog
+        model = AdminActionLog
+        fields = '__all__'
