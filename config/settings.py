@@ -35,15 +35,14 @@ if DEBUG:
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://data-app-backend.onrender.com',
-    'https://data-app-backend-9yxa.onrender.com',
-    'https://z9trades-backend-production.up.railway.app',
-    'https://a-star-backend-staging.up.railway.app'
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     'https://data-app-backend.onrender.com',
+#     'https://data-app-backend-9yxa.onrender.com',
+#     'https://z9trades-backend-production.up.railway.app',
+#     'https://a-star-backend-staging.up.railway.app'
+# ]
 
 
-CSRF_ALLOW_ALL_ORIGINS = True
 # if DEBUG:
 # else:
 #     csrf_origins_env = os.environ.get("CSRF_TRUSTED_ORIGINS", None)
@@ -140,9 +139,6 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = "users.User"
-
-CORS_ALLOW_ALL_ORIGINS = True
-
 
 
 MIDDLEWARE = [
