@@ -351,16 +351,17 @@ class SummaryDashboard(Wallet):
         networks = ['mtn', 'glo', 'airtel', '9mobile']
         health_indicators = {}
         for nw in networks:
-            nw_purchases = Purchase.objects.filter(
+            # Convert to list to avoid "Cannot filter a query once a slice has been taken" error
+            nw_purchases_statuses = list(Purchase.objects.filter(
                 Q(airtime_service__service_name__icontains=nw) | 
                 Q(data_variation__service__service_name__icontains=nw)
-            ).order_by('-time')[:20]
+            ).order_by('-time')[:20].values_list('status', flat=True))
             
-            if not nw_purchases.exists():
+            if not nw_purchases_statuses:
                 health_indicators[nw] = "EXCELLENT"
             else:
-                success_count = nw_purchases.filter(status="success").count()
-                rate = success_count / nw_purchases.count()
+                success_count = nw_purchases_statuses.count("success")
+                rate = success_count / len(nw_purchases_statuses)
                 if rate >= 0.9: health_indicators[nw] = "EXCELLENT"
                 elif rate >= 0.5: health_indicators[nw] = "DEGRADED"
                 else: health_indicators[nw] = "POOR"
