@@ -64,6 +64,8 @@ class ClubKonnectProvider(BaseVTUProvider):
         }
         endpoint = "/APIAirtimeV1.asp" 
         res = self._get(endpoint, params)
+
+        print(res)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
