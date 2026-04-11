@@ -194,12 +194,21 @@ class GenericLocalProvider(BaseVTUProvider):
 
     def _deserialize_airtime(self, data: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.airtime_margin if config else Decimal('0.00')
+        base_100 = Decimal('100.00')
+
         created = []
         for item in data:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=item.get("id"),
                 defaults={
                     "service_name": item.get("name"),
+                    "cost_price": base_100,
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100,
                     "provider": getattr(self, "provider_config", None),
                 }
             )
@@ -216,6 +225,11 @@ class GenericLocalProvider(BaseVTUProvider):
 
     def _deserialize_data(self, data: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
+
         created = []
         for item in data:
             network_name = item.get("network_name") or item.get("network")
@@ -223,12 +237,15 @@ class GenericLocalProvider(BaseVTUProvider):
                 service_id=item.get("network_id") or network_name,
                 defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
             )
+            p_amount = Decimal(str(item.get("amount") or 0))
             variation, _ = DataVariation.objects.update_or_create(
                 variation_id=item.get("id"),
                 service=service,
                 defaults={
                     "name": item.get("plan_name") or item.get("name"),
-                    "selling_price": item.get("amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -245,6 +262,11 @@ class GenericLocalProvider(BaseVTUProvider):
 
     def _deserialize_tv(self, data: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.tv_margin if config else Decimal('0.00')
+
         created = []
         for item in data:
             service_name = item.get("cablename") or item.get("name")
@@ -252,12 +274,15 @@ class GenericLocalProvider(BaseVTUProvider):
                 service_id=item.get("cable_id") or service_name,
                 defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
             )
+            p_amount = Decimal(str(item.get("amount") or 0))
             variation, _ = TVVariation.objects.update_or_create(
                 variation_id=item.get("id"),
                 service=service,
                 defaults={
                     "name": item.get("plan_name") or item.get("name"),
-                    "selling_price": item.get("amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -274,6 +299,11 @@ class GenericLocalProvider(BaseVTUProvider):
 
     def _deserialize_electricity(self, data: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.electricity_margin if config else Decimal('0.00')
+
         created = []
         for item in data:
             service, _ = ElectricityService.objects.get_or_create(
@@ -285,6 +315,9 @@ class GenericLocalProvider(BaseVTUProvider):
                 service=service,
                 defaults={
                     "name": "General",
+                    "cost_price": Decimal('0.00'),
+                    "selling_price": margin,
+                    "agent_price": Decimal('0.00'),
                     "is_active": True
                 }
             )
@@ -304,6 +337,11 @@ class GenericLocalProvider(BaseVTUProvider):
 
     def _deserialize_education(self, data: List[Dict]) -> List[Any]:
         from orders.models import EducationService, EducationVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.education_margin if config else Decimal('0.00')
+
         created = []
         for item in data:
             name = item.get("name") or item.get("exam_name")
@@ -311,12 +349,15 @@ class GenericLocalProvider(BaseVTUProvider):
                 service_id=item.get("id") or name,
                 defaults={"service_name": name, "provider": getattr(self, "provider_config", None)}
             )
+            p_amount = Decimal(str(item.get("amount") or 0))
             variation, _ = EducationVariation.objects.update_or_create(
                 variation_id=item.get("id"),
                 service=service,
                 defaults={
                     "name": item.get("plan_name") or name,
-                    "selling_price": item.get("amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )

@@ -325,6 +325,11 @@ class ArewaGlobalProvider(BaseVTUProvider):
         Persists hardcoded airtime networks to the database.
         """
         from orders.models import AirtimeNetwork
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.airtime_margin if config else Decimal('0.00')
+        base_100 = Decimal('100.00')
 
         created = []
         for net_data in AIRTIME_NETWORKS_DATA:
@@ -334,6 +339,9 @@ class ArewaGlobalProvider(BaseVTUProvider):
                     "service_name": net_data["service_name"],
                     "min_amount": net_data["min_amount"],
                     "max_amount": net_data["max_amount"],
+                    "cost_price": base_100,
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100,
                     "provider": getattr(self, "provider_config", None),
                 }
             )
@@ -349,6 +357,10 @@ class ArewaGlobalProvider(BaseVTUProvider):
         Persists hardcoded data plans to the database.
         """
         from orders.models import DataService, DataVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
 
         networks_to_sync = DATA_PLANS_BY_NETWORK
 
@@ -362,12 +374,15 @@ class ArewaGlobalProvider(BaseVTUProvider):
                 }
             )
             for plan in net_info["plans"]:
+                p_amount = Decimal(str(plan["selling_price"]))
                 variation, _ = DataVariation.objects.update_or_create(
                     variation_id=plan["plan_id"],
                     service=service,
                     defaults={
                         "name": plan["name"],
-                        "selling_price": plan["selling_price"],
+                        "cost_price": p_amount,
+                        "selling_price": p_amount + margin,
+                        "agent_price": p_amount,
                         "plan_type": plan.get("plan_type", "general"),
                         "is_active": True,
                     }
@@ -385,6 +400,10 @@ class ArewaGlobalProvider(BaseVTUProvider):
         Persists hardcoded internet service plans (Smile, Kirani, Ratel, Alpha).
         """
         from orders.models import InternetService, InternetVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.internet_margin if config else Decimal('0.00')
 
         services = []
         count = 0
@@ -397,12 +416,15 @@ class ArewaGlobalProvider(BaseVTUProvider):
                 }
             )
             for plan in svc_data["plans"]:
+                p_amount = Decimal(str(plan["selling_price"]))
                 InternetVariation.objects.update_or_create(
                     variation_id=f"{service_key}_{plan['plan_id']}",
                     defaults={
                         "name": plan["name"],
                         "service": service,
-                        "selling_price": plan["selling_price"],
+                        "cost_price": p_amount,
+                        "selling_price": p_amount + margin,
+                        "agent_price": p_amount,
                         "is_active": True,
                     }
                 )

@@ -160,16 +160,123 @@ class SMEDataProvider(BaseVTUProvider):
         return [{"type": "data"}]
 
     def sync_airtime(self) -> int:
-        return 0
+        from orders.models import AirtimeNetwork
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.airtime_margin if config else Decimal('0.00')
+        base_100 = Decimal('100.00')
+
+        networks = self.get_airtime_networks()
+        created = []
+        for net_data in networks:
+            net, _ = AirtimeNetwork.objects.update_or_create(
+                service_id=str(net_data.get("id")),
+                defaults={
+                    "service_name": net_data.get("name"),
+                    "cost_price": base_100,
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100,
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            created.append(net)
+        return len(created)
 
     def sync_data(self) -> int:
-        return 0
+        from orders.models import DataService, DataVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
+
+        plans = self.get_data_plans()
+        created_variations = []
+        for plan in plans:
+            service, _ = DataService.objects.get_or_create(
+                service_id=plan.get("network", "MTN"),
+                defaults={
+                    "service_name": plan.get("network", "MTN"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            p_amount = Decimal(str(plan.get("amount") or 0))
+            variation, _ = DataVariation.objects.update_or_create(
+                variation_id=str(plan.get("id")),
+                service=service,
+                defaults={
+                    "name": plan.get("name"),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
+                    "is_active": True,
+                }
+            )
+            created_variations.append(variation)
+        return len(created_variations)
 
     def sync_cable(self) -> int:
-        return 0
+        from orders.models import TVService, TVVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.tv_margin if config else Decimal('0.00')
+
+        packages = self.get_cable_tv_packages()
+        created_variations = []
+        for pkg in packages:
+            service, _ = TVService.objects.get_or_create(
+                service_id=pkg.get("cable", "GOTV"),
+                defaults={
+                    "service_name": pkg.get("cable", "GOTV"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            p_amount = Decimal(str(pkg.get("amount") or 0))
+            variation, _ = TVVariation.objects.update_or_create(
+                variation_id=str(pkg.get("id")),
+                service=service,
+                defaults={
+                    "name": pkg.get("name"),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
+                    "is_active": True,
+                }
+            )
+            created_variations.append(variation)
+        return len(created_variations)
 
     def sync_electricity(self) -> int:
-        return 0
+        from orders.models import ElectricityService, ElectricityVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.electricity_margin if config else Decimal('0.00')
+
+        discos = self.get_electricity_services()
+        created_variations = []
+        for disco in discos:
+            service, _ = ElectricityService.objects.get_or_create(
+                service_id=str(disco.get("id")),
+                defaults={
+                    "service_name": disco.get("name"),
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            variation, _ = ElectricityVariation.objects.update_or_create(
+                variation_id=f"{disco.get('id')}-general",
+                service=service,
+                defaults={
+                    "name": "General Setup",
+                    "cost_price": Decimal('0.00'),
+                    "selling_price": margin,
+                    "agent_price": Decimal('0.00'),
+                    "is_active": True,
+                }
+            )
+            created_variations.append(variation)
+        return len(created_variations)
 
     def sync_internet(self) -> int:
         return 0

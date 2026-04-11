@@ -365,13 +365,25 @@ class ClubKonnectProvider(BaseVTUProvider):
             if isinstance(discount, str):
                 discount = discount.replace("%", "").strip()
             
+            from summary.models import SiteConfig
+            from decimal import Decimal
+            config = SiteConfig.objects.first()
+            margin = config.airtime_margin if config else Decimal('0.00')
+            
+            # For airtime, we'll store prices relative to 100 Naira face value for consistency
+            base_100 = Decimal('100.00')
+            p_discount = Decimal(str(discount))
+            
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=product.get("ID"),
                 defaults={
                     "service_name": product.get("PRODUCT_NAME", network_name).capitalize(),
                     "min_amount": product.get("MINAMOUNT", "50"),
                     "max_amount": product.get("MAXAMOUNT", "200000"),
-                    "discount": discount,
+                    "discount": str(p_discount),
+                    "cost_price": base_100 - (base_100 * p_discount / 100),
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100, # Agents get it at face value
                     "provider": getattr(self, "provider_config", None),
                 }
             )
@@ -398,13 +410,23 @@ class ClubKonnectProvider(BaseVTUProvider):
             service_id=service_id,
             defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
         )
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
+        
         for product in products:
+            p_amount = Decimal(str(product.get("PRODUCT_AMOUNT") or 0)) or Decimal(str(product.get("selling_price") or 0))
+            p_discount = Decimal(str(product.get("DISCOUNT") or product.get("PRODUCT_DISCOUNT") or 0))
+            
             variation, _ = DataVariation.objects.update_or_create(
                 variation_id=product.get("PRODUCT_ID"),
                 service=service,
                 defaults={
                     "name": product.get("PRODUCT_NAME", "Data Plan"),
-                    "selling_price": product.get("PRODUCT_AMOUNT", product.get("selling_price", 0)),
+                    "cost_price": p_amount - p_discount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -431,13 +453,23 @@ class ClubKonnectProvider(BaseVTUProvider):
             service_id=s_id,
             defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
         )
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.tv_margin if config else Decimal('0.00')
+        
         for product in products:
+            p_amount = Decimal(str(product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0))
+            p_discount = Decimal(str(product.get("DISCOUNT") or product.get("PACKAGE_DISCOUNT") or 0))
+            
             variation, _ = TVVariation.objects.update_or_create(
                 variation_id=product.get("PACKAGE_ID") or product.get("PRODUCT_ID"),
                 service=service,
                 defaults={
                     "name": product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME") or "TV Package",
-                    "selling_price": product.get("PACKAGE_AMOUNT") or product.get("PRODUCT_AMOUNT") or 0,
+                    "cost_price": p_amount - p_discount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "package_bouquet": product.get("PACKAGE_NAME") or product.get("PRODUCT_NAME"),
                     "is_active": True
                 }
@@ -463,6 +495,15 @@ class ClubKonnectProvider(BaseVTUProvider):
                 defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title(), "provider": getattr(self, "provider_config", None)}
             )
             for product in company_info.get("PRODUCT", []):
+                from summary.models import SiteConfig
+                from decimal import Decimal
+                config = SiteConfig.objects.first()
+                margin = config.electricity_margin if config else Decimal('0.00')
+
+                # electricity usually doesn't have a fixed amount in response here, but if it does:
+                p_amount = Decimal(str(product.get("PRODUCT_AMOUNT") or 0))
+                p_discount = Decimal(str(product.get("PRODUCT_DISCOUNT_AMOUNT") or 0)) if product.get("PRODUCT_DISCOUNT_AMOUNT") else Decimal('0')
+                
                 variation, _ = ElectricityVariation.objects.update_or_create(
                     variation_id=product.get("PRODUCT_ID"),
                     service=service,
@@ -470,7 +511,10 @@ class ClubKonnectProvider(BaseVTUProvider):
                         "name": product.get("PRODUCT_TYPE", "General").capitalize(),
                         "min_amount": product.get("MINAMOUNT", "1000"),
                         "max_amount": product.get("MAXAMOUNT", "200000"),
-                        "discount": product.get("PRODUCT_DISCOUNT_AMOUNT", "0"),
+                        "discount": str(p_discount),
+                        "cost_price": p_amount - p_discount if p_amount > 0 else 0,
+                        "selling_price": p_amount + margin if p_amount > 0 else 0,
+                        "agent_price": p_amount if p_amount > 0 else 0,
                         "is_active": True
                     }
                 )
@@ -529,11 +573,17 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def _create_internet_variation(self, service: Any, item: Dict) -> int:
         from orders.models import InternetVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
         if not isinstance(item, dict): return 0
+        
+        config = SiteConfig.objects.first()
+        margin = config.internet_margin if config else Decimal('0.00')
         
         v_id = item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID")
         v_name = item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
-        v_amount = item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
+        v_amount = Decimal(str(item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0))
+        v_discount = Decimal(str(item.get("DISCOUNT") or item.get("PRODUCT_DISCOUNT") or 0))
         
         if not v_id: return 0
         
@@ -542,7 +592,9 @@ class ClubKonnectProvider(BaseVTUProvider):
             service=service,
             defaults={
                 "name": v_name,
-                "selling_price": v_amount,
+                "cost_price": v_amount - v_discount,
+                "selling_price": v_amount + margin,
+                "agent_price": v_amount,
                 "is_active": True
             }
         )
@@ -611,11 +663,17 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def _create_edu_variation(self, service: Any, item: Dict) -> int:
         from orders.models import EducationVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
         if not isinstance(item, dict): return 0
+        
+        config = SiteConfig.objects.first()
+        margin = config.education_margin if config else Decimal('0.00')
         
         v_id = item.get("PRODUCT_CODE") or item.get("ID") or item.get("PRODUCT_ID") or item.get("PACKAGE_ID") or item.get("exam_code")
         v_name = item.get("PRODUCT_DESCRIPTION") or item.get("NAME") or item.get("PRODUCT_NAME") or item.get("PACKAGE_NAME")
-        v_amount = item.get("PRODUCT_AMOUNT") or item.get("AMOUNT") or item.get("PRODUCT_AMOUNT") or item.get("PACKAGE_AMOUNT") or 0
+        v_amount = Decimal(str(item.get("PRODUCT_AMOUNT") or item.get("AMOUNT") or item.get("PACKAGE_AMOUNT") or 0))
+        v_discount = Decimal(str(item.get("DISCOUNT") or item.get("PRODUCT_DISCOUNT") or 0))
         
         if not v_id: return 0
         
@@ -624,7 +682,9 @@ class ClubKonnectProvider(BaseVTUProvider):
             service=service,
             defaults={
                 "name": v_name or f"{service.service_name} PIN",
-                "selling_price": v_amount,
+                "cost_price": v_amount - v_discount,
+                "selling_price": v_amount + margin,
+                "agent_price": v_amount,
                 "is_active": True
             }
         )

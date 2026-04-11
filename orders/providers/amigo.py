@@ -178,10 +178,62 @@ class AmigoVTUProvider(BaseVTUProvider):
         ]
 
     def sync_airtime(self) -> int:
-        return 0
+        from orders.models import AirtimeNetwork
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.airtime_margin if config else Decimal('0.00')
+        base_100 = Decimal('100.00')
+
+        networks = self.get_airtime_networks()
+        created = []
+        for net_data in networks:
+            net, _ = AirtimeNetwork.objects.update_or_create(
+                service_id=str(net_data["id"]),
+                defaults={
+                    "service_name": net_data["name"],
+                    "cost_price": base_100,
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100,
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            created.append(net)
+        return len(created)
 
     def sync_data(self) -> int:
-        return 0
+        from orders.models import DataService, DataVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
+
+        plans = self.get_data_plans()
+        created_variations = []
+        for plan in plans:
+            network_map = {'1': 'MTN', '2': 'Glo', '4': 'Airtel'}
+            network_name = network_map.get(plan["network"], plan["network"])
+            service, _ = DataService.objects.get_or_create(
+                service_id=plan["network"],
+                defaults={
+                    "service_name": network_name,
+                    "provider": getattr(self, "provider_config", None),
+                }
+            )
+            p_amount = Decimal(str(plan["price"]))
+            variation, _ = DataVariation.objects.update_or_create(
+                variation_id=plan["id"],
+                service=service,
+                defaults={
+                    "name": plan["name"],
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
+                    "is_active": True,
+                }
+            )
+            created_variations.append(variation)
+        return len(created_variations)
 
     def sync_cable(self) -> int:
         return 0

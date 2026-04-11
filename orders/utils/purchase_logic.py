@@ -384,7 +384,7 @@ def _build_finalize_purchase(purchase_type, status, res, user, final_amount, ben
         if hasattr(user, 'developer_profile'):
             dispatch_developer_webhook(purchase)
 
-    return {"status": status, "purchase_id": purchase.id, "res": res}
+    return {"status": status, "purchase_id": purchase.id, "res": res, "amount": final_amount}
 
 def purchase_airtime(user, network, phone, amount, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("airtime"):
@@ -394,9 +394,14 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
         return {"status": "failed", "error": "Airtime service is inactive."}
 
     discount_val = network.agent_discount if user.role == 'agent' else network.discount
-    # User pays full amount, we track the discount as our commission/profit
-    actual_amount = to_decimal(amount)
-    cost_price = actual_amount - (actual_amount * to_decimal(discount_val) / 100)
+    
+    from summary.models import SiteConfig
+    config = SiteConfig.objects.first()
+    margin = config.airtime_margin if config else Decimal('0.00')
+
+    base_amount = to_decimal(amount)
+    actual_amount = base_amount + margin
+    cost_price = base_amount - (base_amount * to_decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -427,7 +432,7 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
     call_kwargs = {
         "phone": phone,
         "network": network.service_id,
-        "amount": actual_amount,
+        "amount": base_amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
@@ -543,13 +548,19 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
         return {"status": "failed", "error": "Electricity service is inactive."}
 
     discount_val = electricity_variation.agent_discount if user.role == 'agent' else electricity_variation.discount
-    # User pays full amount, we track the discount as cost/profit
-    actual_amount = to_decimal(amount)
-    # If the variation has a cost_price, use it, otherwise calculate from discount
+    
+    from summary.models import SiteConfig
+    config = SiteConfig.objects.first()
+    margin = config.electricity_margin if config else Decimal('0.00')
+
+    base_amount = to_decimal(amount)
+    actual_amount = base_amount + margin
+    
+    # If the variation has a cost_price, use it, otherwise calculate from discount using base_amount
     if hasattr(electricity_variation, 'cost_price') and to_decimal(electricity_variation.cost_price) > 0:
         cost_price = to_decimal(electricity_variation.cost_price)
     else:
-        cost_price = actual_amount - (actual_amount * to_decimal(discount_val) / 100)
+        cost_price = base_amount - (base_amount * to_decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -582,7 +593,7 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
         "plan_id": electricity_variation.variation_id,
         "meter_number": meter_number,
         "phone": user.phone_number,
-        "amount": actual_amount,
+        "amount": base_amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("electricity", "buy_electricity", **call_kwargs)

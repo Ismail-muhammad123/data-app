@@ -86,17 +86,19 @@ def process_referral_reward(user, trigger_event, transaction_amount=0):
 
     referrer = referral_rel.referrer
     
+    from decimal import Decimal
+    
     # Identify which rules to use (Agent vs User)
     is_agent = getattr(referrer, 'role', 'customer') == 'agent'
     
     if is_agent:
         reward_type = config.agent_referral_commission_type
-        reward_value = float(config.agent_referral_commission_value)
+        reward_value = to_decimal(config.agent_referral_commission_value)
         reward_trigger = config.agent_referral_trigger
         reward_cycle = config.agent_referral_cycle
     else:
         reward_type = config.user_referral_commission_type
-        reward_value = float(config.user_referral_commission_value)
+        reward_value = to_decimal(config.user_referral_commission_value)
         reward_trigger = config.user_referral_trigger
         reward_cycle = config.user_referral_cycle
 
@@ -110,16 +112,17 @@ def process_referral_reward(user, trigger_event, transaction_amount=0):
         return
 
     # Calculate reward amount
-    amount_to_pay = 0
+    amount_to_pay = Decimal('0.00')
     if reward_type == 'flat':
         amount_to_pay = reward_value
     elif reward_type == 'percentage':
-        amount_to_pay = (float(transaction_amount) * reward_value) / 100
+        amount_to_pay = (to_decimal(transaction_amount) * reward_value) / Decimal('100')
 
-    if amount_to_pay <= 0:
+    if amount_to_pay <= Decimal('0.00'):
         return
 
     # Pay the referrer
+    from wallet.utils import fund_wallet # Ensure local import is safe or use parent
     fund_wallet(
         referrer.id, 
         amount_to_pay, 
@@ -129,7 +132,7 @@ def process_referral_reward(user, trigger_event, transaction_amount=0):
     
     # Update referral record
     referral_rel.bonus_paid = True
-    referral_rel.bonus_amount = float(referral_rel.bonus_amount) + amount_to_pay
+    referral_rel.bonus_amount = to_decimal(referral_rel.bonus_amount) + amount_to_pay
     referral_rel.save()
 
 def process_cashback(user, service_type, purchase_amount):
@@ -145,17 +148,17 @@ def process_cashback(user, service_type, purchase_amount):
     if not cashback_rule:
         return
 
-    if float(purchase_amount) < float(cashback_rule.min_purchase_amount):
+    if to_decimal(purchase_amount) < to_decimal(cashback_rule.min_purchase_amount):
         return
 
     # Calculate cashback
-    reward_amount = 0
+    reward_amount = Decimal('0.00')
     if cashback_rule.cashback_type == 'flat':
-        reward_amount = float(cashback_rule.cashback_value)
+        reward_amount = to_decimal(cashback_rule.cashback_value)
     elif cashback_rule.cashback_type == 'percentage':
-        reward_amount = (float(purchase_amount) * float(cashback_rule.cashback_value)) / 100
+        reward_amount = (to_decimal(purchase_amount) * to_decimal(cashback_rule.cashback_value)) / Decimal('100')
 
-    if reward_amount <= 0:
+    if reward_amount <= Decimal('0.00'):
         return
 
     # Fund user wallet

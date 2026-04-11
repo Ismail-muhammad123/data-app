@@ -59,6 +59,9 @@ class AirtimeNetwork(models.Model):
     max_amount = models.CharField(max_length=10, default="200000")
     discount = models.CharField(max_length=10, default="0")
     agent_discount = models.CharField(max_length=10, default="0")
+    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    selling_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    agent_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     image = models.ImageField(upload_to='networks/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
@@ -89,6 +92,8 @@ class ElectricityVariation(models.Model):
     discount = models.CharField(max_length=10, default="0")
     agent_discount = models.CharField(max_length=10, default="0")
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Amount the provider charges the platform")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    agent_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='general')
 
     is_active = models.BooleanField(default=True)

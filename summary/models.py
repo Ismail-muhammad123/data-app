@@ -365,7 +365,7 @@ class SummaryDashboard(Wallet):
         except Exception:
             vtu_balance = 0.0
 
-        sms_balance = 0.0
+        # SMS balance removed
 
         # ==============================================================
         # SMART ALERTS
@@ -383,7 +383,6 @@ class SummaryDashboard(Wallet):
 
         low_balance_alerts = []
         if vtu_balance < 5000: low_balance_alerts.append("Low VTU Provider Balance")
-        if sms_balance < 1000: low_balance_alerts.append("Low SMS Provider Balance")
 
         # ==============================================================
         # DEPOSITS & WITHDRAWALS SUMMARY (legacy – kept for compat)
@@ -457,7 +456,6 @@ class SummaryDashboard(Wallet):
             "provider_balances": {
                 "vtu": vtu_balance,
                 "payment_gateway": paystack_balance,
-                "sms": sms_balance,
             },
             "alerts": {
                 "failed_transactions": failed_data,
@@ -547,6 +545,14 @@ class SiteConfig(models.Model):
     # Agent Upgrade Settings
     agent_upgrade_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Amount charged to upgrade to agent status.")
     agent_upgrade_kyc_required = models.BooleanField(default=False, help_text="If enabled, user must be KYC verified to upgrade to agent.")
+    
+    # Product margins
+    data_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    airtime_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    tv_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    electricity_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    internet_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    education_margin = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
     class Meta:
         verbose_name = "Site Configuration"

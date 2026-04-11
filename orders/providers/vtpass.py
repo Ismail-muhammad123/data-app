@@ -319,12 +319,21 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_airtime(self, raw_list: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.airtime_margin if config else Decimal('0.00')
+        base_100 = Decimal('100.00')
+        
         services = []
         for item in raw_list:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=item.get("serviceID"),
                 defaults={
                     "service_name": item.get("name"),
+                    "cost_price": base_100, # VTPass usually face value
+                    "selling_price": base_100 + margin,
+                    "agent_price": base_100,
                     "provider": getattr(self, "provider_config", None),
                 }
             )
@@ -345,18 +354,26 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_data(self, sid: str, variations: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.data_margin if config else Decimal('0.00')
+
         created = []
         service, _ = DataService.objects.get_or_create(
             service_id=sid,
             defaults={"service_name": sid.replace("-data", "").upper(), "provider": getattr(self, "provider_config", None)}
         )
         for item in variations:
+            p_amount = Decimal(str(item.get("variation_amount") or 0))
             variation, _ = DataVariation.objects.update_or_create(
                 variation_id=item.get("variation_code"),
                 service=service,
                 defaults={
                     "name": item.get("name"),
-                    "selling_price": item.get("variation_amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -377,18 +394,26 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_tv(self, sid: str, variations: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.tv_margin if config else Decimal('0.00')
+
         created = []
         service, _ = TVService.objects.get_or_create(
             service_id=sid,
             defaults={"service_name": sid.upper(), "provider": getattr(self, "provider_config", None)}
         )
         for item in variations:
+            p_amount = Decimal(str(item.get("variation_amount") or 0))
             variation, _ = TVVariation.objects.update_or_create(
                 variation_id=item.get("variation_code"),
                 service=service,
                 defaults={
                     "name": item.get("name"),
-                    "selling_price": item.get("variation_amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -402,6 +427,11 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_electricity(self, raw_list: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.electricity_margin if config else Decimal('0.00')
+
         services = []
         for item in raw_list:
             service, _ = ElectricityService.objects.get_or_create(
@@ -416,6 +446,9 @@ class VTPassProvider(BaseVTUProvider):
                 service=service,
                 defaults={
                     "name": "General Setup",
+                    "cost_price": Decimal('0.00'),
+                    "selling_price": margin,
+                    "agent_price": Decimal('0.00'),
                     "is_active": True
                 }
             )
@@ -435,18 +468,26 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_internet(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
         from orders.models import InternetService, InternetVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.internet_margin if config else Decimal('0.00')
+
         created = []
         service, _ = InternetService.objects.get_or_create(
             service_id=sid,
             defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
         )
         for item in variations:
+            p_amount = Decimal(str(item.get("variation_amount") or 0))
             variation, _ = InternetVariation.objects.update_or_create(
                 variation_id=item.get("variation_code"),
                 service=service,
                 defaults={
                     "name": item.get("name"),
-                    "selling_price": item.get("variation_amount", 0),
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -466,18 +507,26 @@ class VTPassProvider(BaseVTUProvider):
 
     def _deserialize_education(self, sid: str, service_name: str, variations: List[Dict]) -> List[Any]:
         from orders.models import EducationService, EducationVariation
+        from summary.models import SiteConfig
+        from decimal import Decimal
+        config = SiteConfig.objects.first()
+        margin = config.education_margin if config else Decimal('0.00')
+
         created = []
         service, _ = EducationService.objects.get_or_create(
             service_id=sid,
             defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
         )
         for item in variations:
+            p_amount = Decimal(str(item.get("variation_amount") or 0))
             variation, _ = EducationVariation.objects.update_or_create(
                 variation_id=item.get("variation_code") or f"{sid}-general",
                 service=service,
                 defaults={
                     "name": item.get("name") or service_name,
-                    "selling_price": item.get("variation_amount", 0) or 0,
+                    "cost_price": p_amount,
+                    "selling_price": p_amount + margin,
+                    "agent_price": p_amount,
                     "is_active": True
                 }
             )
@@ -488,7 +537,9 @@ class VTPassProvider(BaseVTUProvider):
                 service=service,
                 defaults={
                     "name": "PIN Purchase",
-                    "selling_price": 0,
+                    "cost_price": 0,
+                    "selling_price": margin,
+                    "agent_price": 0,
                     "is_active": True
                 }
             )
