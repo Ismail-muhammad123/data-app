@@ -259,6 +259,9 @@ class Purchase(models.Model):
     retry_count = models.PositiveIntegerField(default=0)
     last_error = models.TextField(blank=True, null=True)
     
+    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
     time = models.DateTimeField(auto_now=True)
 
 

@@ -31,51 +31,35 @@ class SummaryDashboard(Wallet):
     @staticmethod
     def _calculate_profit(qs):
         """
-        Calculate profit across all purchase types that have a cost_price.
-        Profit = selling_price (amount charged to user) − cost_price.
+        Calculate profit across all purchase types.
+        Uses the stored profit field for new records, while maintaining 
+        a fallback for legacy records if needed (though we recommend mapping them).
         """
-        profit = 0.0
+        # Sum pre-calculated profit
+        stored_profit = float(qs.aggregate(total=Sum('profit'))['total'] or 0)
+        
+        # If there are old records with 0 profit, we could calculate them here,
+        # but for simplicity and performance we transition to the new field.
+        # Check if we have records with profit=0 that might have on-the-fly profit
+        if stored_profit == 0 and qs.exists():
+             # Fallback logic for legacy data if specifically needed
+             # (Keeping the old logic as a safety net for now)
+             profit = 0.0
+             profit += float(qs.filter(purchase_type='data', data_variation__isnull=False).annotate(p=F('amount') - F('data_variation__cost_price')).aggregate(total=Sum('p'))['total'] or 0)
+             profit += float(qs.filter(purchase_type='tv', tv_variation__isnull=False).annotate(p=F('amount') - F('tv_variation__cost_price')).aggregate(total=Sum('p'))['total'] or 0)
+             profit += float(qs.filter(purchase_type='electricity', electricity_variation__isnull=False).annotate(p=F('amount') - F('electricity_variation__cost_price')).aggregate(total=Sum('p'))['total'] or 0)
+             profit += float(qs.filter(purchase_type='internet', internet_variation__isnull=False).annotate(p=F('amount') - F('internet_variation__cost_price')).aggregate(total=Sum('p'))['total'] or 0)
+             profit += float(qs.filter(purchase_type='education', education_variation__isnull=False).annotate(p=F('amount') - F('education_variation__cost_price')).aggregate(total=Sum('p'))['total'] or 0)
+             
+             airtime_qs = qs.filter(purchase_type='airtime', airtime_service__isnull=False)
+             for p in airtime_qs.select_related('airtime_service'):
+                 try:
+                     discount = float(p.airtime_service.discount or 0) / 100
+                     profit += float(p.amount) * discount
+                 except Exception: pass
+             return profit
 
-        # Data
-        profit += float(
-            qs.filter(purchase_type='data', data_variation__isnull=False)
-            .annotate(p=F('amount') - F('data_variation__cost_price'))
-            .aggregate(total=Sum('p'))['total'] or 0
-        )
-        # TV
-        profit += float(
-            qs.filter(purchase_type='tv', tv_variation__isnull=False)
-            .annotate(p=F('amount') - F('tv_variation__cost_price'))
-            .aggregate(total=Sum('p'))['total'] or 0
-        )
-        # Electricity
-        profit += float(
-            qs.filter(purchase_type='electricity', electricity_variation__isnull=False)
-            .annotate(p=F('amount') - F('electricity_variation__cost_price'))
-            .aggregate(total=Sum('p'))['total'] or 0
-        )
-        # Internet
-        profit += float(
-            qs.filter(purchase_type='internet', internet_variation__isnull=False)
-            .annotate(p=F('amount') - F('internet_variation__cost_price'))
-            .aggregate(total=Sum('p'))['total'] or 0
-        )
-        # Education
-        profit += float(
-            qs.filter(purchase_type='education', education_variation__isnull=False)
-            .annotate(p=F('amount') - F('education_variation__cost_price'))
-            .aggregate(total=Sum('p'))['total'] or 0
-        )
-        # Airtime – discount-based: profit = amount * discount%
-        airtime_qs = qs.filter(purchase_type='airtime', airtime_service__isnull=False)
-        for p in airtime_qs.select_related('airtime_service'):
-            try:
-                discount = float(p.airtime_service.discount or 0) / 100
-                profit += float(p.amount) * discount
-            except Exception:
-                pass
-
-        return profit
+        return stored_profit
 
     @staticmethod
     def _calculate_commissions(qs):

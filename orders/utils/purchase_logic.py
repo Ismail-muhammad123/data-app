@@ -289,7 +289,7 @@ def _json_safe(value):
         return [_json_safe(v) for v in value]
     return value
 
-def _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, provider_obj, discount, promo_obj, service_name, kwargs):
+def _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, provider_obj, discount, promo_obj, service_name, kwargs, cost_price=Decimal('0.00'), profit=Decimal('0.00')):
     """Internal helper to shared the record creation and notification logic."""
     with db_transaction.atomic():
         purchase = Purchase.objects.create(
@@ -302,7 +302,9 @@ def _build_finalize_purchase(purchase_type, status, res, user, final_amount, ben
             provider_response=res,
             provider=provider_obj,
             initiator=initiator,
-            initiated_by=initiated_by
+            initiated_by=initiated_by,
+            cost_price=cost_price,
+            profit=profit
         )
         
         # Link extras
@@ -379,7 +381,9 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
         return {"status": "failed", "error": "Airtime service is inactive."}
 
     discount_val = network.agent_discount if user.role == 'agent' else network.discount
-    actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
+    # User pays full amount, we track the discount as our commission/profit
+    actual_amount = Decimal(amount)
+    cost_price = actual_amount - (actual_amount * Decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -389,12 +393,14 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(actual_amount) * promo_obj.discount_percentage) / 100
+                discount = (actual_amount * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(actual_amount) - discount
+    final_amount = actual_amount - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -408,7 +414,7 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
     call_kwargs = {
         "phone": phone,
         "network": network.service_id,
-        "amount": final_amount,
+        "amount": actual_amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
@@ -416,7 +422,7 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("airtime", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{network.service_name} Airtime", {"airtime_service": network})
+    return _build_finalize_purchase("airtime", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{network.service_name} Airtime", {"airtime_service": network}, cost_price=cost_price, profit=profit)
 
 def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("data"):
@@ -425,6 +431,7 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
         return {"status": "failed", "error": "Data plan is inactive."}
 
     amount = plan.agent_price if user.role == 'agent' else plan.selling_price
+    cost_price = plan.cost_price
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -440,6 +447,8 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -454,7 +463,7 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
         "phone": phone,
         "network": plan.service.service_id,
         "plan_id": plan.variation_id,
-        "amount": final_amount,
+        "amount": amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("data", "buy_data", **call_kwargs)
@@ -462,7 +471,7 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("data", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{plan.service.service_name} Data Bundle", {"data_variation": plan})
+    return _build_finalize_purchase("data", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{plan.service.service_name} Data Bundle", {"data_variation": plan}, cost_price=cost_price, profit=profit)
 
 def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("tv"):
@@ -471,6 +480,7 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
         return {"status": "failed", "error": "TV package is inactive."}
 
     amount = tv_variation.agent_price if user.role == 'agent' else tv_variation.selling_price
+    cost_price = tv_variation.cost_price
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -486,6 +496,8 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -501,7 +513,7 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
         "package_id": tv_variation.variation_id,
         "smart_card_number": customer_id,
         "phone": user.phone_number,
-        "amount": final_amount,
+        "amount": amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("tv", "buy_tv", **call_kwargs)
@@ -509,7 +521,7 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("tv", status, res, user, final_amount, customer_id, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{tv_variation.service.service_name} TV Sub", {"tv_variation": tv_variation})
+    return _build_finalize_purchase("tv", status, res, user, final_amount, customer_id, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{tv_variation.service.service_name} TV Sub", {"tv_variation": tv_variation}, cost_price=cost_price, profit=profit)
 
 def purchase_electricity(user, electricity_variation, meter_number, amount, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("electricity"):
@@ -518,7 +530,13 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
         return {"status": "failed", "error": "Electricity service is inactive."}
 
     discount_val = electricity_variation.agent_discount if user.role == 'agent' else electricity_variation.discount
-    actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
+    # User pays full amount, we track the discount as cost/profit
+    actual_amount = Decimal(amount)
+    # If the variation has a cost_price, use it, otherwise calculate from discount
+    if hasattr(electricity_variation, 'cost_price') and electricity_variation.cost_price > 0:
+        cost_price = electricity_variation.cost_price
+    else:
+        cost_price = actual_amount - (actual_amount * Decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -528,12 +546,14 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(actual_amount) * promo_obj.discount_percentage) / 100
+                discount = (actual_amount * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(actual_amount) - discount
+    final_amount = actual_amount - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -549,7 +569,7 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
         "plan_id": electricity_variation.variation_id,
         "meter_number": meter_number,
         "phone": user.phone_number,
-        "amount": final_amount,
+        "amount": actual_amount,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("electricity", "buy_electricity", **call_kwargs)
@@ -557,7 +577,7 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("electricity", status, res, user, final_amount, meter_number, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{electricity_variation.service.service_name} Electricity", {"electricity_service": electricity_variation.service, "electricity_variation": electricity_variation})
+    return _build_finalize_purchase("electricity", status, res, user, final_amount, meter_number, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{electricity_variation.service.service_name} Electricity", {"electricity_service": electricity_variation.service, "electricity_variation": electricity_variation}, cost_price=cost_price, profit=profit)
 
 def purchase_internet(user, internet_variation, phone, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("internet"):
@@ -566,6 +586,7 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
         return {"status": "failed", "error": "Internet service is inactive."}
 
     amount = internet_variation.agent_price if user.role == 'agent' else internet_variation.selling_price
+    cost_price = internet_variation.cost_price
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -581,6 +602,8 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -594,7 +617,7 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
     call_kwargs = {
         "plan_id": internet_variation.variation_id,
         "phone": phone,
-        "amount": final_amount,
+        "amount": amount,
         "reference": reference,
         "internet_variation": internet_variation
     }
@@ -603,7 +626,7 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("internet", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, "Internet Subscription", {"internet_variation": internet_variation})
+    return _build_finalize_purchase("internet", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, "Internet Subscription", {"internet_variation": internet_variation}, cost_price=cost_price, profit=profit)
 
 def purchase_education(user, education_variation, phone, quantity=1, reference=None, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("education"):
@@ -612,6 +635,7 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
         return {"status": "failed", "error": "Education service is inactive."}
 
     amount = (education_variation.agent_price if user.role == 'agent' else education_variation.selling_price) * quantity
+    cost_price = education_variation.cost_price * quantity
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -627,6 +651,8 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     wallet = Wallet.objects.filter(user_id=user.id).first()
     if not wallet or wallet.balance < final_amount:
@@ -641,7 +667,7 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
         "exam_type": education_variation.service.service_id,
         "variation_id": education_variation.variation_id,
         "quantity": quantity,
-        "amount": final_amount,
+        "amount": amount,
         "reference": reference,
         "education_variation": education_variation
     }
@@ -650,7 +676,7 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
-    return _build_finalize_purchase("education", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{education_variation.name} PIN", {"education_variation": education_variation})
+    return _build_finalize_purchase("education", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{education_variation.name} PIN", {"education_variation": education_variation}, cost_price=cost_price, profit=profit)
 
 def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
@@ -667,10 +693,29 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     if validation_error:
         return {"status": "failed", "error": validation_error}
 
-    # 2. Resolve amount by role where applicable
-    amount = _resolve_role_amount(user, purchase_type, amount, kwargs)
+    # 3. Resolve cost_price
+    cost_price = Decimal('0.00')
+    if purchase_type == 'airtime' and 'airtime_service' in kwargs:
+        asv = kwargs['airtime_service']
+        disc = asv.agent_discount if user.role == 'agent' else asv.discount
+        # Standard cost calculation if not explicitly set
+        cost_price = Decimal(amount) - (Decimal(amount) * Decimal(disc) / 100)
+    elif purchase_type == 'data' and 'data_variation' in kwargs:
+        cost_price = kwargs['data_variation'].cost_price
+    elif purchase_type == 'tv' and 'tv_variation' in kwargs:
+        cost_price = kwargs['tv_variation'].cost_price
+    elif purchase_type == 'electricity' and 'electricity_variation' in kwargs:
+        ev = kwargs['electricity_variation']
+        if ev.cost_price > 0: cost_price = ev.cost_price
+        else:
+            disc = ev.agent_discount if user.role == 'agent' else ev.discount
+            cost_price = Decimal(amount) - (Decimal(amount) * Decimal(disc) / 100)
+    elif purchase_type == 'internet' and 'internet_variation' in kwargs:
+        cost_price = kwargs['internet_variation'].cost_price
+    elif purchase_type == 'education' and 'education_variation' in kwargs:
+        cost_price = kwargs['education_variation'].cost_price * kwargs.get('quantity', 1)
 
-    # 3. Handle Promo Code
+    # 4. Handle Promo Code
     discount = Decimal('0.00')
     promo_obj = None
     if promo_code_str:
@@ -685,6 +730,8 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
+    
+    profit = final_amount - cost_price
 
     # 4. Reference & record initialization
     reference = kwargs.get('reference')
@@ -710,7 +757,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     # 7. Execute via Router (with fallback/retries)
     call_kwargs = _build_provider_call_kwargs(
         purchase_type=purchase_type,
-        amount=final_amount,
+        amount=amount,
         beneficiary=beneficiary,
         reference=reference,
         kwargs=kwargs,
@@ -735,7 +782,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     elif res['status'] == 'FAILED':
         status = "failed"
 
-    return _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, None, discount, promo_obj, service_name, kwargs)
+    return _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, None, discount, promo_obj, service_name, kwargs, cost_price=cost_price, profit=profit)
 
 def handle_vtu_async_failure(purchase):
     """
