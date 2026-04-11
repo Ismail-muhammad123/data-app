@@ -70,8 +70,8 @@ class QueryPurchaseStatusView(APIView):
             purchase.status = "success"
             NotificationService.send_push(purchase.user, "Purchase Confirmed", f"Your {purchase.purchase_type} purchase is now successful.")
         elif res.get('status') == "FAILED":
-            if purchase.status != "failed":
-                purchase.status = "failed"
+            if purchase.status != "refunded":
+                purchase.status = "refunded"
                 fund_wallet(
                     purchase.user.id, 
                     purchase.amount, 

@@ -379,14 +379,14 @@ class PurchaseAdmin(admin.ModelAdmin):
 
     def mark_as_failed_and_refund(self, request, queryset):
         for purchase in queryset:
-            if purchase.status == "failed":
-                self.message_user(request, f"Purchase {purchase.reference} is already failed.", level='warning')
+            if purchase.status == "refunded":
+                self.message_user(request, f"Purchase {purchase.reference} is already refunded.", level='warning')
                 continue
 
             try:
                 with db_transaction.atomic():
-                    purchase.status = "failed"
-                    purchase.save()
+                    purchase.status = "refunded"
+                    purchase.save(update_fields=["status"])
 
                     fund_wallet(
                         user_id=purchase.user.id,
@@ -433,8 +433,8 @@ class PurchaseAdmin(admin.ModelAdmin):
                     purchase.status = "success"
                     success_count += 1
                 elif new_status == "FAILED":
-                    if purchase.status != "failed":
-                        purchase.status = "failed"
+                    if purchase.status != "refunded":
+                        purchase.status = "refunded"
                         terminal_fail = True
                         failed_count += 1
                 

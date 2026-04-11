@@ -223,10 +223,11 @@ class Purchase(models.Model):
     )
 
     STATUS_CHOICES = (
-    ("pending", "Pending"),
-    ("success", "Success"),
-    ("failed", "Failed"),
-)
+        ("pending", "Pending"),
+        ("success", "Success"),
+        ("failed", "Failed"),
+        ("refunded", "Refunded"),
+    )
     INITIATOR_CHOICES = [
         ("self", "Self"),
         ("admin", "Admin"),
@@ -477,4 +478,3 @@ class DynamicOperationPayload(models.Model):
     operation = models.ForeignKey(DynamicOperationConfig, on_delete=models.CASCADE, related_name="custom_payload")
     key = models.CharField(max_length=100)
     value = models.CharField(max_length=500, help_text="Can use {phone}, {amount}, etc.")
-

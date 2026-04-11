@@ -67,7 +67,7 @@ class PurchaseDataVariationView(APIView):
             data_variation=plan
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
              NotificationService.send_push(user, "Data Purchase Failed", f"Your purchase of {plan.name} was unsuccessful. N{amount} has been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -122,7 +122,7 @@ class PurchaseAirtimeView(APIView):
             airtime_service=network
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
              NotificationService.send_push(user, "Airtime Purchase Failed", f"Your purchase of N{amount} airtime was unsuccessful. N{actual_amount} has been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -181,7 +181,7 @@ class PurchaseElectricityView(APIView):
             electricity_variation=electricity_variation
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
              NotificationService.send_push(user, "Electricity Purchase Failed", f"Your electricity purchase of N{amount} was unsuccessful. N{actual_amount} has been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -238,7 +238,7 @@ class PurchaseTVSubscriptionView(APIView):
             tv_variation=tv_variation
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
              NotificationService.send_push(user, "TV Subscription Failed", "Your TV subscription was unsuccessful. Funds have been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -291,7 +291,7 @@ class PurchaseInternetSubscriptionView(APIView):
             internet_variation=plan
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
              NotificationService.send_push(user, "Internet Subscription Failed", "Your Internet subscription was unsuccessful. Funds have been refunded.")
              return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -435,7 +435,7 @@ class RepeatPurchaseView(APIView):
             **kwargs
         )
 
-        if result['status'] == "FAILED":
+        if result['status'] == "failed":
             return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data, status=status.HTTP_201_CREATED)

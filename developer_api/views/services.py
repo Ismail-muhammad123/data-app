@@ -31,7 +31,7 @@ class DeveloperAirtimeNetworkListView(generics.ListAPIView):
     permission_classes = [IsDeveloperUser]
 
     def list(self, request):
-        networks = AirtimeNetwork.objects.filter(is_active=True)
+        networks = AirtimeNetwork.objects.filter(is_active=True).order_by('id')
         data = [{
             "id": n.id,
             "service_id": n.service_id,
@@ -46,7 +46,7 @@ class DeveloperDataNetworkListView(generics.ListAPIView):
     permission_classes = [IsDeveloperUser]
 
     def list(self, request):
-        services = DataService.objects.filter(is_active=True)
+        services = DataService.objects.filter(is_active=True).order_by('id')
         data = [{
             "id": s.id,
             "service_id": s.service_id,
@@ -59,7 +59,7 @@ class DeveloperDataPlanListView(generics.ListAPIView):
     permission_classes = [IsDeveloperUser]
 
     def get(self, request, network_id):
-        plans = DataVariation.objects.filter(service_id=network_id, is_active=True)
+        plans = DataVariation.objects.filter(service_id=network_id, is_active=True).order_by('id')
         data = [{
             "id": p.id,
             "variation_id": p.variation_id,
@@ -75,7 +75,7 @@ class DeveloperTVServiceListView(generics.ListAPIView):
     permission_classes = [IsDeveloperUser]
 
     def list(self, request):
-        services = TVService.objects.filter(is_active=True)
+        services = TVService.objects.filter(is_active=True).order_by('id')
         data = [{"id": s.id, "service_id": s.service_id, "name": s.service_name} for s in services]
         return Response(data)
 
@@ -84,7 +84,7 @@ class DeveloperTVPackageListView(generics.ListAPIView):
     permission_classes = [IsDeveloperUser]
 
     def get(self, request, service_id):
-        variations = TVVariation.objects.filter(service_id=service_id, is_active=True)
+        variations = TVVariation.objects.filter(service_id=service_id, is_active=True).order_by('id')
         data = [{
             "id": v.id,
             "variation_id": v.variation_id,

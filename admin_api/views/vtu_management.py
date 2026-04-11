@@ -138,8 +138,8 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
             initiator='admin',
             initiated_by=request.user
         )
-        purchase.status = 'failed' 
-        purchase.save()
+        purchase.status = 'refunded'
+        purchase.save(update_fields=["status"])
         return Response({"status": "SUCCESS", "message": "Purchase refunded to user wallet."})
 
     @extend_schema(
@@ -157,8 +157,8 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
         if purchase.status != 'pending':
             return Response({"error": "Can only cancel pending purchases"}, status=400)
         
-        purchase.status = 'failed'
-        purchase.save()
+        purchase.status = 'refunded'
+        purchase.save(update_fields=["status"])
         
         fund_wallet(
             purchase.user.id, 

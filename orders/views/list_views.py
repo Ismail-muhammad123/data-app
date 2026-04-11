@@ -20,7 +20,7 @@ def _active_services_with_routing_fallback(model, service_type):
     Prefer active services for the routed provider.
     If no rows exist for that provider, gracefully fall back to all active services.
     """
-    active_qs = model.objects.filter(is_active=True)
+    active_qs = model.objects.filter(is_active=True).order_by('id')
     routing = ServiceRouting.objects.filter(service=service_type).first()
     if routing and routing.primary_provider:
         routed_qs = active_qs.filter(provider=routing.primary_provider)
@@ -56,7 +56,7 @@ class DataVariationsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = DataVariation.objects.filter(is_active=True)
+        queryset = DataVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
             return queryset.filter(service__id=network_id)
@@ -92,7 +92,7 @@ class ElectricityVariationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = ElectricityVariation.objects.filter(is_active=True)
+        queryset = ElectricityVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
             return queryset.filter(service__id=network_id)
@@ -117,7 +117,7 @@ class TVPackagesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = TVVariation.objects.filter(is_active=True)
+        queryset = TVVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
             return queryset.filter(service__id=network_id)
@@ -144,7 +144,7 @@ class InternetPackagesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = InternetVariation.objects.filter(is_active=True)
+        queryset = InternetVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
             return queryset.filter(service__id=network_id)
@@ -169,7 +169,7 @@ class EducationVariationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = EducationVariation.objects.filter(is_active=True)
+        queryset = EducationVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
             return queryset.filter(service__id=network_id)

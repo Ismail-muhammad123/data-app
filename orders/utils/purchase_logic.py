@@ -4,6 +4,7 @@ from decimal import Decimal
 import logging
 
 from wallet.utils import debit_wallet, fund_wallet
+from wallet.models import Wallet
 from orders.models import (
     Purchase, PromoCode, PurchasePromoUsed, VTUProviderConfig,
     DataService, AirtimeNetwork, ElectricityService, TVService, InternetService, EducationService, ServiceRouting, ServiceFallback
@@ -67,13 +68,231 @@ def dispatch_developer_webhook(purchase_obj):
     except Exception as e:
         logger.error(f"Error preparing webhook for {purchase_obj.reference}: {e}")
 
+def _service_enabled(purchase_type: str) -> bool:
+    try:
+        from summary.models import SiteConfig
+        config = SiteConfig.objects.first()
+        if not config:
+            return True
+        field_map = {
+            "airtime": "airtime_active",
+            "data": "data_active",
+            "tv": "tv_active",
+            "electricity": "electricity_active",
+            "education": "education_active",
+            # internet has no explicit flag; default to enabled
+        }
+        field = field_map.get(purchase_type)
+        return getattr(config, field, True) if field else True
+    except Exception:
+        return True
+
+def _validate_service_and_plan(purchase_type: str, kwargs: dict):
+    if purchase_type == "airtime":
+        network = kwargs.get("airtime_service")
+        if not network:
+            return "Airtime service not found."
+        if not getattr(network, "is_active", True):
+            return "Airtime service is inactive."
+        return None
+
+    if purchase_type == "data":
+        plan = kwargs.get("data_variation")
+        if not plan:
+            return "Data plan not found."
+        if not getattr(plan, "is_active", True):
+            return "Data plan is inactive."
+        service = getattr(plan, "service", None)
+        if service and not getattr(service, "is_active", True):
+            return "Data service is inactive."
+        return None
+
+    if purchase_type == "tv":
+        variation = kwargs.get("tv_variation")
+        if not variation:
+            return "TV package not found."
+        if not getattr(variation, "is_active", True):
+            return "TV package is inactive."
+        service = getattr(variation, "service", None)
+        if service and not getattr(service, "is_active", True):
+            return "TV service is inactive."
+        return None
+
+    if purchase_type == "electricity":
+        variation = kwargs.get("electricity_variation")
+        service = kwargs.get("electricity_service")
+        if not variation:
+            return "Electricity plan not found."
+        if not getattr(variation, "is_active", True):
+            return "Electricity plan is inactive."
+        if service and not getattr(service, "is_active", True):
+            return "Electricity service is inactive."
+        return None
+
+    if purchase_type == "internet":
+        variation = kwargs.get("internet_variation")
+        if not variation:
+            return "Internet plan not found."
+        if not getattr(variation, "is_active", True):
+            return "Internet plan is inactive."
+        service = getattr(variation, "service", None)
+        if service and not getattr(service, "is_active", True):
+            return "Internet service is inactive."
+        return None
+
+    if purchase_type == "education":
+        variation = kwargs.get("education_variation")
+        if not variation:
+            return "Education plan not found."
+        if not getattr(variation, "is_active", True):
+            return "Education plan is inactive."
+        service = getattr(variation, "service", None)
+        if service and not getattr(service, "is_active", True):
+            return "Education service is inactive."
+        return None
+
+    return None
+
+def _resolve_role_amount(user, purchase_type, amount, kwargs):
+    role = getattr(user, "role", "customer")
+    if purchase_type == "data" and kwargs.get("data_variation"):
+        plan = kwargs["data_variation"]
+        return plan.agent_price if role == "agent" else plan.selling_price
+    if purchase_type == "tv" and kwargs.get("tv_variation"):
+        plan = kwargs["tv_variation"]
+        return plan.agent_price if role == "agent" else plan.selling_price
+    if purchase_type == "internet" and kwargs.get("internet_variation"):
+        plan = kwargs["internet_variation"]
+        return plan.agent_price if role == "agent" else plan.selling_price
+    if purchase_type == "education" and kwargs.get("education_variation"):
+        plan = kwargs["education_variation"]
+        return plan.agent_price if role == "agent" else plan.selling_price
+    return amount
+
+def _build_provider_call_kwargs(purchase_type: str, amount, beneficiary: str, reference: str, kwargs: dict, user):
+    phone = kwargs.get("phone") or beneficiary or getattr(user, "phone_number", None)
+
+    if purchase_type == "airtime":
+        network = kwargs.get("network")
+        if not network and kwargs.get("airtime_service"):
+            network = kwargs["airtime_service"].service_id
+        return {
+            "phone": phone,
+            "network": network,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    if purchase_type == "data":
+        network = kwargs.get("network")
+        plan_id = kwargs.get("plan_id")
+        if kwargs.get("data_variation"):
+            plan = kwargs["data_variation"]
+            if not network:
+                network = plan.service.service_id
+            if not plan_id:
+                plan_id = plan.variation_id
+        return {
+            "phone": phone,
+            "network": network,
+            "plan_id": plan_id,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    if purchase_type == "tv":
+        tv_id = kwargs.get("tv_id")
+        package_id = kwargs.get("package_id")
+        smart_card_number = kwargs.get("smart_card_number") or beneficiary
+        if kwargs.get("tv_variation"):
+            plan = kwargs["tv_variation"]
+            if not tv_id:
+                tv_id = plan.service.service_id
+            if not package_id:
+                package_id = plan.variation_id
+        return {
+            "tv_id": tv_id,
+            "package_id": package_id,
+            "smart_card_number": smart_card_number,
+            "phone": phone,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    if purchase_type == "electricity":
+        disco_id = kwargs.get("disco_id")
+        plan_id = kwargs.get("plan_id")
+        meter_number = kwargs.get("meter_number") or beneficiary
+        if kwargs.get("electricity_variation"):
+            plan = kwargs["electricity_variation"]
+            if not disco_id:
+                disco_id = plan.service.service_id
+            if not plan_id:
+                plan_id = plan.variation_id
+        return {
+            "disco_id": disco_id,
+            "plan_id": plan_id,
+            "meter_number": meter_number,
+            "phone": phone,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    if purchase_type == "internet":
+        plan_id = kwargs.get("plan_id")
+        if kwargs.get("internet_variation"):
+            plan = kwargs["internet_variation"]
+            if not plan_id:
+                plan_id = plan.variation_id
+        return {
+            "plan_id": plan_id,
+            "phone": phone,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    if purchase_type == "education":
+        exam_type = kwargs.get("exam_type")
+        variation_id = kwargs.get("variation_id")
+        quantity = kwargs.get("quantity") or 1
+        if kwargs.get("education_variation"):
+            plan = kwargs["education_variation"]
+            if not exam_type:
+                exam_type = plan.service.service_id
+            if not variation_id:
+                variation_id = plan.variation_id
+        return {
+            "exam_type": exam_type,
+            "variation_id": variation_id,
+            "quantity": quantity,
+            "amount": amount,
+            "reference": reference,
+        }
+
+    return {
+        "amount": amount,
+        "reference": reference,
+    }
+
 def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
     Unified logic for processing VTU purchases.
     """
     service_name = kwargs.get('service_name', purchase_type.title())
     
-    # 1. Handle Promo Code
+    # 0. Service enabled check
+    if not _service_enabled(purchase_type):
+        return {"status": "failed", "error": f"{purchase_type} purchases are currently disabled."}
+
+    # 1. Validate plan/service
+    validation_error = _validate_service_and_plan(purchase_type, kwargs)
+    if validation_error:
+        return {"status": "failed", "error": validation_error}
+
+    # 2. Resolve amount by role where applicable
+    amount = _resolve_role_amount(user, purchase_type, amount, kwargs)
+
+    # 3. Handle Promo Code
     discount = Decimal('0.00')
     promo_obj = None
     if promo_code_str:
@@ -84,15 +303,21 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             elif promo_obj.discount_percentage > 0:
                 discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
         else:
-            return {"status": "FAILED", "error": "Invalid or expired promo code."}
+            return {"status": "failed", "error": "Invalid or expired promo code."}
 
     final_amount = Decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
 
-    # 2. Reference & record initialization
+    # 4. Reference & record initialization
     reference = kwargs.get('reference')
     
-    # 3. Debit Wallet
+    # 5. Affordability check
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    balance = wallet.balance if wallet else 0
+    if Decimal(balance) < Decimal(final_amount):
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    # 6. Debit Wallet
     try:
         debit_wallet(
             user.id, 
@@ -102,12 +327,30 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             initiated_by=initiated_by
         )
     except ValueError as e:
-        return {"status": "FAILED", "error": f"Wallet debit failed: {e}"}
+        return {"status": "failed", "error": f"Wallet debit failed: {e}"}
 
-    # 4. Execute via Router
-    res = ProviderRouter.execute_with_fallback(purchase_type, action, **kwargs)
+    # 7. Execute via Router (with fallback/retries)
+    call_kwargs = _build_provider_call_kwargs(
+        purchase_type=purchase_type,
+        amount=final_amount,
+        beneficiary=beneficiary,
+        reference=reference,
+        kwargs=kwargs,
+        user=user,
+    )
+    # Provide extra context for providers that accept **kwargs
+    if "internet_variation" in kwargs:
+        call_kwargs["internet_variation"] = kwargs.get("internet_variation")
+    if "education_variation" in kwargs:
+        call_kwargs["education_variation"] = kwargs.get("education_variation")
+    if "beneficiary" not in call_kwargs:
+        call_kwargs["beneficiary"] = beneficiary
 
-    # 5. Handle Outcome
+    res = ProviderRouter.execute_with_fallback(purchase_type, action, **call_kwargs)
+    if isinstance(res, dict):
+        res.setdefault("request_data", call_kwargs)
+
+    # 8. Handle Outcome
     status = "pending"
     if res['status'] == 'SUCCESS':
         status = "success"
@@ -155,14 +398,31 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             promo_obj.used_count += 1
             promo_obj.save()
 
-        # Terminal Failure - Auto Refund
+        # Terminal Failure - Auto Refund (respect routing + global toggles)
+        auto_refund = False
         if status == "failed":
+            auto_refund = True
+            try:
+                from summary.models import SiteConfig
+                config = SiteConfig.objects.first()
+                if config and not config.auto_refund_enabled:
+                    auto_refund = False
+            except Exception:
+                pass
+
+            routing = ServiceRouting.objects.filter(service=purchase_type).first()
+            if routing and not routing.auto_refund_enabled:
+                auto_refund = False
+
+        if status == "failed" and auto_refund:
             fund_wallet(
                 user.id, 
                 final_amount, 
                 f"Refund: {service_name} purchase failed ({reference})",
                 initiator="system"
             )
+            purchase.status = "refunded"
+            purchase.save(update_fields=["status"])
             NotificationService.send_from_template(
                 user, 
                 "purchase-failed", 
@@ -241,6 +501,7 @@ def handle_vtu_async_failure(purchase):
             f"Auto-Refund: Failed {purchase.purchase_type} purchase ({purchase.reference})",
             initiator="system"
         )
+        purchase.status = "refunded"
         NotificationService.send_from_template(
             purchase.user, 
             "transaction-reversed", 

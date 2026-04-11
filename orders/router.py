@@ -3,6 +3,7 @@ from django.db import models
 from .interfaces import BaseVTUProvider
 from typing import Optional, List, Dict, Any
 import logging
+import inspect
 
 # Import all provider implementations
 from .providers.vtpass import VTPassProvider
@@ -115,22 +116,26 @@ class ProviderRouter:
             if impl:
                 chain.append(impl)
 
-        # 2. Fallbacks
-        fallbacks = ServiceFallback.objects.filter(service_routing=routing, provider__is_active=True).order_by('priority')
-        for fb in fallbacks:
-            if routing.primary_provider and fb.provider == routing.primary_provider:
-                continue # Already added
-                
-            impl = ProviderRouter.get_provider_implementation(fb.provider.name)
-            if impl:
-                chain.append(impl)
+        # 2. Fallbacks (only if enabled)
+        if routing.fallback_enabled:
+            fallbacks = ServiceFallback.objects.filter(service_routing=routing, provider__is_active=True).order_by('priority')
+            for fb in fallbacks:
+                if routing.primary_provider and fb.provider == routing.primary_provider:
+                    continue # Already added
+                    
+                impl = ProviderRouter.get_provider_implementation(fb.provider.name)
+                if impl:
+                    chain.append(impl)
 
         return chain
 
     @staticmethod
     def execute_with_fallback(service: str, action: str, **kwargs) -> Dict[str, Any]:
         routing = ServiceRouting.objects.filter(service=service).first()
-        max_retries = routing.retry_count if routing else 1
+        if routing and not routing.retry_enabled:
+            max_retries = 1
+        else:
+            max_retries = routing.retry_count if routing else 1
         
         chain = ProviderRouter.get_routing_chain(service)
         if not chain:
@@ -142,7 +147,16 @@ class ProviderRouter:
             for attempt in range(max_retries):
                 try:
                     method = getattr(provider, action)
-                    res = method(**kwargs)
+                    sig = inspect.signature(method)
+                    accepts_var_kwargs = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values()
+                    )
+                    call_kwargs = kwargs if accepts_var_kwargs else {
+                        k: v for k, v in kwargs.items() if k in sig.parameters
+                    }
+
+                    res = method(**call_kwargs)
                     
                     if res.get('status') == 'SUCCESS' or res.get('status') == 'ORDER_RECEIVED':
                         res['provider_used'] = provider.provider_name

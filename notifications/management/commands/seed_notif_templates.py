@@ -63,13 +63,15 @@ class Command(BaseCommand):
             },
         ]
 
-        count = 0
+        created_count = 0
+        updated_count = 0
         for data in templates:
             obj, created = NotificationTemplate.objects.get_or_create(
                 slug=data['slug'],
                 defaults={
                     "title": data['title'],
                     "body": data['body'],
+                    "is_active": True,
                     "use_fcm": True,
                     "use_email": True,
                     "use_sms": False,
@@ -77,9 +79,24 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                count += 1
+                created_count += 1
             else:
-                # Update existing ones with new bodies if needed or just skip
-                pass
+                changed = False
+                if obj.title != data['title']:
+                    obj.title = data['title']
+                    changed = True
+                if obj.body != data['body']:
+                    obj.body = data['body']
+                    changed = True
+                if not obj.is_active:
+                    obj.is_active = True
+                    changed = True
+                if changed:
+                    obj.save(update_fields=['title', 'body', 'is_active'])
+                    updated_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully seeded {count} new templates.'))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'Successfully seeded templates. Created: {created_count}, Updated/Reactivated: {updated_count}.'
+            )
+        )

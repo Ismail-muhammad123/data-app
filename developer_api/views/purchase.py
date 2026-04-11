@@ -49,21 +49,30 @@ class DeveloperPurchaseView(generics.CreateAPIView):
             if purchase_type == 'airtime':
                 network_id = data.get('network_id')
                 network = get_object_or_404(AirtimeNetwork, id=network_id)
+                # Apply role-based discount for airtime
+                discount_val = network.agent_discount if user.role == 'agent' else network.discount
+                actual_amount = float(amount) - (float(amount) * float(discount_val) / 100)
+                amount = actual_amount
                 vtu_kwargs.update({'airtime_service': network, 'network': network.service_id, 'action': 'buy_airtime', 'service_name': f"{network.service_name} Airtime"})
             
             elif purchase_type == 'data':
                 plan_id = data.get('plan_id')
                 plan = get_object_or_404(DataVariation, id=plan_id)
+                amount = plan.agent_price if user.role == 'agent' else plan.selling_price
                 vtu_kwargs.update({'data_variation': plan, 'network': plan.service.service_id, 'plan_id': plan.variation_id, 'action': 'buy_data', 'service_name': f"{plan.name} Data"})
             
             elif purchase_type == 'tv':
                 variation_id = data.get('variation_id')
                 variation = get_object_or_404(TVVariation, id=variation_id)
+                amount = variation.agent_price if user.role == 'agent' else variation.selling_price
                 vtu_kwargs.update({'tv_variation': variation, 'tv_id': variation.service.service_id, 'package_id': variation.variation_id, 'smart_card_number': beneficiary, 'action': 'buy_tv', 'service_name': f"{variation.name} TV"})
             
             elif purchase_type == 'electricity':
                 variation_id = data.get('variation_id')
                 variation = get_object_or_404(ElectricityVariation, id=variation_id)
+                discount_val = variation.agent_discount if user.role == 'agent' else variation.discount
+                actual_amount = float(amount) - (float(amount) * float(discount_val) / 100)
+                amount = actual_amount
                 vtu_kwargs.update({'electricity_variation': variation, 'disco_id': variation.service.service_id, 'plan_id': variation.variation_id, 'meter_number': beneficiary, 'action': 'buy_electricity', 'service_name': f"{variation.name} Electricity"})
             
             # Execute purchase
