@@ -187,13 +187,127 @@ class NotificationService:
         """
         Sends notifications to a user based on a template and active channels.
         Checks both SiteConfig (global toggles) and NotificationTemplate (template toggles).
+        If database template is missing, it uses a hardcoded fallback.
         """
         from summary.models import SiteConfig
         
+        # Hardcoded Fallbacks
+        FALLBACK_TEMPLATES = {
+            # Wallet & Transactions
+            "wallet-funded": {
+                "title": "Wallet Funded Successfully",
+                "body": "Your wallet has been credited with N{amount}. Your new balance is N{balance}.",
+            },
+            "wallet-debit": {
+                "title": "Wallet Debited",
+                "body": "Your wallet has been debited with N{amount} for {reason}. Your new balance is N{balance}.",
+            },
+            "wallet-transfer-sent": {
+                "title": "Transfer Successful",
+                "body": "Your transfer of N{amount} to {recipient} was successful.",
+            },
+            "wallet-transfer-received": {
+                "title": "Funds Received",
+                "body": "You have received N{amount} from {sender}. Your new balance is N{balance}.",
+            },
+
+            # Order Processing
+            "purchase-failed": {
+                "title": "Purchase Failed",
+                "body": "Your {service} purchase for {beneficiary} failed. N{amount} has been refunded to your wallet.",
+            },
+            "purchase-success": {
+                "title": "Purchase Successful",
+                "body": "Your {service} purchase for {beneficiary} of N{amount} was successful. Ref: {reference}.",
+            },
+            "transaction-reversed": {
+                "title": "Transaction Reversed",
+                "body": "Your transaction for {service} ({reference}) has been reversed. N{amount} has been credited back to your wallet.",
+            },
+
+            # Withdrawals
+            "withdrawal-initiated": {
+                "title": "Withdrawal Initiated",
+                "body": "Your withdrawal request of N{amount} to {bank_name} is being processed. Ref: {reference}.",
+            },
+            "withdrawal-success": {
+                "title": "Withdrawal Successful",
+                "body": "Your withdrawal of N{amount} to {bank_name} has been completed successfully.",
+            },
+            "withdrawal-failed": {
+                "title": "Withdrawal Failed",
+                "body": "Your withdrawal request of N{amount} failed. The amount has been refunded to your wallet. Reason: {reason}.",
+            },
+
+            # KYC & Account
+            "kyc-submitted": {
+                "title": "KYC Documents Received",
+                "body": "Your KYC documents have been submitted and are under review. We will notify you once verified.",
+            },
+            "kyc-approved": {
+                "title": "KYC Verified!",
+                "body": "Congratulations! Your KYC verification is successful. Your account limits have been updated.",
+            },
+            "kyc-rejected": {
+                "title": "KYC Verification Failed",
+                "body": "Your KYC verification was rejected. Reason: {reason}. Please re-submit the correct documents.",
+            },
+
+            # Security
+            "security-pin-changed": {
+                "title": "Transaction PIN Updated",
+                "body": "Your transaction PIN has been successfully changed. If you didn't do this, please contact support immediately.",
+            },
+            "security-password-changed": {
+                "title": "Account Password Changed",
+                "body": "Your account password was updated successfully.",
+            },
+            "security-login-alert": {
+                "title": "New Login Detected",
+                "body": "A new login was detected on your account from {device} in {location}. If this wasn't you, secure your account.",
+            },
+
+            # Admin Actions
+            "account-blocked": {
+                "title": "Account Blocked",
+                "body": "Your account has been blocked. Reason: {reason}. Please contact support if you believe this is an error.",
+            },
+            "account-unblocked": {
+                "title": "Account Unblocked",
+                "body": "Your account has been unblocked. you can now log in and continue your transactions.",
+            },
+            "transaction-pin-reset": {
+                "title": "Transaction PIN Reset",
+                "body": "Your transaction PIN has been reset by an administrator.",
+            },
+            "login-pin-reset": {
+                "title": "Login PIN Reset",
+                "body": "Your login PIN has been reset by an administrator.",
+            }
+        }
+
         template = NotificationTemplate.objects.filter(slug=template_slug, is_active=True).first()
+        
         if not template:
-            logger.warning(f"Notification template not found or inactive: {template_slug}")
-            return False
+            if template_slug in FALLBACK_TEMPLATES:
+                logger.info(f"Using hardcoded fallback for template: {template_slug}")
+                title_tpl = FALLBACK_TEMPLATES[template_slug]["title"]
+                body_tpl = FALLBACK_TEMPLATES[template_slug]["body"]
+                # For fallbacks, we use a default set of channels if site config allows
+                use_fcm = True
+                use_email = True
+                use_sms = False
+                use_whatsapp = False
+            else:
+                logger.warning(f"Notification template not found or inactive: {template_slug}")
+                return False
+        else:
+            title_tpl = template.title
+            body_tpl = template.body
+            use_fcm = template.use_fcm
+            use_email = template.use_email
+            use_sms = template.use_sms
+            use_whatsapp = template.use_whatsapp
 
         config = SiteConfig.objects.first()
         if not config:
@@ -202,23 +316,22 @@ class NotificationService:
 
         # Format content
         try:
-            title = template.title.format(**context)
-            body = template.body.format(**context)
-        except KeyError as e:
-            logger.error(f"Missing context key {e} for template {template_slug}")
-            # Fallback to unformatted if formatting fails
-            title = template.title
-            body = template.body
+            title = title_tpl.format(**context)
+            body = body_tpl.format(**context)
+        except (KeyError, IndexError, ValueError) as e:
+            logger.error(f"Formatting error for template {template_slug}: {e}")
+            title = title_tpl
+            body = body_tpl
 
         # Determine active channels
         channels_to_send = []
-        if config.fcm_enabled and template.use_fcm:
+        if config.fcm_enabled and use_fcm:
             channels_to_send.append('fcm')
-        if config.email_enabled and template.use_email:
+        if config.email_enabled and use_email:
             channels_to_send.append('email')
-        if config.sms_enabled and template.use_sms:
+        if config.sms_enabled and use_sms:
             channels_to_send.append('sms')
-        if config.whatsapp_enabled and template.use_whatsapp:
+        if config.whatsapp_enabled and use_whatsapp:
             channels_to_send.append('whatsapp')
 
         if not channels_to_send:

@@ -86,11 +86,6 @@ class TwilioService:
             logger.error("Twilio credentials not fully configured")
             return False
 
-        # Debug mode logic: in debug, redirect all SMS to the debug phone
-        if settings.DEBUG and debug_phone:
-            logger.info(f"DEBUG MODE: Redirecting SMS from {to_phone} to {debug_phone}")
-            to_phone = debug_phone
-
         try:
             client = Client(account_sid, auth_token)
             message = client.messages.create(
@@ -120,9 +115,6 @@ class TwilioService:
         if not to_phone.startswith('whatsapp:'):
             if not to_phone.startswith('+'): to_phone = f'+{to_phone}'
             to_phone = f'whatsapp:{to_phone}'
-
-        if settings.DEBUG and debug_phone:
-            to_phone = f'whatsapp:{debug_phone}'
 
         try:
             client = Client(account_sid, auth_token)

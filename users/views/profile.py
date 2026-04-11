@@ -41,6 +41,7 @@ class ChangePINView(APIView):
         serializer = ChangePINSerializer(data=request.data, context={"user": request.user})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        NotificationService.send_from_template(request.user, "security-password-changed", {})
         return Response({"message": "PIN changed"})
 
 class PasswordResetRequestView(APIView):
@@ -74,6 +75,7 @@ class ChangeTransactionPinView(APIView):
         serializer = ChangeTransactionPinSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         request.user.set_transaction_pin(serializer.validated_data['new_pin'])
+        NotificationService.send_from_template(request.user, "security-pin-changed", {})
         return Response({"message": "Transaction PIN changed"})
 
 class ResetTransactionPinView(APIView):
@@ -84,6 +86,7 @@ class ResetTransactionPinView(APIView):
         serializer.is_valid(raise_exception=True)
         OTP.objects.filter(user=request.user, code=serializer.validated_data['otp_code'], purpose='reset', is_used=False).update(is_used=True)
         request.user.set_transaction_pin(serializer.validated_data['new_pin'])
+        NotificationService.send_from_template(request.user, "security-pin-changed", {})
         return Response({"message": "Transaction PIN reset"})
 
 class RequestTransactionPinResetOTPView(APIView):
@@ -170,6 +173,8 @@ class KYCView(APIView):
         
         # Reset to pending on any update
         serializer.save(status='PENDING', remarks=None)
+        
+        NotificationService.send_from_template(request.user, "kyc-submitted", {})
         
         return Response({
             "status": "SUCCESS", 

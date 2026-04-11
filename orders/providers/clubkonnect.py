@@ -68,7 +68,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         print(res)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') == '100':
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
             status = "FAILED"
@@ -91,13 +91,18 @@ class ClubKonnectProvider(BaseVTUProvider):
             "MobileNumber": phone,
             "RequestID": reference
         }
+
         endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_data", "/APIDatabundleV1.asp")
         res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') in [
+            'ORDER_COMPLETED',  
+            'ORDER_RECEIVED',
+            'ORDER_PROCESSED',
+            ] or res.get('statuscode') == '100':
             status = "SUCCESS"
-        elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
+        else:
             status = "FAILED"
             
         return {
@@ -120,7 +125,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') == '100':
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
             status = "FAILED"
@@ -145,7 +150,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') == '100':
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED']:
             status = "FAILED"
@@ -179,7 +184,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') in ['200', '100']:
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
             status = "FAILED"
@@ -215,7 +220,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get(endpoint, params)
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') in ['200', '100']:
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
             status = "FAILED"
@@ -233,7 +238,7 @@ class ClubKonnectProvider(BaseVTUProvider):
         res = self._get(endpoint, {"RequestID": reference})
         
         status = "PENDING"
-        if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
+        if res.get('status') in ['ORDER_COMPLETED', 'ORDER_RECEIVED'] or res.get('statuscode') in ['200', '100']:
             status = "SUCCESS"
         elif res.get('status') in ['ORDER_FAILED', 'ORDER_CANCELLED'] or res.get('statuscode') == '400':
             status = "FAILED"
@@ -277,10 +282,10 @@ class ClubKonnectProvider(BaseVTUProvider):
 
             purchase.provider_response = data
             
-            if status_code in ["200", "delivered", "Success"]:
+            if status_code in ["200", "delivered", "Success", "100", "ORDER_RECEIVED"]:
                 purchase.status = "success"
                 purchase.save()
-            elif status_code in ["100", "101", "102", "pending", "Pending"]:
+            elif status_code in ["101", "102", "pending", "Pending"]:
                 # Keep as pending
                 pass
             else:

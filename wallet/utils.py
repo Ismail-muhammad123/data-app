@@ -62,8 +62,8 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
         )
         NotificationService.send_from_template(
             wallet.user, 
-            "wallet-debited", 
-            {"amount": amount, "balance": wallet.balance, "description": description}
+            "wallet-debit", 
+            {"amount": amount, "balance": wallet.balance, "reason": description}
         )
     return wallet.balance
 

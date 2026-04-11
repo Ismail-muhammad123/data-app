@@ -49,10 +49,13 @@ class PaymentWebhookView(APIView):
             code, ref = data.get('transfer_code'), data.get('reference')
             withdrawal = Withdrawal.objects.filter(transfer_code=code).first() if code else Withdrawal.objects.filter(reference=ref).first()
             if withdrawal:
+                from notifications.utils import NotificationService
                 if event_type == "transfer.success":
                     withdrawal.transaction_status = "SUCCESS"; withdrawal.save()
+                    NotificationService.send_from_template(withdrawal.user, "withdrawal-success", {"amount": withdrawal.amount, "bank_name": withdrawal.bank_name})
                 else:
                     withdrawal.transaction_status, withdrawal.status = "FAILED", "REJECTED"
                     withdrawal.reason = data.get('reason', 'Transfer failed' if event_type == "transfer.failed" else 'Transfer reversed'); withdrawal.save()
                     fund_wallet(withdrawal.user.id, withdrawal.amount, f"Refund: {withdrawal.reason} for {withdrawal.reference}")
+                    NotificationService.send_from_template(withdrawal.user, "withdrawal-failed", {"amount": withdrawal.amount, "bank_name": withdrawal.bank_name, "reason": withdrawal.reason})
         return HttpResponse(status=200)

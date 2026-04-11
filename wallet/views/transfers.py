@@ -25,7 +25,7 @@ class InitiateBankTransferView(APIView):
         with db_transaction.atomic():
             debit_wallet(user.id, amount, description=f"Withdrawal to {serializer.validated_data['bank_name']}", initiator="self")
             Withdrawal.objects.create(user=user, amount=amount, bank_name=serializer.validated_data['bank_name'], bank_code=serializer.validated_data['bank_code'], account_number=serializer.validated_data['account_number'], account_name=serializer.validated_data['account_name'], reference=ref, status="PENDING")
-        NotificationService.send_push(user, "Withdrawal Initiated", f"Your withdrawal of {amount} is pending.")
+        NotificationService.send_from_template(user, "withdrawal-initiated", {"amount": amount, "bank_name": serializer.validated_data['bank_name'], "reference": ref})
         return Response({"message": "Withdrawal initiated", "reference": ref}, status=201)
 
 class WalletTransferView(APIView):
@@ -42,8 +42,16 @@ class WalletTransferView(APIView):
         with db_transaction.atomic():
             debit_wallet(sender.id, amount, description=f"Transfer to {recipient.phone_number}", initiator='self')
             fund_wallet(recipient.id, amount, description=f"Transfer from {sender.phone_number}", initiator='self')
-        NotificationService.send_push(sender, "Transfer Successful", f"Sent N{amount} to {recipient.full_name}.")
-        NotificationService.send_push(recipient, "Credit Alert", f"Received N{amount} from {sender.full_name}.")
+        NotificationService.send_from_template(
+            sender, 
+            "wallet-transfer-sent", 
+            {"amount": amount, "recipient": recipient.full_name or recipient.phone_number}
+        )
+        NotificationService.send_from_template(
+            recipient, 
+            "wallet-transfer-received", 
+            {"amount": amount, "sender": sender.full_name or sender.phone_number, "balance": recipient.wallet.balance}
+        )
         return Response({"success": True, "message": f"Transferred ₦{amount} to {recipient.full_name}."})
 
 class VerifyRecipientView(APIView):
