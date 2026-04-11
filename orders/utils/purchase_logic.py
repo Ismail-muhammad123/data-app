@@ -1,4 +1,6 @@
 from django.db import transaction as db_transaction
+from django.db import models as dj_models
+from datetime import date, datetime
 from django.utils import timezone
 from decimal import Decimal
 import logging
@@ -274,6 +276,19 @@ def _build_provider_call_kwargs(purchase_type: str, amount, beneficiary: str, re
         "reference": reference,
     }
 
+def _json_safe(value):
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dj_models.Model):
+        return getattr(value, "id", str(value))
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
 def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
     Unified logic for processing VTU purchases.
@@ -348,7 +363,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
 
     res = ProviderRouter.execute_with_fallback(purchase_type, action, **call_kwargs)
     if isinstance(res, dict):
-        res.setdefault("request_data", call_kwargs)
+        res.setdefault("request_data", _json_safe(call_kwargs))
 
     # 8. Handle Outcome
     status = "pending"
