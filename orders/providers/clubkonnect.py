@@ -60,9 +60,9 @@ class ClubKonnectProvider(BaseVTUProvider):
             "MobileNetwork": service_id,
             "Amount": int(amount),
             "MobileNumber": phone,
-            "RequestID": reference
+            # "RequestID": reference
         }
-        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_airtime", "/Airtime.asp")
+        endpoint = "/APIAirtimeV1.asp" 
         res = self._get(endpoint, params)
         
         status = "PENDING"
@@ -81,14 +81,15 @@ class ClubKonnectProvider(BaseVTUProvider):
     def buy_data(self, phone: str, network: str, plan_id: str, amount: float, reference: str) -> Dict[str, Any]:
         network_map = {'mtn': '01', 'glo': '02', 'airtel': '03', '9mobile': '04'}
         service_id = network_map.get(network.lower(), '01')
-        
+        # data
+
         params = {
             "MobileNetwork": service_id,
             "DataPlan": plan_id,
             "MobileNumber": phone,
             "RequestID": reference
         }
-        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_data", "/Data.asp")
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_data", "/APIDatabundleV1.asp")
         res = self._get(endpoint, params)
         
         status = "PENDING"

@@ -289,6 +289,369 @@ def _json_safe(value):
         return [_json_safe(v) for v in value]
     return value
 
+def _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, provider_obj, discount, promo_obj, service_name, kwargs):
+    """Internal helper to shared the record creation and notification logic."""
+    with db_transaction.atomic():
+        purchase = Purchase.objects.create(
+            user=user,
+            purchase_type=purchase_type,
+            amount=final_amount,
+            beneficiary=beneficiary,
+            reference=reference,
+            status=status,
+            provider_response=res,
+            provider=provider_obj,
+            initiator=initiator,
+            initiated_by=initiated_by
+        )
+        
+        # Link extras
+        if 'airtime_service' in kwargs: purchase.airtime_service = kwargs['airtime_service']
+        if 'data_variation' in kwargs: purchase.data_variation = kwargs['data_variation']
+        if 'electricity_service' in kwargs: purchase.electricity_service = kwargs['electricity_service']
+        if 'tv_variation' in kwargs: purchase.tv_variation = kwargs['tv_variation']
+        if 'internet_variation' in kwargs: purchase.internet_variation = kwargs['internet_variation']
+        if 'education_variation' in kwargs: purchase.education_variation = kwargs['education_variation']
+        if res.get('token'): purchase.purchased_token = res['token']
+        
+        purchase.save()
+
+        # Handle Promo Usage
+        if promo_obj:
+            PurchasePromoUsed.objects.create(
+                purchase=purchase,
+                promo_code=promo_obj,
+                discount_applied=discount
+            )
+            promo_obj.used_count += 1
+            promo_obj.save()
+
+        # Terminal Failure - Auto Refund
+        auto_refund = False
+        if status == "failed":
+            auto_refund = True
+            try:
+                from summary.models import SiteConfig
+                config = SiteConfig.objects.first()
+                if config and not config.auto_refund_enabled:
+                    auto_refund = False
+            except Exception:
+                pass
+
+            routing = ServiceRouting.objects.filter(service=purchase_type).first()
+            if routing and not routing.auto_refund_enabled:
+                auto_refund = False
+
+        if status == "failed" and auto_refund:
+            fund_wallet(
+                user.id, 
+                final_amount, 
+                f"Refund: {service_name} purchase failed ({reference})",
+                initiator="system"
+            )
+            purchase.status = "refunded"
+            purchase.save(update_fields=["status"])
+            NotificationService.send_from_template(
+                user, 
+                "purchase-failed", 
+                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
+            )
+        elif status == "success":
+            NotificationService.send_from_template(
+                user, 
+                "purchase-success", 
+                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
+            )
+            from wallet.utils import process_cashback, process_referral_reward
+            process_cashback(user, purchase_type, final_amount)
+            process_referral_reward(user, trigger_event='transaction', transaction_amount=final_amount)
+ 
+        if hasattr(user, 'developer_profile'):
+            dispatch_developer_webhook(purchase)
+
+    return {"status": status, "purchase_id": purchase.id, "res": res}
+
+def purchase_airtime(user, network, phone, amount, reference, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("airtime"):
+        return {"status": "failed", "error": "Airtime purchases are currently disabled."}
+    
+    if not network.is_active:
+        return {"status": "failed", "error": "Airtime service is inactive."}
+
+    discount_val = network.agent_discount if user.role == 'agent' else network.discount
+    actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(actual_amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(actual_amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"Airtime purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "phone": phone,
+        "network": network.service_id,
+        "amount": final_amount,
+        "reference": reference,
+    }
+    res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("airtime", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{network.service_name} Airtime", {"airtime_service": network})
+
+def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("data"):
+        return {"status": "failed", "error": "Data purchases are currently disabled."}
+    if not plan.is_active or not plan.service.is_active:
+        return {"status": "failed", "error": "Data plan is inactive."}
+
+    amount = plan.agent_price if user.role == 'agent' else plan.selling_price
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"Data purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "phone": phone,
+        "network": plan.service.service_id,
+        "plan_id": plan.variation_id,
+        "amount": final_amount,
+        "reference": reference,
+    }
+    res = ProviderRouter.execute_with_fallback("data", "buy_data", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("data", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{plan.service.service_name} Data Bundle", {"data_variation": plan})
+
+def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("tv"):
+        return {"status": "failed", "error": "TV purchases are currently disabled."}
+    if not tv_variation.is_active or not tv_variation.service.is_active:
+        return {"status": "failed", "error": "TV package is inactive."}
+
+    amount = tv_variation.agent_price if user.role == 'agent' else tv_variation.selling_price
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"TV purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "tv_id": tv_variation.service.service_id,
+        "package_id": tv_variation.variation_id,
+        "smart_card_number": customer_id,
+        "phone": user.phone_number,
+        "amount": final_amount,
+        "reference": reference,
+    }
+    res = ProviderRouter.execute_with_fallback("tv", "buy_tv", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("tv", status, res, user, final_amount, customer_id, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{tv_variation.service.service_name} TV Sub", {"tv_variation": tv_variation})
+
+def purchase_electricity(user, electricity_variation, meter_number, amount, reference, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("electricity"):
+        return {"status": "failed", "error": "Electricity purchases are currently disabled."}
+    if not electricity_variation.is_active or not electricity_variation.service.is_active:
+        return {"status": "failed", "error": "Electricity service is inactive."}
+
+    discount_val = electricity_variation.agent_discount if user.role == 'agent' else electricity_variation.discount
+    actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(actual_amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(actual_amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"Electricity purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "disco_id": electricity_variation.service.service_id,
+        "plan_id": electricity_variation.variation_id,
+        "meter_number": meter_number,
+        "phone": user.phone_number,
+        "amount": final_amount,
+        "reference": reference,
+    }
+    res = ProviderRouter.execute_with_fallback("electricity", "buy_electricity", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("electricity", status, res, user, final_amount, meter_number, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{electricity_variation.service.service_name} Electricity", {"electricity_service": electricity_variation.service, "electricity_variation": electricity_variation})
+
+def purchase_internet(user, internet_variation, phone, reference, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("internet"):
+        return {"status": "failed", "error": "Internet purchases are currently disabled."}
+    if not internet_variation.is_active or not internet_variation.service.is_active:
+        return {"status": "failed", "error": "Internet service is inactive."}
+
+    amount = internet_variation.agent_price if user.role == 'agent' else internet_variation.selling_price
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"Internet purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "plan_id": internet_variation.variation_id,
+        "phone": phone,
+        "amount": final_amount,
+        "reference": reference,
+        "internet_variation": internet_variation
+    }
+    res = ProviderRouter.execute_with_fallback("internet", "buy_internet", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("internet", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, "Internet Subscription", {"internet_variation": internet_variation})
+
+def purchase_education(user, education_variation, phone, quantity=1, reference=None, promo_code_str=None, initiator="self", initiated_by=None):
+    if not _service_enabled("education"):
+        return {"status": "failed", "error": "Education purchases are currently disabled."}
+    if not education_variation.is_active or not education_variation.service.is_active:
+        return {"status": "failed", "error": "Education service is inactive."}
+
+    amount = (education_variation.agent_price if user.role == 'agent' else education_variation.selling_price) * quantity
+    
+    discount = Decimal('0.00')
+    promo_obj = None
+    if promo_code_str:
+        promo_obj = PromoCode.objects.filter(code=promo_code_str).first()
+        if promo_obj and promo_obj.is_valid():
+            if promo_obj.discount_amount > 0:
+                discount = promo_obj.discount_amount
+            elif promo_obj.discount_percentage > 0:
+                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+        else:
+            return {"status": "failed", "error": "Invalid or expired promo code."}
+
+    final_amount = Decimal(amount) - discount
+    if final_amount < 0: final_amount = Decimal('0.00')
+
+    wallet = Wallet.objects.filter(user_id=user.id).first()
+    if not wallet or wallet.balance < final_amount:
+        return {"status": "failed", "error": "Insufficient balance"}
+
+    try:
+        debit_wallet(user.id, final_amount, f"Education purchase: {reference}", initiator=initiator, initiated_by=initiated_by)
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+
+    call_kwargs = {
+        "exam_type": education_variation.service.service_id,
+        "variation_id": education_variation.variation_id,
+        "quantity": quantity,
+        "amount": final_amount,
+        "reference": reference,
+        "education_variation": education_variation
+    }
+    res = ProviderRouter.execute_with_fallback("education", "buy_education", **call_kwargs)
+    
+    status = "success" if res['status'] == 'SUCCESS' else "failed"
+    provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
+    
+    return _build_finalize_purchase("education", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{education_variation.name} PIN", {"education_variation": education_variation})
+
 def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo_code_str=None, initiator="self", initiated_by=None, **kwargs):
     """
     Unified logic for processing VTU purchases.
@@ -372,93 +735,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     elif res['status'] == 'FAILED':
         status = "failed"
 
-    with db_transaction.atomic():
-        # Create Purchase Record
-        provider_obj = None
-        provider_name = res.get('provider_used')
-        if provider_name:
-            provider_obj = VTUProviderConfig.objects.filter(name=provider_name).first()
-
-        purchase = Purchase.objects.create(
-            user=user,
-            purchase_type=purchase_type,
-            amount=final_amount,
-            beneficiary=beneficiary,
-            reference=reference,
-            status=status,
-            provider_response=res,
-            provider=provider_obj,
-            initiator=initiator,
-            initiated_by=initiated_by
-        )
-        
-        # Link extras
-        if 'airtime_service' in kwargs: purchase.airtime_service = kwargs['airtime_service']
-        if 'data_variation' in kwargs: purchase.data_variation = kwargs['data_variation']
-        if 'electricity_service' in kwargs: purchase.electricity_service = kwargs['electricity_service']
-        if 'tv_variation' in kwargs: purchase.tv_variation = kwargs['tv_variation']
-        if 'internet_variation' in kwargs: purchase.internet_variation = kwargs['internet_variation']
-        if 'education_variation' in kwargs: purchase.education_variation = kwargs['education_variation']
-        if res.get('token'): purchase.purchased_token = res['token']
-        
-        purchase.save()
-
-        # Handle Promo Usage
-        if promo_obj:
-            PurchasePromoUsed.objects.create(
-                purchase=purchase,
-                promo_code=promo_obj,
-                discount_applied=discount
-            )
-            promo_obj.used_count += 1
-            promo_obj.save()
-
-        # Terminal Failure - Auto Refund (respect routing + global toggles)
-        auto_refund = False
-        if status == "failed":
-            auto_refund = True
-            try:
-                from summary.models import SiteConfig
-                config = SiteConfig.objects.first()
-                if config and not config.auto_refund_enabled:
-                    auto_refund = False
-            except Exception:
-                pass
-
-            routing = ServiceRouting.objects.filter(service=purchase_type).first()
-            if routing and not routing.auto_refund_enabled:
-                auto_refund = False
-
-        if status == "failed" and auto_refund:
-            fund_wallet(
-                user.id, 
-                final_amount, 
-                f"Refund: {service_name} purchase failed ({reference})",
-                initiator="system"
-            )
-            purchase.status = "refunded"
-            purchase.save(update_fields=["status"])
-            NotificationService.send_from_template(
-                user, 
-                "purchase-failed", 
-                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
-            )
-        elif status == "success":
-            NotificationService.send_from_template(
-                user, 
-                "purchase-success", 
-                {"service": service_name, "beneficiary": beneficiary, "reference": reference, "amount": final_amount}
-            )
-            # Cashback & Referral logic
-            from wallet.utils import process_cashback, process_referral_reward
-            process_cashback(user, purchase_type, final_amount)
-            process_referral_reward(user, trigger_event='transaction', transaction_amount=final_amount)
- 
-        # Dispatch Webhook if it's a developer
-        if hasattr(user, 'developer_profile'):
-            dispatch_developer_webhook(purchase)
-
-    return {"status": status, "purchase_id": purchase.id, "res": res}
+    return _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, None, discount, promo_obj, service_name, kwargs)
 
 def handle_vtu_async_failure(purchase):
     """
@@ -525,3 +802,4 @@ def handle_vtu_async_failure(purchase):
     
     purchase.save()
     return True
+

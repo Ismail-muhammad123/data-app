@@ -14,7 +14,10 @@ from orders.serializers import (
     InternetPurchaseRequestSerializer, EducationPurchaseRequestSerializer,
     PurchaseSerializer, RepeatPurchaseRequestSerializer, ErrorResponseSerializer
 )
-from orders.utils.purchase_logic import process_vtu_purchase
+from orders.utils.purchase_logic import (
+    purchase_airtime, purchase_data, purchase_tv, purchase_electricity,
+    purchase_internet, purchase_education
+)
 from .utility_views import generate_request_id
 from notifications.utils import NotificationService
 
@@ -52,19 +55,12 @@ class PurchaseDataVariationView(APIView):
         amount = plan.agent_price if user.role == 'agent' else plan.selling_price
 
         reference = generate_request_id()
-        result = process_vtu_purchase(
+        result = purchase_data(
             user=user,
-            purchase_type="data",
-            amount=amount,
-            beneficiary=phone_number,
-            action="buy_data",
-            promo_code_str=promo_code,
-            service_name=f"{plan.service.service_name} Data Bundle",
-            reference=reference,
+            plan=plan,
             phone=phone_number,
-            network=plan.service.service_id,
-            plan_id=plan.variation_id,
-            data_variation=plan
+            reference=reference,
+            promo_code_str=promo_code
         )
 
         if result['status'] == "failed":
@@ -108,18 +104,13 @@ class PurchaseAirtimeView(APIView):
         actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
 
         reference = generate_request_id()
-        result = process_vtu_purchase(
+        result = purchase_airtime(
             user=user,
-            purchase_type="airtime",
-            amount=actual_amount,
-            beneficiary=phone_number,
-            action="buy_airtime",
-            promo_code_str=promo_code,
-            service_name=f"{network.service_name} Airtime",
-            reference=reference,
+            network=network,
             phone=phone_number,
-            network=network.service_id,
-            airtime_service=network
+            amount=amount,
+            reference=reference,
+            promo_code_str=promo_code
         )
 
         if result['status'] == "failed":
@@ -164,21 +155,13 @@ class PurchaseElectricityView(APIView):
         actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
 
         reference = generate_request_id()
-        result = process_vtu_purchase(
+        result = purchase_electricity(
             user=user,
-            purchase_type="electricity",
-            amount=actual_amount,
-            beneficiary=customer_id,
-            action="buy_electricity",
-            promo_code_str=promo_code,
-            service_name=f"{electricity_variation.service.service_name} Electricity",
-            reference=reference,
-            disco_id=service_id,
-            plan_id=variation_id,
+            electricity_variation=electricity_variation,
             meter_number=customer_id,
-            phone=user.phone_number,
-            electricity_service=electricity_variation.service,
-            electricity_variation=electricity_variation
+            amount=amount,
+            reference=reference,
+            promo_code_str=promo_code
         )
 
         if result['status'] == "failed":
@@ -222,20 +205,12 @@ class PurchaseTVSubscriptionView(APIView):
         amount = tv_variation.agent_price if user.role == 'agent' else tv_variation.selling_price
 
         reference = generate_request_id()
-        result = process_vtu_purchase(
+        result = purchase_tv(
             user=user,
-            purchase_type="tv",
-            amount=amount,
-            beneficiary=customer_id,
-            action="buy_tv",
-            promo_code_str=promo_code,
-            service_name=f"{tv_variation.service.service_name} TV Sub",
+            tv_variation=tv_variation,
+            customer_id=customer_id,
             reference=reference,
-            tv_id=service_id,
-            package_id=variation_id,
-            smart_card_number=customer_id,
-            phone=user.phone_number,
-            tv_variation=tv_variation
+            promo_code_str=promo_code
         )
 
         if result['status'] == "failed":
@@ -277,18 +252,12 @@ class PurchaseInternetSubscriptionView(APIView):
         amount = plan.agent_price if user.role == 'agent' else plan.selling_price
 
         reference = generate_request_id()
-        result = process_vtu_purchase(
+        result = purchase_internet(
             user=user,
-            purchase_type="internet",
-            amount=amount,
-            beneficiary=phone_number,
-            action="buy_internet",
-            promo_code_str=promo_code,
-            service_name="Internet Subscription",
-            reference=reference,
-            plan_id=plan.variation_id,
+            internet_variation=plan,
             phone=phone_number,
-            internet_variation=plan
+            reference=reference,
+            promo_code_str=promo_code
         )
 
         if result['status'] == "failed":
@@ -332,19 +301,13 @@ class PurchaseEducationView(APIView):
 
         phone_number = serializer.validated_data.get('phone_number')
 
-        res = process_vtu_purchase(
+        res = purchase_education(
             user=user,
-            purchase_type="education",
-            amount=amount,
-            beneficiary=phone_number,
-            action="buy_education",
-            promo_code_str=promo_code,
-            service_name=f"{plan.name} PIN",
-            exam_type=service_id,
-            variation_id=variation_id,
-            quantity=1,
+            education_variation=plan,
             phone=phone_number,
-            education_variation=plan
+            quantity=1,
+            reference=generate_request_id(),
+            promo_code_str=promo_code
         )
 
         if res.get('status') == 'success':
@@ -385,55 +348,22 @@ class RepeatPurchaseView(APIView):
              if not old_purchase.data_variation.is_active or not old_purchase.data_variation.service.is_active:
                  return Response({"error": "This data plan is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
 
-        action_map = {
-            'data': 'buy_data',
-            'airtime': 'buy_airtime',
-            'electricity': 'buy_electricity',
-            'tv': 'buy_tv',
-            'internet': 'buy_internet',
-            'education': 'buy_education'
-        }
-        
-        action = action_map.get(old_purchase.purchase_type)
-        kwargs = {
-            'reference': generate_request_id(),
-            'phone': old_purchase.beneficiary,
-        }
-
-        if old_purchase.airtime_service: 
-            kwargs['airtime_service'] = old_purchase.airtime_service
-            kwargs['network'] = old_purchase.airtime_service.service_id
-        if old_purchase.data_variation: 
-            kwargs['data_variation'] = old_purchase.data_variation
-            kwargs['network'] = old_purchase.data_variation.service.service_id
-            kwargs['plan_id'] = old_purchase.data_variation.variation_id
-        if old_purchase.tv_variation:
-            kwargs['tv_variation'] = old_purchase.tv_variation
-            kwargs['tv_id'] = old_purchase.tv_variation.service.service_id
-            kwargs['package_id'] = old_purchase.tv_variation.variation_id
-            kwargs['smart_card_number'] = old_purchase.beneficiary
-        if old_purchase.electricity_variation:
-            kwargs['electricity_variation'] = old_purchase.electricity_variation
-            kwargs['disco_id'] = old_purchase.electricity_variation.service.service_id
-            kwargs['plan_id'] = old_purchase.electricity_variation.variation_id
-            kwargs['meter_number'] = old_purchase.beneficiary
-        if old_purchase.internet_variation:
-            kwargs['internet_variation'] = old_purchase.internet_variation
-            kwargs['plan_id'] = old_purchase.internet_variation.variation_id
-        if old_purchase.education_variation:
-            kwargs['education_variation'] = old_purchase.education_variation
-            kwargs['variation_id'] = old_purchase.education_variation.variation_id
-            kwargs['exam_type'] = old_purchase.education_variation.service.service_id
-
-        result = process_vtu_purchase(
-            user=request.user,
-            purchase_type=old_purchase.purchase_type,
-            amount=old_purchase.amount,
-            beneficiary=old_purchase.beneficiary,
-            action=action,
-            service_name=f"Repeated {old_purchase.purchase_type} purchase",
-            **kwargs
-        )
+        reference = generate_request_id()
+        if old_purchase.purchase_type == 'airtime':
+            result = purchase_airtime(user, old_purchase.airtime_service, old_purchase.beneficiary, old_purchase.amount, reference)
+        elif old_purchase.purchase_type == 'data':
+            result = purchase_data(user, old_purchase.data_variation, old_purchase.beneficiary, reference)
+        elif old_purchase.purchase_type == 'electricity':
+            # Note: amount in electricity model is stored as Decimal/Float, dedicated function handles it
+            result = purchase_electricity(user, old_purchase.electricity_variation, old_purchase.beneficiary, old_purchase.amount, reference)
+        elif old_purchase.purchase_type == 'tv':
+            result = purchase_tv(user, old_purchase.tv_variation, old_purchase.beneficiary, reference)
+        elif old_purchase.purchase_type == 'internet':
+            result = purchase_internet(user, old_purchase.internet_variation, old_purchase.beneficiary, reference)
+        elif old_purchase.purchase_type == 'education':
+            result = purchase_education(user, old_purchase.education_variation, old_purchase.beneficiary, 1, reference)
+        else:
+            return Response({"error": "Unknown purchase type for repeat."}, status=status.HTTP_400_BAD_REQUEST)
 
         if result['status'] == "failed":
             return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
