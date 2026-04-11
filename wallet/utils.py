@@ -1,4 +1,4 @@
-from datetime import datetime
+from django.utils import timezone
 from django.db import transaction
 from payments.models import Deposit
 from wallet.models import Wallet, WalletTransaction
@@ -51,7 +51,7 @@ def debit_wallet(user_id, amount, description="Wallet debited", initiator='self'
             wallet=wallet,
             transaction_type='debit',
             amount=amount,
-            timestamp=datetime.now(),
+            timestamp=timezone.now(),
             description=description,
             balance_before=float(wallet.balance) + float(amount),
             balance_after=wallet.balance,
@@ -165,5 +165,4 @@ def process_cashback(user, service_type, purchase_amount):
         description=f"Cashback for {service_type} purchase",
         initiator='system'
     )
-
 

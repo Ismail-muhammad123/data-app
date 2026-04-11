@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Any, Optional, List
 from ..interfaces import BaseVTUProvider
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,8 @@ class ClubKonnectProvider(BaseVTUProvider):
         url = f"{self.base_url}{endpoint}"
         params.update({"UserID": self.user_id, "APIKey": self.api_key})
         try:
-            response = requests.get(url, params=params, timeout=30)
+            timeout = getattr(settings, "CLUBKONNECT_TIMEOUT", 30)
+            response = requests.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -60,7 +62,8 @@ class ClubKonnectProvider(BaseVTUProvider):
             "MobileNumber": phone,
             "RequestID": reference
         }
-        res = self._get("/Airtime.asp", params)
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_airtime", "/Airtime.asp")
+        res = self._get(endpoint, params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -85,7 +88,8 @@ class ClubKonnectProvider(BaseVTUProvider):
             "MobileNumber": phone,
             "RequestID": reference
         }
-        res = self._get("/Data.asp", params)
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_data", "/Data.asp")
+        res = self._get(endpoint, params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -109,7 +113,8 @@ class ClubKonnectProvider(BaseVTUProvider):
             "Package": package_id,
             "SmartCardNo": smart_card_number
         }
-        res = self._get("/CableTV.asp", params)
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_cable", "/CableTV.asp")
+        res = self._get(endpoint, params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -133,7 +138,8 @@ class ClubKonnectProvider(BaseVTUProvider):
             "MeterNo": meter_number,
             "MeterType": "01" # PREPAID
         }
-        res = self._get("/Electricity.asp", params)
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("buy_electricity", "/Electricity.asp")
+        res = self._get(endpoint, params)
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED':
@@ -220,7 +226,8 @@ class ClubKonnectProvider(BaseVTUProvider):
         }
 
     def query_transaction(self, reference: str) -> Dict[str, Any]:
-        res = self._get("/Query.asp", {"RequestID": reference})
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("query", "/Query.asp")
+        res = self._get(endpoint, {"RequestID": reference})
         
         status = "PENDING"
         if res.get('status') == 'ORDER_COMPLETED' or res.get('statuscode') == '200':
@@ -234,7 +241,8 @@ class ClubKonnectProvider(BaseVTUProvider):
         }
 
     def cancel_transaction(self, reference: str) -> Dict[str, Any]:
-        res = self._get("/Cancel.asp", {"RequestID": reference})
+        endpoint = settings.CLUBKONNECT_ENDPOINTS.get("cancel", "/Cancel.asp")
+        res = self._get(endpoint, {"RequestID": reference})
         return {
             "status": "CANCELLED" if res.get('statuscode') == '200' else "FAILED",
             "raw_response": res
