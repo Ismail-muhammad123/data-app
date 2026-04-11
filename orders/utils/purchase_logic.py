@@ -312,7 +312,7 @@ def _build_finalize_purchase(purchase_type, status, res, user, final_amount, ben
             beneficiary=beneficiary,
             reference=reference,
             status=status,
-            provider_response=res,
+            provider_response=_json_safe(res),
             provider=provider_obj,
             initiator=initiator,
             initiated_by=initiated_by,

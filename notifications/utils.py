@@ -7,7 +7,24 @@ from .models import Notification, UserNotification, NotificationTemplate
 from typing import Optional, Dict, Any
 from config.utils import send_sms_message
 
+from decimal import Decimal
+from datetime import date, datetime
+import django.db.models as dj_models
+
 logger = logging.getLogger(__name__)
+
+def _json_safe(value):
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dj_models.Model):
+        return getattr(value, "id", str(value))
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
 
 class FCMProvider:
     def __init__(self, server_key: str):
@@ -63,7 +80,7 @@ class NotificationService:
             title=title,
             body=body,
             channel=channel,
-            data=data or {},
+            data=_json_safe(data) or {},
             created_by=created_by
         )
         
@@ -339,8 +356,9 @@ class NotificationService:
             return False
 
         results = []
+        safe_context = _json_safe(context)
         for channel in channels_to_send:
-            res = NotificationService.create_notification([user], title, body, channel, context)
+            res = NotificationService.create_notification([user], title, body, channel, safe_context)
             results.append(res)
         
         return len(results) > 0
