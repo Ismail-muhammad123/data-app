@@ -2,7 +2,7 @@ from django.db import transaction as db_transaction
 from django.db import models as dj_models
 from datetime import date, datetime
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import logging
 
 from wallet.utils import debit_wallet, fund_wallet
@@ -289,8 +289,21 @@ def _json_safe(value):
         return [_json_safe(v) for v in value]
     return value
 
+def to_decimal(value, default='0.00'):
+    """Safely convert a value to Decimal."""
+    try:
+        if value is None or value == "":
+            return Decimal(str(default))
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(str(default))
+
 def _build_finalize_purchase(purchase_type, status, res, user, final_amount, beneficiary, reference, initiator, initiated_by, provider_obj, discount, promo_obj, service_name, kwargs, cost_price=Decimal('0.00'), profit=Decimal('0.00')):
     """Internal helper to shared the record creation and notification logic."""
+    final_amount = to_decimal(final_amount)
+    cost_price = to_decimal(cost_price)
+    profit = to_decimal(profit)
+    discount = to_decimal(discount)
     with db_transaction.atomic():
         purchase = Purchase.objects.create(
             user=user,
@@ -382,8 +395,8 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
 
     discount_val = network.agent_discount if user.role == 'agent' else network.discount
     # User pays full amount, we track the discount as our commission/profit
-    actual_amount = Decimal(amount)
-    cost_price = actual_amount - (actual_amount * Decimal(discount_val) / 100)
+    actual_amount = to_decimal(amount)
+    cost_price = actual_amount - (actual_amount * to_decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -441,11 +454,11 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+                discount = (to_decimal(amount) * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(amount) - discount
+    final_amount = to_decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
     
     profit = final_amount - cost_price
@@ -490,11 +503,11 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+                discount = (to_decimal(amount) * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(amount) - discount
+    final_amount = to_decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
     
     profit = final_amount - cost_price
@@ -531,12 +544,12 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
 
     discount_val = electricity_variation.agent_discount if user.role == 'agent' else electricity_variation.discount
     # User pays full amount, we track the discount as cost/profit
-    actual_amount = Decimal(amount)
+    actual_amount = to_decimal(amount)
     # If the variation has a cost_price, use it, otherwise calculate from discount
-    if hasattr(electricity_variation, 'cost_price') and electricity_variation.cost_price > 0:
-        cost_price = electricity_variation.cost_price
+    if hasattr(electricity_variation, 'cost_price') and to_decimal(electricity_variation.cost_price) > 0:
+        cost_price = to_decimal(electricity_variation.cost_price)
     else:
-        cost_price = actual_amount - (actual_amount * Decimal(discount_val) / 100)
+        cost_price = actual_amount - (actual_amount * to_decimal(discount_val) / 100)
     
     discount = Decimal('0.00')
     promo_obj = None
@@ -596,11 +609,11 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+                discount = (to_decimal(amount) * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(amount) - discount
+    final_amount = to_decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
     
     profit = final_amount - cost_price
@@ -645,11 +658,11 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+                discount = (to_decimal(amount) * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(amount) - discount
+    final_amount = to_decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
     
     profit = final_amount - cost_price
@@ -699,7 +712,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
         asv = kwargs['airtime_service']
         disc = asv.agent_discount if user.role == 'agent' else asv.discount
         # Standard cost calculation if not explicitly set
-        cost_price = Decimal(amount) - (Decimal(amount) * Decimal(disc) / 100)
+        cost_price = to_decimal(amount) - (to_decimal(amount) * to_decimal(disc) / 100)
     elif purchase_type == 'data' and 'data_variation' in kwargs:
         cost_price = kwargs['data_variation'].cost_price
     elif purchase_type == 'tv' and 'tv_variation' in kwargs:
@@ -709,7 +722,7 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
         if ev.cost_price > 0: cost_price = ev.cost_price
         else:
             disc = ev.agent_discount if user.role == 'agent' else ev.discount
-            cost_price = Decimal(amount) - (Decimal(amount) * Decimal(disc) / 100)
+            cost_price = to_decimal(amount) - (to_decimal(amount) * to_decimal(disc) / 100)
     elif purchase_type == 'internet' and 'internet_variation' in kwargs:
         cost_price = kwargs['internet_variation'].cost_price
     elif purchase_type == 'education' and 'education_variation' in kwargs:
@@ -724,11 +737,11 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
             if promo_obj.discount_amount > 0:
                 discount = promo_obj.discount_amount
             elif promo_obj.discount_percentage > 0:
-                discount = (Decimal(amount) * promo_obj.discount_percentage) / 100
+                discount = (to_decimal(amount) * promo_obj.discount_percentage) / 100
         else:
             return {"status": "failed", "error": "Invalid or expired promo code."}
 
-    final_amount = Decimal(amount) - discount
+    final_amount = to_decimal(amount) - discount
     if final_amount < 0: final_amount = Decimal('0.00')
     
     profit = final_amount - cost_price
@@ -738,8 +751,8 @@ def process_vtu_purchase(user, purchase_type, amount, beneficiary, action, promo
     
     # 5. Affordability check
     wallet = Wallet.objects.filter(user_id=user.id).first()
-    balance = wallet.balance if wallet else 0
-    if Decimal(balance) < Decimal(final_amount):
+    balance = wallet.balance if wallet else Decimal('0.00')
+    if to_decimal(balance) < to_decimal(final_amount):
         return {"status": "failed", "error": "Insufficient balance"}
 
     # 6. Debit Wallet
