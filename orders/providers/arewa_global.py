@@ -18,108 +18,268 @@ AIRTIME_NETWORKS_DATA = [
 ]
 
 DATA_PLANS_BY_NETWORK = {
+    # ── MTN (network id "1") ────────────────────────────────────────────
     "1": {
         "name": "MTN",
         "plans": [
-            {"plan_id": "1", "name": "MTN SME 500MB (30 Days)", "selling_price": 140, "plan_type": "sme"},
-            {"plan_id": "2", "name": "MTN SME 1GB (30 Days)", "selling_price": 219, "plan_type": "sme"},
-            {"plan_id": "3", "name": "MTN SME 2GB (30 Days)", "selling_price": 440, "plan_type": "sme"},
-            {"plan_id": "4", "name": "MTN SME 3GB (30 Days)", "selling_price": 660, "plan_type": "sme"},
-            {"plan_id": "5", "name": "MTN SME 5GB (30 Days)", "selling_price": 1100, "plan_type": "sme"},
-            {"plan_id": "6", "name": "MTN SME 10GB (30 Days)", "selling_price": 2200, "plan_type": "sme"},
-            {"plan_id": "7", "name": "MTN CG 500MB (30 Days)", "selling_price": 145, "plan_type": "corporate"},
-            {"plan_id": "8", "name": "MTN CG 1GB (30 Days)", "selling_price": 280, "plan_type": "corporate"},
-            {"plan_id": "9", "name": "MTN CG 2GB (30 Days)", "selling_price": 560, "plan_type": "corporate"},
-            {"plan_id": "10", "name": "MTN CG 3GB (30 Days)", "selling_price": 840, "plan_type": "corporate"},
-            {"plan_id": "11", "name": "MTN CG 5GB (30 Days)", "selling_price": 1400, "plan_type": "corporate"},
-            {"plan_id": "12", "name": "MTN CG 10GB (30 Days)", "selling_price": 2800, "plan_type": "corporate"},
-            {"plan_id": "13", "name": "MTN Direct 500MB (30 Days)", "selling_price": 150, "plan_type": "direct"},
-            {"plan_id": "14", "name": "MTN Direct 1GB (30 Days)", "selling_price": 300, "plan_type": "direct"},
-            {"plan_id": "15", "name": "MTN Direct 2GB (30 Days)", "selling_price": 600, "plan_type": "direct"},
-            {"plan_id": "16", "name": "MTN Direct 3GB (30 Days)", "selling_price": 900, "plan_type": "direct"},
-            {"plan_id": "17", "name": "MTN Direct 5GB (30 Days)", "selling_price": 1500, "plan_type": "direct"},
-            {"plan_id": "18", "name": "MTN Direct 10GB (30 Days)", "selling_price": 3000, "plan_type": "direct"},
+            # SME
+            {"plan_id": "284", "name": "MTN SME 500MB (30 Days)", "selling_price": 440, "plan_type": "sme"},
+            {"plan_id": "282", "name": "MTN SME 1.0GB (30 Days)", "selling_price": 650, "plan_type": "sme"},
+            {"plan_id": "283", "name": "MTN SME 2.0GB (30 Days)", "selling_price": 1300, "plan_type": "sme"},
+            {"plan_id": "484", "name": "MTN SME 3.0GB (30 Days)", "selling_price": 2000, "plan_type": "sme"},
+            {"plan_id": "483", "name": "MTN SME 5.0GB (30 Days)", "selling_price": 3000, "plan_type": "sme"},
+            {"plan_id": "409", "name": "MTN SME 3.5GB (7 Days)", "selling_price": 1500, "plan_type": "sme"},
+            {"plan_id": "499", "name": "MTN SME 3.5GB (1 Day)", "selling_price": 1200, "plan_type": "sme"},
+            {"plan_id": "487", "name": "MTN SME 11.0GB (7 Days)", "selling_price": 4000, "plan_type": "sme"},
+            {"plan_id": "500", "name": "MTN SME 11.0GB (30 Days)", "selling_price": 6000, "plan_type": "sme"},
+            {"plan_id": "497", "name": "MTN SME 14.5GB (30 Days)", "selling_price": 5050, "plan_type": "sme"},
+            {"plan_id": "488", "name": "MTN SME 20.0GB (7 Days)", "selling_price": 5500, "plan_type": "sme"},
+            {"plan_id": "496", "name": "MTN SME 20.0GB (7 Days) Alt", "selling_price": 5050, "plan_type": "sme"},
+            {"plan_id": "490", "name": "MTN SME 20.0GB + 10 Min Call (30 Days)", "selling_price": 8000, "plan_type": "sme"},
+            {"plan_id": "498", "name": "MTN SME 36.0GB (7 Days)", "selling_price": 11500, "plan_type": "sme"},
+            # Gifting
+            {"plan_id": "260", "name": "MTN GIFTING 75MB (1 Day)", "selling_price": 80, "plan_type": "gifting"},
+            {"plan_id": "375", "name": "MTN GIFTING 200MB Social (1 Day)", "selling_price": 120, "plan_type": "gifting"},
+            {"plan_id": "376", "name": "MTN GIFTING 230MB (1 Day)", "selling_price": 210, "plan_type": "gifting"},
+            {"plan_id": "377", "name": "MTN GIFTING 500MB (1 Day)", "selling_price": 350, "plan_type": "gifting"},
+            {"plan_id": "380", "name": "MTN GIFTING 1GB + 1.5 Min Call (1 Day)", "selling_price": 500, "plan_type": "gifting"},
+            {"plan_id": "378", "name": "MTN GIFTING 1.2GB Social (30 Days)", "selling_price": 450, "plan_type": "gifting"},
+            {"plan_id": "382", "name": "MTN GIFTING 1.5GB (2 Days)", "selling_price": 600, "plan_type": "gifting"},
+            {"plan_id": "386", "name": "MTN GIFTING 1.5GB (7 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "383", "name": "MTN GIFTING 2.0GB (2 Days)", "selling_price": 750, "plan_type": "gifting"},
+            {"plan_id": "385", "name": "MTN GIFTING 2.5GB (2 Days)", "selling_price": 900, "plan_type": "gifting"},
+            {"plan_id": "387", "name": "MTN GIFTING 3.2GB (2 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "379", "name": "MTN GIFTING 500MB (7 Days)", "selling_price": 500, "plan_type": "gifting"},
+            {"plan_id": "381", "name": "MTN GIFTING 600MB (7 Days)", "selling_price": 550, "plan_type": "gifting"},
+            {"plan_id": "384", "name": "MTN GIFTING 1.0GB (7 Days)", "selling_price": 800, "plan_type": "gifting"},
+            {"plan_id": "388", "name": "MTN GIFTING 11.0GB (7 Days)", "selling_price": 3550, "plan_type": "gifting"},
+            {"plan_id": "394", "name": "MTN GIFTING 11.0GB (7 Days) Alt", "selling_price": 3600, "plan_type": "gifting"},
+            {"plan_id": "390", "name": "MTN GIFTING 6.0GB (7 Days)", "selling_price": 2500, "plan_type": "gifting"},
+            {"plan_id": "389", "name": "MTN GIFTING 1.8GB (30 Days)", "selling_price": 1500, "plan_type": "gifting"},
+            {"plan_id": "395", "name": "MTN GIFTING 14.5GB (30 Days)", "selling_price": 5000, "plan_type": "gifting"},
+            {"plan_id": "391", "name": "MTN GIFTING 5.5GB (30 Days)", "selling_price": 3000, "plan_type": "gifting"},
+            {"plan_id": "397", "name": "MTN GIFTING 7.0GB (30 Days)", "selling_price": 3500, "plan_type": "gifting"},
+            {"plan_id": "399", "name": "MTN GIFTING 25.0GB (30 Days)", "selling_price": 9000, "plan_type": "gifting"},
+            {"plan_id": "400", "name": "MTN GIFTING 36.0GB (30 Days)", "selling_price": 11000, "plan_type": "gifting"},
+            {"plan_id": "398", "name": "MTN GIFTING 35.0GB (30 Days)", "selling_price": 7000, "plan_type": "gifting"},
+            {"plan_id": "401", "name": "MTN GIFTING 65.0GB (30 Days)", "selling_price": 16000, "plan_type": "gifting"},
+            {"plan_id": "402", "name": "MTN GIFTING 75.0GB (30 Days)", "selling_price": 18000, "plan_type": "gifting"},
+            {"plan_id": "403", "name": "MTN GIFTING 90.0GB (30 Days)", "selling_price": 25000, "plan_type": "gifting"},
+            # Direct
+            {"plan_id": "373", "name": "MTN DIRECT 1.8GB + 35 Min + 150 SMS (30 Days)", "selling_price": 1550, "plan_type": "direct"},
+            {"plan_id": "374", "name": "MTN DIRECT 5GB + 90 Min + 220 SMS (30 Days)", "selling_price": 3100, "plan_type": "direct"},
+            {"plan_id": "486", "name": "MTN DIRECT 1GB + 250 Min + 75 SMS (30 Days)", "selling_price": 3100, "plan_type": "direct"},
+            # Data (Voice + Data combos)
+            {"plan_id": "470", "name": "MTN Voice 10 Min + 400MB + 5 SMS (7 Days)", "selling_price": 500, "plan_type": "general"},
+            {"plan_id": "471", "name": "MTN Voice 20 Min + 1.2GB + 5 SMS (7 Days)", "selling_price": 1000, "plan_type": "general"},
+            {"plan_id": "472", "name": "MTN Voice 40 Min + 2.5GB + 5 SMS (7 Days)", "selling_price": 2000, "plan_type": "general"},
+            {"plan_id": "469", "name": "MTN Voice 100 Min + 12GB + 5 SMS (30 Days)", "selling_price": 5000, "plan_type": "general"},
+            {"plan_id": "366", "name": "MTN DATA 2GB + 2 Min (30 Days)", "selling_price": 1600, "plan_type": "general"},
+            {"plan_id": "367", "name": "MTN DATA 2.7GB + 2 Min (30 Days)", "selling_price": 2000, "plan_type": "general"},
+            {"plan_id": "368", "name": "MTN DATA 3.5GB + 5 Min (30 Days)", "selling_price": 2500, "plan_type": "general"},
+            {"plan_id": "372", "name": "MTN DATA 10GB + 10 Min (30 Days)", "selling_price": 4500, "plan_type": "general"},
+            {"plan_id": "393", "name": "MTN 16.5GB + 10 Min (30 Days)", "selling_price": 6500, "plan_type": "general"},
         ]
     },
+
+    # ── AIRTEL (network id "2") ─────────────────────────────────────────
     "2": {
         "name": "Airtel",
         "plans": [
-            {"plan_id": "19", "name": "Airtel CG 500MB (30 Days)", "selling_price": 140, "plan_type": "corporate"},
-            {"plan_id": "20", "name": "Airtel CG 1GB (30 Days)", "selling_price": 280, "plan_type": "corporate"},
-            {"plan_id": "21", "name": "Airtel CG 2GB (30 Days)", "selling_price": 560, "plan_type": "corporate"},
-            {"plan_id": "22", "name": "Airtel CG 3GB (30 Days)", "selling_price": 840, "plan_type": "corporate"},
-            {"plan_id": "23", "name": "Airtel CG 5GB (30 Days)", "selling_price": 1400, "plan_type": "corporate"},
-            {"plan_id": "24", "name": "Airtel CG 10GB (30 Days)", "selling_price": 2800, "plan_type": "corporate"},
-            {"plan_id": "25", "name": "Airtel Direct 500MB (30 Days)", "selling_price": 150, "plan_type": "direct"},
-            {"plan_id": "26", "name": "Airtel Direct 1GB (30 Days)", "selling_price": 300, "plan_type": "direct"},
-            {"plan_id": "27", "name": "Airtel Direct 2GB (30 Days)", "selling_price": 600, "plan_type": "direct"},
-            {"plan_id": "28", "name": "Airtel Direct 5GB (30 Days)", "selling_price": 1500, "plan_type": "direct"},
+            # Awoof (cheapest)
+            {"plan_id": "443", "name": "Airtel Awoof 150MB (2 Days)", "selling_price": 70, "plan_type": "gifting"},
+            {"plan_id": "444", "name": "Airtel Awoof 300MB (2 Days)", "selling_price": 140, "plan_type": "gifting"},
+            {"plan_id": "450", "name": "Airtel GIFTING 200MB (1 Day)", "selling_price": 210, "plan_type": "gifting"},
+            {"plan_id": "449", "name": "Airtel GIFTING 110MB (1 Day)", "selling_price": 105, "plan_type": "gifting"},
+            {"plan_id": "451", "name": "Airtel GIFTING 300MB Social (3 Days)", "selling_price": 310, "plan_type": "gifting"},
+            {"plan_id": "445", "name": "Airtel Awoof 600MB (2 Days)", "selling_price": 250, "plan_type": "gifting"},
+            {"plan_id": "448", "name": "Airtel GIFTING 500MB (7 Days)", "selling_price": 481, "plan_type": "gifting"},
+            {"plan_id": "446", "name": "Airtel Awoof 2.0GB (2 Days)", "selling_price": 700, "plan_type": "gifting"},
+            {"plan_id": "453", "name": "Airtel GIFTING 1.5GB (2 Days)", "selling_price": 600, "plan_type": "gifting"},
+            {"plan_id": "459", "name": "Airtel GIFTING 3.0GB (2 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "491", "name": "Airtel Awoof 3.0GB (7 Days)", "selling_price": 850, "plan_type": "gifting"},
+            {"plan_id": "447", "name": "Airtel Awoof 1.5GB (7 Days)", "selling_price": 600, "plan_type": "gifting"},
+            {"plan_id": "452", "name": "Airtel GIFTING 1.0GB (7 Days)", "selling_price": 800, "plan_type": "gifting"},
+            {"plan_id": "454", "name": "Airtel GIFTING 1.5GB (7 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "461", "name": "Airtel GIFTING 3.5GB (7 Days)", "selling_price": 1500, "plan_type": "gifting"},
+            {"plan_id": "460", "name": "Airtel GIFTING 5.0GB (5 Days)", "selling_price": 1700, "plan_type": "gifting"},
+            {"plan_id": "465", "name": "Airtel GIFTING 6.0GB (7 Days)", "selling_price": 2500, "plan_type": "gifting"},
+            {"plan_id": "467", "name": "Airtel GIFTING 10.0GB (7 Days)", "selling_price": 3000, "plan_type": "gifting"},
+            {"plan_id": "462", "name": "Airtel GIFTING 2.0GB (30 Days)", "selling_price": 1500, "plan_type": "gifting"},
+            {"plan_id": "463", "name": "Airtel GIFTING 3.0GB (30 Days)", "selling_price": 2000, "plan_type": "gifting"},
+            {"plan_id": "464", "name": "Airtel GIFTING 4.0GB (30 Days)", "selling_price": 2500, "plan_type": "gifting"},
+            {"plan_id": "466", "name": "Airtel GIFTING 8.0GB (30 Days)", "selling_price": 3000, "plan_type": "gifting"},
+            {"plan_id": "492", "name": "Airtel Awoof 10.0GB (30 Days)", "selling_price": 3150, "plan_type": "gifting"},
+            {"plan_id": "468", "name": "Airtel GIFTING 10.0GB (30 Days)", "selling_price": 4000, "plan_type": "gifting"},
         ]
     },
+
+    # ── GLO (network id "3") ────────────────────────────────────────────
     "3": {
         "name": "Glo",
         "plans": [
-            {"plan_id": "29", "name": "Glo CG 500MB (30 Days)", "selling_price": 140, "plan_type": "corporate"},
-            {"plan_id": "30", "name": "Glo CG 1GB (30 Days)", "selling_price": 280, "plan_type": "corporate"},
-            {"plan_id": "31", "name": "Glo CG 2GB (30 Days)", "selling_price": 560, "plan_type": "corporate"},
-            {"plan_id": "32", "name": "Glo CG 3GB (30 Days)", "selling_price": 840, "plan_type": "corporate"},
-            {"plan_id": "33", "name": "Glo CG 5GB (30 Days)", "selling_price": 1400, "plan_type": "corporate"},
-            {"plan_id": "34", "name": "Glo CG 10GB (30 Days)", "selling_price": 2800, "plan_type": "corporate"},
-            {"plan_id": "35", "name": "Glo Direct 500MB (30 Days)", "selling_price": 150, "plan_type": "direct"},
-            {"plan_id": "36", "name": "Glo Direct 1GB (30 Days)", "selling_price": 300, "plan_type": "direct"},
-            {"plan_id": "37", "name": "Glo Direct 2GB (30 Days)", "selling_price": 600, "plan_type": "direct"},
-            {"plan_id": "38", "name": "Glo Direct 5GB (30 Days)", "selling_price": 1500, "plan_type": "direct"},
+            # Corporate Gifting (CG)
+            {"plan_id": "124", "name": "Glo CG 200MB (30 Days)", "selling_price": 100, "plan_type": "corporate"},
+            {"plan_id": "140", "name": "Glo CG 500MB (30 Days)", "selling_price": 230, "plan_type": "corporate"},
+            {"plan_id": "141", "name": "Glo CG 1.024GB (30 Days)", "selling_price": 450, "plan_type": "corporate"},
+            {"plan_id": "157", "name": "Glo CG 2.0GB (30 Days)", "selling_price": 900, "plan_type": "corporate"},
+            {"plan_id": "158", "name": "Glo CG 3.072GB (30 Days)", "selling_price": 1350, "plan_type": "corporate"},
+            {"plan_id": "159", "name": "Glo CG 5.12GB (30 Days)", "selling_price": 2250, "plan_type": "corporate"},
+            # Daily / Short validity
+            {"plan_id": "344", "name": "Glo GIFTING 45MB (1 Day)", "selling_price": 53, "plan_type": "gifting"},
+            {"plan_id": "346", "name": "Glo GIFTING 750MB Night (1 Day)", "selling_price": 125, "plan_type": "gifting"},
+            {"plan_id": "345", "name": "Glo GIFTING 750MB (1 Day)", "selling_price": 210, "plan_type": "gifting"},
+            {"plan_id": "349", "name": "Glo GIFTING 1GB Night (1 Day)", "selling_price": 120, "plan_type": "gifting"},
+            {"plan_id": "353", "name": "Glo GIFTING 1GB Special (1 Day)", "selling_price": 350, "plan_type": "gifting"},
+            {"plan_id": "350", "name": "Glo GIFTING 1.5GB (1 Day)", "selling_price": 320, "plan_type": "gifting"},
+            {"plan_id": "354", "name": "Glo GIFTING 2GB Special (1 Day)", "selling_price": 500, "plan_type": "gifting"},
+            {"plan_id": "355", "name": "Glo GIFTING 3.55GB Special (1 Day)", "selling_price": 600, "plan_type": "gifting"},
+            {"plan_id": "347", "name": "Glo GIFTING 105MB (1 Day)", "selling_price": 110, "plan_type": "gifting"},
+            # 2–3 Day
+            {"plan_id": "348", "name": "Glo GIFTING 235MB (2 Days)", "selling_price": 220, "plan_type": "gifting"},
+            {"plan_id": "351", "name": "Glo GIFTING 2.5GB (2 Days)", "selling_price": 535, "plan_type": "gifting"},
+            {"plan_id": "356", "name": "Glo GIFTING 5.1GB Special (2 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "476", "name": "Glo DATA 1GB (3 Days)", "selling_price": 285, "plan_type": "general"},
+            {"plan_id": "478", "name": "Glo DATA 3GB (3 Days)", "selling_price": 855, "plan_type": "general"},
+            {"plan_id": "479", "name": "Glo DATA 5GB (3 Days)", "selling_price": 1425, "plan_type": "general"},
+            {"plan_id": "413", "name": "Glo GIFTING 1GB + 1 Hour My-G (3 Days)", "selling_price": 310, "plan_type": "gifting"},
+            # 7–14 Day
+            {"plan_id": "358", "name": "Glo GIFTING 3.5GB (7 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "357", "name": "Glo GIFTING 1.1GB (14 Days)", "selling_price": 750, "plan_type": "gifting"},
+            {"plan_id": "352", "name": "Glo GIFTING 10GB (7 Days)", "selling_price": 2000, "plan_type": "gifting"},
+            {"plan_id": "420", "name": "Glo GIFTING 5.9GB + 2GB Night (7 Days)", "selling_price": 1500, "plan_type": "gifting"},
+            {"plan_id": "423", "name": "Glo GIFTING 8.5GB + 2.5GB Night (7 Days)", "selling_price": 2000, "plan_type": "gifting"},
+            {"plan_id": "480", "name": "Glo DATA 1GB (7 Days)", "selling_price": 350, "plan_type": "general"},
+            {"plan_id": "481", "name": "Glo DATA 3GB (7 Days)", "selling_price": 1050, "plan_type": "general"},
+            {"plan_id": "482", "name": "Glo DATA 5GB (7 Days)", "selling_price": 1750, "plan_type": "general"},
+            {"plan_id": "415", "name": "Glo GIFTING 1.5GB + 1 Hour My-G (7 Days)", "selling_price": 500, "plan_type": "gifting"},
+            # 15–30 Day
+            {"plan_id": "414", "name": "Glo GIFTING 1.8GB Social (15 Days)", "selling_price": 500, "plan_type": "gifting"},
+            {"plan_id": "416", "name": "Glo GIFTING 2.6GB + 1.5GB Night (30 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "417", "name": "Glo GIFTING 4.2GB + 2GB Night (30 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "418", "name": "Glo GIFTING 3.5GB + 2GB Night (30 Days)", "selling_price": 1000, "plan_type": "gifting"},
+            {"plan_id": "419", "name": "Glo GIFTING 5GB + 3GB Night (30 Days)", "selling_price": 1500, "plan_type": "gifting"},
+            {"plan_id": "421", "name": "Glo GIFTING 6.15GB + 3GB Night (30 Days)", "selling_price": 2000, "plan_type": "gifting"},
+            {"plan_id": "422", "name": "Glo GIFTING 9.8GB + 3.5GB Night (30 Days)", "selling_price": 2000, "plan_type": "gifting"},
+            {"plan_id": "424", "name": "Glo GIFTING 7.25GB + 3GB Night (30 Days)", "selling_price": 2500, "plan_type": "gifting"},
+            {"plan_id": "425", "name": "Glo GIFTING 10GB + 2GB Night (30 Days)", "selling_price": 3000, "plan_type": "gifting"},
         ]
     },
+
+    # ── 9mobile (network id "4") ────────────────────────────────────────
     "4": {
         "name": "9mobile",
         "plans": [
-            {"plan_id": "39", "name": "9mobile CG 500MB (30 Days)", "selling_price": 140, "plan_type": "corporate"},
-            {"plan_id": "40", "name": "9mobile CG 1GB (30 Days)", "selling_price": 280, "plan_type": "corporate"},
-            {"plan_id": "41", "name": "9mobile CG 2GB (30 Days)", "selling_price": 560, "plan_type": "corporate"},
-            {"plan_id": "42", "name": "9mobile CG 3GB (30 Days)", "selling_price": 840, "plan_type": "corporate"},
-            {"plan_id": "43", "name": "9mobile CG 5GB (30 Days)", "selling_price": 1400, "plan_type": "corporate"},
-            {"plan_id": "44", "name": "9mobile Direct 500MB (30 Days)", "selling_price": 150, "plan_type": "direct"},
-            {"plan_id": "45", "name": "9mobile Direct 1GB (30 Days)", "selling_price": 300, "plan_type": "direct"},
-            {"plan_id": "46", "name": "9mobile Direct 2GB (30 Days)", "selling_price": 600, "plan_type": "direct"},
-            {"plan_id": "47", "name": "9mobile Direct 5GB (30 Days)", "selling_price": 1500, "plan_type": "direct"},
+            {"plan_id": "129", "name": "9mobile 500MB (30 Days)", "selling_price": 280, "plan_type": "general"},
+            {"plan_id": "130", "name": "9mobile 1GB (30 Days)", "selling_price": 430, "plan_type": "general"},
+            {"plan_id": "132", "name": "9mobile 2GB (30 Days)", "selling_price": 810, "plan_type": "general"},
+            {"plan_id": "133", "name": "9mobile 3GB (30 Days)", "selling_price": 1500, "plan_type": "general"},
+            {"plan_id": "134", "name": "9mobile 5GB (30 Days)", "selling_price": 2550, "plan_type": "general"},
+            {"plan_id": "131", "name": "9mobile 10GB (30 Days)", "selling_price": 5000, "plan_type": "general"},
         ]
     },
 }
 
 INTERNET_SERVICES = {
+    # ── Smile ──────────────────────────────────────────────────────────
     "smile": {
         "name": "Smile",
         "endpoint": "/api/smile-data/",
         "plans": [
-            {"plan_id": "16", "name": "Smile Mini 1GB", "selling_price": 450},
-            {"plan_id": "17", "name": "Smile Midi 2GB", "selling_price": 800},
-            {"plan_id": "18", "name": "Smile Maxi 5GB", "selling_price": 1800},
-            {"plan_id": "19", "name": "Smile Mega 6.5GB", "selling_price": 2200},
-            {"plan_id": "20", "name": "Smile 10GB", "selling_price": 3000},
-            {"plan_id": "21", "name": "Smile 15GB", "selling_price": 4500},
-            {"plan_id": "22", "name": "Smile 20GB", "selling_price": 5500},
-            {"plan_id": "23", "name": "Smile Unlimited Lite", "selling_price": 6500},
+            # Voice only
+            {"plan_id": "11", "name": "SmileVoice ONLY 65 (30 Days)", "selling_price": 900},
+            {"plan_id": "12", "name": "SmileVoice ONLY 135 (30 Days)", "selling_price": 1850},
+            {"plan_id": "19", "name": "SmileVoice ONLY 150 (60 Days)", "selling_price": 2700},
+            {"plan_id": "20", "name": "SmileVoice ONLY 175 (90 Days)", "selling_price": 3600},
+            {"plan_id": "13", "name": "SmileVoice ONLY 430 (30 Days)", "selling_price": 5700},
+            {"plan_id": "14", "name": "SmileVoice ONLY 450 (60 Days)", "selling_price": 7200},
+            {"plan_id": "15", "name": "SmileVoice ONLY 500 (90 Days)", "selling_price": 9000},
+            # Mini / Daily
+            {"plan_id": "16", "name": "Smile mini 1GB + 1GB Streaming (1 Day)", "selling_price": 450},
+            {"plan_id": "17", "name": "Smile mini 2.5GB + 1GB Streaming (1 Day)", "selling_price": 750},
+            # Weekly
+            {"plan_id": "18", "name": "Smile mini 1GB + 1GB Streaming (7 Days)", "selling_price": 750},
+            {"plan_id": "46", "name": "Smile midi 3.5GB + 1GB Streaming (7 Days)", "selling_price": 1650},
+            # Monthly — standard
+            {"plan_id": "25", "name": "Smile midi 1.5GB + 3GB Streaming (30 Days)", "selling_price": 1550},
+            {"plan_id": "50", "name": "Smile midi 2GB + 4GB Streaming (30 Days)", "selling_price": 1500},
+            {"plan_id": "26", "name": "Smile midi 2GB + 4GB Streaming (30 Days) Alt", "selling_price": 1800},
+            {"plan_id": "51", "name": "Smile midi 3GB + 5GB Streaming (30 Days)", "selling_price": 2000},
+            {"plan_id": "77", "name": "Smile midi 3GB + 5GB Streaming (30 Days) B", "selling_price": 2000},
+            {"plan_id": "49", "name": "Smile mini 6GB + 2GB Streaming (30 Days)", "selling_price": 2300},
+            {"plan_id": "52", "name": "Smile midi 6GB + 5GB Streaming (30 Days)", "selling_price": 3000},
+            {"plan_id": "28", "name": "Smile mini 5GB + 1GB Streaming (30 Days)", "selling_price": 3000},
+            {"plan_id": "53", "name": "Smile midi 8GB + 5GB Streaming (30 Days)", "selling_price": 3500},
+            {"plan_id": "29", "name": "Smile mini 6GB + 5GB Streaming (30 Days)", "selling_price": 3800},
+            {"plan_id": "30", "name": "Smile midi 10GB + 5GB Streaming (30 Days)", "selling_price": 4600},
+            {"plan_id": "54", "name": "Smile midi 13GB + 5GB Streaming (30 Days)", "selling_price": 5000},
+            {"plan_id": "55", "name": "Smile midi 18GB + 5GB Streaming (30 Days)", "selling_price": 6000},
+            {"plan_id": "37", "name": "Smile midi 20GB + 5GB Streaming (30 Days)", "selling_price": 7000},
+            {"plan_id": "78", "name": "Smile midi 25GB + 5GB Streaming (30 Days)", "selling_price": 9000},
+            {"plan_id": "60", "name": "Smile midi 40GB + 5GB Streaming (30 Days)", "selling_price": 12500},
+            {"plan_id": "40", "name": "Smile midi 40GB + 5GB Streaming (Prm 30 Days)", "selling_price": 15500},
+            {"plan_id": "61", "name": "Smile midi 65GB + 5GB Streaming (30 Days)", "selling_price": 15000},
+            {"plan_id": "81", "name": "Smile Maxi Lite (30 Days)", "selling_price": 15000},
+            {"plan_id": "62", "name": "Smile midi 100GB + 5GB Streaming (30 Days)", "selling_price": 20000},
+            {"plan_id": "82", "name": "Smile Maxi Essential (30 Days)", "selling_price": 27700},
+            {"plan_id": "64", "name": "Smile midi 130GB + 3GB Daily (30 Days)", "selling_price": 25000},
+            {"plan_id": "83", "name": "Smile Maxi Home (30 Days)", "selling_price": 38500},
+            {"plan_id": "84", "name": "Smile Maxi Office (30 Days)", "selling_price": 45000},
+            {"plan_id": "65", "name": "Smile midi 210GB + 3GB Daily (30 Days)", "selling_price": 40000},
+            {"plan_id": "85", "name": "Smile Maxi Data Flux (30 Days)", "selling_price": 61500},
+            # 60-day
+            {"plan_id": "66", "name": "Smile Jumbo 90GB (60 Days)", "selling_price": 25000},
+            {"plan_id": "79", "name": "Smile Jumbo 300GB (90 Days)", "selling_price": 50000},
+            {"plan_id": "68", "name": "Smile Jumbo 350GB (120 Days)", "selling_price": 60000},
+            {"plan_id": "69", "name": "Smile Jumbo 500GB (180 Days)", "selling_price": 77000},
+            # Annual
+            {"plan_id": "70", "name": "Smile Annual 20GB (365 Days)", "selling_price": 14000},
+            {"plan_id": "80", "name": "Smile Annual 20GB (365 Days) Alt", "selling_price": 14000},
+            {"plan_id": "71", "name": "Smile Annual 50GB (365 Days)", "selling_price": 29000},
+            {"plan_id": "72", "name": "Smile Annual 120GB (365 Days)", "selling_price": 49500},
+            {"plan_id": "73", "name": "Smile Annual 250GB (365 Days)", "selling_price": 77000},
+            {"plan_id": "74", "name": "Smile Annual 450GB (365 Days)", "selling_price": 107000},
+            {"plan_id": "75", "name": "Smile Annual 700GB (365 Days)", "selling_price": 154000},
+            {"plan_id": "76", "name": "Smile Annual 1TB (365 Days)", "selling_price": 180000},
         ]
     },
-    "kirani": {
-        "name": "Kirani",
-        "endpoint": "/api/kirani/",
-        "plans": [
-            {"plan_id": "1", "name": "Kirani 500 Minutes", "selling_price": 500},
-            {"plan_id": "2", "name": "Kirani 1000 Minutes", "selling_price": 1000},
-            {"plan_id": "3", "name": "Kirani 2000 Minutes", "selling_price": 2000},
-            {"plan_id": "4", "name": "Kirani 5000 Minutes", "selling_price": 5000},
-        ]
-    },
+
+    # ── Alpha ───────────────────────────────────────────────────────────
     "alpha": {
         "name": "Alpha",
         "endpoint": "/api/alpha/",
         "plans": [
-            {"plan_id": "1", "name": "Alpha 500 Caller", "selling_price": 500},
-            {"plan_id": "2", "name": "Alpha 1000 Caller", "selling_price": 1000},
-            {"plan_id": "3", "name": "Alpha 2000 Caller", "selling_price": 2000},
-            {"plan_id": "4", "name": "Alpha 5000 Caller", "selling_price": 5000},
+            {"plan_id": "9", "name": "Alpha N600 (30 Days)", "selling_price": 600},
+            {"plan_id": "10", "name": "Alpha N1100 (30 Days)", "selling_price": 1100},
+            {"plan_id": "11", "name": "Alpha N1600 (30 Days)", "selling_price": 1600},
+            {"plan_id": "12", "name": "Alpha N2100 (30 Days)", "selling_price": 2100},
+            {"plan_id": "13", "name": "Alpha N2600 (30 Days)", "selling_price": 2600},
+            {"plan_id": "14", "name": "Alpha N3120 (30 Days)", "selling_price": 3120},
+            {"plan_id": "15", "name": "Alpha N3620 (30 Days)", "selling_price": 3620},
+            {"plan_id": "16", "name": "Alpha N4150 (30 Days)", "selling_price": 4150},
+        ]
+    },
+
+    # ── Kirani ──────────────────────────────────────────────────────────
+    "kirani": {
+        "name": "Kirani",
+        "endpoint": "/api/kirani/",
+        "plans": [
+            {"plan_id": "6", "name": "Kirani 30 Minutes (30 Days)", "selling_price": 470},
+            {"plan_id": "12", "name": "Kirani 50 Minutes (30 Days)", "selling_price": 780},
+            {"plan_id": "7", "name": "Kirani 70 Minutes (30 Days)", "selling_price": 1085},
+            {"plan_id": "1", "name": "Kirani 100 Minutes (30 Days)", "selling_price": 1550},
+            {"plan_id": "13", "name": "Kirani 150 Minutes (30 Days)", "selling_price": 2350},
+            {"plan_id": "2", "name": "Kirani 200 Minutes (30 Days)", "selling_price": 3100},
+            {"plan_id": "14", "name": "Kirani 250 Minutes (30 Days)", "selling_price": 3900},
+            {"plan_id": "3", "name": "Kirani 300 Minutes (30 Days)", "selling_price": 4650},
+            {"plan_id": "15", "name": "Kirani 350 Minutes (30 Days)", "selling_price": 5420},
+            {"plan_id": "4", "name": "Kirani 400 Minutes (30 Days)", "selling_price": 6100},
+            {"plan_id": "5", "name": "Kirani 500 Minutes (30 Days)", "selling_price": 7600},
+            {"plan_id": "8", "name": "Kirani 600 Minutes (30 Days)", "selling_price": 9250},
+            {"plan_id": "9", "name": "Kirani 700 Minutes (30 Days)", "selling_price": 10800},
+            {"plan_id": "10", "name": "Kirani 800 Minutes (30 Days)", "selling_price": 12300},
+            {"plan_id": "11", "name": "Kirani 900 Minutes (30 Days)", "selling_price": 13850},
         ]
     },
 }
@@ -389,6 +549,7 @@ class ArewaGlobalProvider(BaseVTUProvider):
                 )
                 created_variations.append(variation)
 
+        logger.info(f"ArewaGlobal: synced {len(created_variations)} data variations")
         return len(created_variations)
 
     # -------------------------------------------------------------------------
@@ -431,6 +592,7 @@ class ArewaGlobalProvider(BaseVTUProvider):
                 count += 1
             services.append(service)
 
+        logger.info(f"ArewaGlobal: synced {count} internet variations")
         return count
 
     # -------------------------------------------------------------------------
