@@ -293,7 +293,7 @@ class ArewaGlobalProvider(BaseVTUProvider):
 
     def __init__(self, config: Dict[str, Any]):
         self.api_key = config.get('api_key')
-        self.base_url = config.get('base_url', 'https://arewaglobal.co').rstrip('/')
+        self.base_url = (config.get('base_url') or 'https://arewaglobal.co').rstrip('/')
         
         self.headers = {
             "Authorization": f"Token {self.api_key}",
