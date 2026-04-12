@@ -10,6 +10,7 @@ from .providers.vtpass import VTPassProvider
 from .providers.clubkonnect import ClubKonnectProvider
 from .providers.generic import GenericLocalProvider
 from .providers.arewa_global import ArewaGlobalProvider
+from .providers.flowpay import FlowPayProvider
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class ProviderRouter:
         'vtpass': VTPassProvider,
         'clubkonnect': ClubKonnectProvider,
         'arewa_global': ArewaGlobalProvider,
+        'flowpay': FlowPayProvider,
         'alrahuz': GenericLocalProvider,
         'mobilenig': GenericLocalProvider,
         'otapay': GenericLocalProvider,

@@ -14,6 +14,7 @@ AVAILABLE_PROVIDERS = [
     ('nata', 'Nata API'),
     ('amigo', 'Amigo'),
     ('vtuorg', 'vtu.org'),
+    ('flowpay', 'FlowPay'),
 ]
 
 def get_provider_display_name(provider_id: str) -> str:
