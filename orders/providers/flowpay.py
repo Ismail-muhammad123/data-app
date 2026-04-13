@@ -210,7 +210,7 @@ class FlowPayProvider(BaseVTUProvider):
     def _post(self, endpoint: str, data: dict) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
         try:
-            response = requests.post(url, json=data, headers=self.headers, timeout=10)
+            response = requests.post(url, json=data, headers=self.headers, timeout=50)
             print(f"FlowPay POST {url} - Payload: {data} - Status: {response.status_code} - Response: {response.text}")
             return response.json(), response.status_code
         except Exception as e:
