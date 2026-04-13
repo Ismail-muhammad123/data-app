@@ -22,6 +22,23 @@ from threading import Thread
 
 logger = logging.getLogger(__name__)
 
+
+def _log_provider_response(purchase_type: str, reference: str, user_id, res: dict):
+    """Log the full raw provider response whenever a purchase fails."""
+    if res.get('status') not in ('SUCCESS', 'ORDER_RECEIVED'):
+        logger.error(
+            "Provider FAILED response | type=%s ref=%s user=%s provider=%s status=%s "
+            "message=%r raw=%s",
+            purchase_type,
+            reference,
+            user_id,
+            res.get('provider_used', 'unknown'),
+            res.get('status'),
+            res.get('message') or res.get('error'),
+            res,
+        )
+
+
 def dispatch_developer_webhook(purchase_obj):
     """
     Sends a webhook notification to the developer's registered URL.
@@ -442,7 +459,8 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
     else:
         # Fallback: use the routing table if no provider is attached.
         res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
-    
+
+    _log_provider_response("airtime", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
@@ -498,7 +516,8 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
     else:
         # Fallback: use the routing table if no provider is attached.
         res = ProviderRouter.execute_with_fallback("data", "buy_data", **call_kwargs)
-    
+
+    _log_provider_response("data", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
@@ -549,7 +568,8 @@ def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None,
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("tv", "buy_tv", **call_kwargs)
-    
+
+    _log_provider_response("tv", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
@@ -611,7 +631,8 @@ def purchase_electricity(user, electricity_variation, meter_number, amount, refe
         "reference": reference,
     }
     res = ProviderRouter.execute_with_fallback("electricity", "buy_electricity", **call_kwargs)
-    
+
+    _log_provider_response("electricity", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
@@ -660,7 +681,8 @@ def purchase_internet(user, internet_variation, phone, reference, promo_code_str
         "internet_variation": internet_variation
     }
     res = ProviderRouter.execute_with_fallback("internet", "buy_internet", **call_kwargs)
-    
+
+    _log_provider_response("internet", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
@@ -710,7 +732,8 @@ def purchase_education(user, education_variation, phone, quantity=1, reference=N
         "education_variation": education_variation
     }
     res = ProviderRouter.execute_with_fallback("education", "buy_education", **call_kwargs)
-    
+
+    _log_provider_response("education", reference, user.id, res)
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
