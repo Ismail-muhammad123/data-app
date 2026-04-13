@@ -211,7 +211,8 @@ class FlowPayProvider(BaseVTUProvider):
         url = f"{self.base_url}{endpoint}"
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=30)
-            return response.json()
+
+            return response.json(), response.status_code
         except Exception as e:
             logger.error(f"FlowPay request error: {str(e)}")
             raise Exception(f"FlowPay API error: {str(e)}")
@@ -247,9 +248,9 @@ class FlowPayProvider(BaseVTUProvider):
             "network": network_id,
         }
         
-        res = self._post("/api/data", payload)
+        res, status_code = self._post("/api/data", payload)
         
-        status = "SUCCESS" if res.get('status') == 'success' else "FAILED"
+        status = "SUCCESS" if status_code in [200, 201]  and res.get('status') == 'successful' else "FAILED"
         return {
             "status": status,
             "provider_reference": res.get('reference', reference),
