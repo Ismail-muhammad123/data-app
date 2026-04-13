@@ -41,6 +41,7 @@ class PurchaseDataVariationView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("Data purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         plan_id = serializer.validated_data["plan_id"]
@@ -60,17 +61,21 @@ class PurchaseDataVariationView(APIView):
             )
 
             if result['status'] == "failed":
-                # Use result amount if available, else standard price
-                fail_amt = result.get('amount', plan.agent_price if user.role == 'agent' else plan.selling_price)
+                fail_amt = result.get('amount', amount)
+                logger.error(
+                    "Data purchase FAILED | user=%s plan_id=%s phone=%s ref=%s error=%s",
+                    user.id, plan_id, phone_number, reference, result.get("error")
+                )
                 NotificationService.send_push(user, "Data Purchase Failed", f"Your purchase of {plan.name} was unsuccessful. N{fail_amt} has been refunded.")
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             NotificationService.send_push(user, "Data Purchase Successful", f"Your purchase of {plan.name} to {phone_number} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except DataVariation.DoesNotExist:
+            logger.warning("Data purchase: plan_id=%s not found or inactive for user=%s", plan_id, user.id)
             return Response({"error": "Invalid or inactive plan."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected data purchase error: {e}")
+            logger.exception("Data purchase: unexpected error for user=%s plan_id=%s phone=%s — %s", user.id, plan_id, phone_number, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -80,7 +85,7 @@ class PurchaseAirtimeView(APIView):
     @extend_schema(
         tags=["Orders - Airtime"],
         summary="Purchase airtime",
-        description="Buy airtime for a specified phone number. Pass the DB `id` of the AirtimeNetwork record as `network_id`.",
+        description="Buy airtime for a specified phone number. Pass the DB `id` of the AirtimeNetwork record as `service_id`.",
         request=AirtimePurchaseRequestSerializer,
         responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
@@ -91,6 +96,7 @@ class PurchaseAirtimeView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("Airtime purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         amount = serializer.validated_data["amount"]
@@ -114,17 +120,21 @@ class PurchaseAirtimeView(APIView):
 
             if result['status'] == "failed":
                 fail_amt = result.get('amount', amount)
+                logger.error(
+                    "Airtime purchase FAILED | user=%s network=%s (%s) phone=%s amount=%s ref=%s error=%s",
+                    user.id, service_id, network.service_name, phone_number, amount, reference, result.get("error")
+                )
                 NotificationService.send_push(user, "Airtime Purchase Failed", f"Your purchase of N{amount} airtime was unsuccessful. N{fail_amt} has been refunded.")
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             NotificationService.send_push(user, "Airtime Purchase Successful", f"Your purchase of N{amount} {network.service_name} airtime to {phone_number} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except AirtimeNetwork.DoesNotExist:
+            logger.warning("Airtime purchase: network id=%s not found or inactive for user=%s", service_id, user.id)
             return Response({"error": "Airtime network not found or is inactive."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected airtime purchase error: {e}")
+            logger.exception("Airtime purchase: unexpected error for user=%s network_id=%s phone=%s — %s", user.id, service_id, phone_number, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class PurchaseElectricityView(APIView):
@@ -144,6 +154,7 @@ class PurchaseElectricityView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("Electricity purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         amount = serializer.validated_data["amount"]
@@ -169,15 +180,20 @@ class PurchaseElectricityView(APIView):
 
             if result['status'] == "failed":
                 fail_amt = result.get('amount', amount)
+                logger.error(
+                    "Electricity purchase FAILED | user=%s service=%s variation=%s meter=%s amount=%s ref=%s error=%s",
+                    user.id, service_id, variation_id, customer_id, amount, reference, result.get("error")
+                )
                 NotificationService.send_push(user, "Electricity Purchase Failed", f"Your electricity purchase of N{amount} was unsuccessful. N{fail_amt} has been refunded.")
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             NotificationService.send_push(user, "Electricity Purchase Successful", f"Your electricity purchase for meter {customer_id} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except ElectricityVariation.DoesNotExist:
+            logger.warning("Electricity purchase: variation_id=%s not found for user=%s", variation_id, user.id)
             return Response({"error": "Invalid Variation."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected electricity purchase error: {e}")
+            logger.exception("Electricity purchase: unexpected error for user=%s meter=%s — %s", user.id, customer_id, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -191,7 +207,6 @@ class PurchaseTVSubscriptionView(APIView):
         request=TVPurchaseRequestSerializer,
         responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
-
     def post(self, request):
         serializer = TVPurchaseRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -199,6 +214,7 @@ class PurchaseTVSubscriptionView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("TV purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         amount = serializer.validated_data["amount"]
@@ -222,15 +238,20 @@ class PurchaseTVSubscriptionView(APIView):
 
             if result['status'] == "failed":
                 fail_amt = result.get('amount', amount)
+                logger.error(
+                    "TV purchase FAILED | user=%s service=%s variation=%s smartcard=%s amount=%s ref=%s error=%s",
+                    user.id, service_id, variation_id, customer_id, amount, reference, result.get("error")
+                )
                 NotificationService.send_push(user, "TV Subscription Failed", f"Your TV subscription of N{amount} failed. N{fail_amt} has been refunded.")
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             NotificationService.send_push(user, "TV Subscription Successful", f"Your TV subscription for {customer_id} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except TVVariation.DoesNotExist:
+            logger.warning("TV purchase: variation_id=%s not found for user=%s", variation_id, user.id)
             return Response({"error": "Invalid TV Service."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected TV subscription error: {e}")
+            logger.exception("TV purchase: unexpected error for user=%s smartcard=%s — %s", user.id, customer_id, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -251,6 +272,7 @@ class PurchaseInternetSubscriptionView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("Internet purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         plan_id = serializer.validated_data["plan_id"]
@@ -272,15 +294,20 @@ class PurchaseInternetSubscriptionView(APIView):
 
             if result['status'] == "failed":
                 fail_amt = result.get('amount', amount)
+                logger.error(
+                    "Internet purchase FAILED | user=%s plan_id=%s phone=%s ref=%s error=%s",
+                    user.id, plan_id, phone_number, reference, result.get("error")
+                )
                 NotificationService.send_push(user, "Internet Subscription Failed", f"Your Internet subscription failed. N{fail_amt} has been refunded.")
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             NotificationService.send_push(user, "Internet Subscription Successful", f"Your Internet subscription for {phone_number} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except InternetVariation.DoesNotExist:
+            logger.warning("Internet purchase: plan_id=%s not found or inactive for user=%s", plan_id, user.id)
             return Response({"error": "Invalid Internet Package."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected internet subscription error: {e}")
+            logger.exception("Internet purchase: unexpected error for user=%s plan_id=%s phone=%s — %s", user.id, plan_id, phone_number, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -306,6 +333,7 @@ class PurchaseEducationView(APIView):
         pin = serializer.validated_data.get('transaction_pin')
 
         if not user.check_transaction_pin(pin):
+            logger.warning("Education purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -327,12 +355,17 @@ class PurchaseEducationView(APIView):
                 return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=res['purchase_id'])).data), status=status.HTTP_200_OK)
             else:
                 fail_amt = res.get('amount', amount)
+                logger.error(
+                    "Education purchase FAILED | user=%s service=%s variation=%s error=%s",
+                    user.id, service_id, variation_id, res.get("error")
+                )
                 NotificationService.send_push(user, "Education PIN Failed", f"Your education PIN purchase was unsuccessful. N{fail_amt} has been refunded.")
                 return Response({"error": res.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
         except EducationVariation.DoesNotExist:
+            logger.warning("Education purchase: variation_id=%s service=%s not found or inactive for user=%s", variation_id, service_id, user.id)
             return Response({"error": "Invalid or inactive plan."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected education purchase error: {e}")
+            logger.exception("Education purchase: unexpected error for user=%s service=%s variation=%s — %s", user.id, service_id, variation_id, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -353,6 +386,7 @@ class RepeatPurchaseView(APIView):
         user = request.user
         pin = serializer.validated_data.get("transaction_pin")
         if not user.check_transaction_pin(pin):
+            logger.warning("Repeat purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
 
         purchase_id = serializer.validated_data["purchase_id"]
@@ -361,6 +395,7 @@ class RepeatPurchaseView(APIView):
             old_purchase = Purchase.objects.get(id=purchase_id, user=user)
             if old_purchase.purchase_type == 'data' and old_purchase.data_variation:
                  if not old_purchase.data_variation.is_active or not old_purchase.data_variation.service.is_active:
+                     logger.warning("Repeat purchase: data plan no longer available | user=%s purchase_id=%s", user.id, purchase_id)
                      return Response({"error": "This data plan is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
 
             reference = generate_request_id()
@@ -377,14 +412,20 @@ class RepeatPurchaseView(APIView):
             elif old_purchase.purchase_type == 'education':
                 result = purchase_education(user, old_purchase.education_variation, old_purchase.beneficiary, 1, reference)
             else:
+                logger.error("Repeat purchase: unknown purchase_type=%s for purchase_id=%s user=%s", old_purchase.purchase_type, purchase_id, user.id)
                 return Response({"error": "Unknown purchase type for repeat."}, status=status.HTTP_400_BAD_REQUEST)
 
             if result['status'] == "failed":
+                logger.error(
+                    "Repeat purchase FAILED | user=%s purchase_id=%s type=%s ref=%s error=%s",
+                    user.id, purchase_id, old_purchase.purchase_type, reference, result.get("error")
+                )
                 return Response({"error": result.get("error", "Transaction failed")}, status=status.HTTP_400_BAD_REQUEST)
 
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except Purchase.DoesNotExist:
+            logger.warning("Repeat purchase: purchase_id=%s not found for user=%s", purchase_id, user.id)
             return Response({"error": "Original purchase not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Unexpected repeat purchase error: {e}")
+            logger.exception("Repeat purchase: unexpected error for user=%s purchase_id=%s — %s", user.id, purchase_id, e)
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
