@@ -20,9 +20,10 @@ class DataPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     plan_id = serializers.IntegerField(); phone_number = serializers.CharField(max_length=20)
 
 class AirtimePurchaseRequestSerializer(BasePurchaseRequestSerializer):
-    service_id = serializers.CharField(); 
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2); 
+    network_id = serializers.IntegerField()  # DB PK of the AirtimeNetwork record
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     phone_number = serializers.CharField(max_length=20)
+
 
 class ElectricityPurchaseRequestSerializer(BasePurchaseRequestSerializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2); service_id = serializers.CharField(); variation_id = serializers.CharField(max_length=50); customer_id = serializers.CharField(max_length=20)

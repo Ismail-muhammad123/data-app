@@ -80,7 +80,7 @@ class PurchaseAirtimeView(APIView):
     @extend_schema(
         tags=["Orders - Airtime"],
         summary="Purchase airtime",
-        description="Buy airtime for a specified phone number. Discount is applied based on user role (agent/regular).",
+        description="Buy airtime for a specified phone number. Pass the DB `id` of the AirtimeNetwork record as `network_id`.",
         request=AirtimePurchaseRequestSerializer,
         responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
@@ -95,13 +95,12 @@ class PurchaseAirtimeView(APIView):
 
         amount = serializer.validated_data["amount"]
         phone_number = serializer.validated_data["phone_number"]
-        service_id = serializer.validated_data["service_id"]
+        network_id = serializer.validated_data["network_id"]   # DB PK of AirtimeNetwork
         promo_code = serializer.validated_data.get("promo_code")
 
         try:
-            network = AirtimeNetwork.objects.get(service_id=service_id)
-            discount_val = network.agent_discount if user.role == 'agent' else network.discount
-            actual_amount = Decimal(amount) - (Decimal(amount) * Decimal(discount_val) / 100)
+            # Look up by unique DB PK — no ambiguity across providers.
+            network = AirtimeNetwork.objects.get(id=network_id, is_active=True)
 
             reference = generate_request_id()
             result = purchase_airtime(
@@ -121,10 +120,11 @@ class PurchaseAirtimeView(APIView):
             NotificationService.send_push(user, "Airtime Purchase Successful", f"Your purchase of N{amount} {network.service_name} airtime to {phone_number} was successful.")
             return Response(_json_safe(PurchaseSerializer(Purchase.objects.get(id=result['purchase_id'])).data), status=status.HTTP_201_CREATED)
         except AirtimeNetwork.DoesNotExist:
-            return Response({"error": "Invalid Service."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Airtime network not found or is inactive."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Unexpected airtime purchase error: {e}")
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class PurchaseElectricityView(APIView):
@@ -191,6 +191,7 @@ class PurchaseTVSubscriptionView(APIView):
         request=TVPurchaseRequestSerializer,
         responses={201: PurchaseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer}
     )
+
     def post(self, request):
         serializer = TVPurchaseRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

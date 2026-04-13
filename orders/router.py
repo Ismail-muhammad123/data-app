@@ -131,6 +131,37 @@ class ProviderRouter:
 
         return chain
 
+    @classmethod
+    def execute_with_provider(cls, provider_config, action: str, **kwargs) -> Dict[str, Any]:
+        """
+        Execute an action on a specific provider (identified by a VTUProviderConfig instance),
+        bypassing the routing/fallback table entirely.
+        Falls back to execute_with_fallback on the same service if the specific provider
+        cannot be instantiated.
+        """
+        if provider_config and provider_config.is_active:
+            impl = cls.get_provider_implementation(provider_config.name)
+            if impl:
+                try:
+                    method = getattr(impl, action)
+                    sig = inspect.signature(method)
+                    accepts_var_kwargs = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values()
+                    )
+                    call_kwargs = kwargs if accepts_var_kwargs else {
+                        k: v for k, v in kwargs.items() if k in sig.parameters
+                    }
+                    res = method(**call_kwargs)
+                    if isinstance(res, dict):
+                        res['provider_used'] = impl.provider_name
+                    return res
+                except Exception as e:
+                    logger.error(f"execute_with_provider failed for {provider_config.name}.{action}: {e}")
+                    return {"status": "FAILED", "error": str(e)}
+
+        return {"status": "FAILED", "error": "Provider is unavailable or inactive."}
+
     @staticmethod
     def execute_with_fallback(service: str, action: str, **kwargs) -> Dict[str, Any]:
         routing = ServiceRouting.objects.filter(service=service).first()

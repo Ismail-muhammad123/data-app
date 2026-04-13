@@ -18,7 +18,23 @@ class PurchaseBeneficiaryListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        # Prevent IntegrityError by using update_or_create logic or checking existence
+        user = self.request.user
+        service_type = serializer.validated_data.get('service_type')
+        identifier = serializer.validated_data.get('identifier')
+        nickname = serializer.validated_data.get('nickname', '')
+
+        # Use get_or_create to ignore duplicates
+        obj, created = PurchaseBeneficiary.objects.get_or_create(
+            user=user,
+            service_type=service_type,
+            identifier=identifier,
+            defaults={'nickname': nickname}
+        )
+        if not created and nickname:
+            obj.nickname = nickname
+            obj.save()
+
 
 
 @extend_schema(tags=["Orders - Beneficiaries"])

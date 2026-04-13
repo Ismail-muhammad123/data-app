@@ -59,10 +59,12 @@ class DataVariationsListView(generics.ListAPIView):
         queryset = DataVariation.objects.filter(is_active=True).order_by('id')
         network_id = self.kwargs.get("network_id")
         if network_id:
+            # Strict PK filter — the client passed the exact DB id of the DataService.
             return queryset.filter(service__id=network_id)
-        
+        # For ?service_id= query param, accept both PK and provider string code.
         service_id = self.request.query_params.get("service_id")
         return _filter_variations_by_service_param(queryset, service_id)
+
 
 
 @extend_schema(tags=["Orders - Airtime"])
@@ -100,6 +102,7 @@ class ElectricityVariationListView(generics.ListAPIView):
         return _filter_variations_by_service_param(queryset, service_id)
 
 
+
 @extend_schema(tags=["Orders - Cable TV"])
 class TVServicesListView(generics.ListAPIView):
     """List available Cable TV services (DSTV, GOTV, Startimes)."""
@@ -122,9 +125,8 @@ class TVPackagesListView(generics.ListAPIView):
         if network_id:
             return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
-        if not service_id:
-            return queryset
         return _filter_variations_by_service_param(queryset, service_id)
+
 
 
 @extend_schema(tags=["Orders - Internet"])
@@ -152,6 +154,7 @@ class InternetPackagesListView(generics.ListAPIView):
         return _filter_variations_by_service_param(queryset, service_id)
 
 
+
 @extend_schema(tags=["Orders - Education"])
 class EducationServiceListView(generics.ListAPIView):
     """List available education services (WAEC, NECO, etc.)."""
@@ -175,3 +178,4 @@ class EducationVariationListView(generics.ListAPIView):
             return queryset.filter(service__id=network_id)
         service_id = self.request.query_params.get("service_id")
         return _filter_variations_by_service_param(queryset, service_id)
+

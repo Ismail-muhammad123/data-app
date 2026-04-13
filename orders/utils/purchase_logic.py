@@ -435,12 +435,19 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
         "amount": base_amount,
         "reference": reference,
     }
-    res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
+    # Use the provider assigned to this specific network record directly.
+    provider_config = getattr(network, 'provider', None)
+    if provider_config:
+        res = ProviderRouter.execute_with_provider(provider_config, "buy_airtime", **call_kwargs)
+    else:
+        # Fallback: use the routing table if no provider is attached.
+        res = ProviderRouter.execute_with_fallback("airtime", "buy_airtime", **call_kwargs)
     
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
     return _build_finalize_purchase("airtime", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{network.service_name} Airtime", {"airtime_service": network}, cost_price=cost_price, profit=profit)
+
 
 def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("data"):
@@ -484,12 +491,19 @@ def purchase_data(user, plan, phone, reference, promo_code_str=None, initiator="
         "amount": amount,
         "reference": reference,
     }
-    res = ProviderRouter.execute_with_fallback("data", "buy_data", **call_kwargs)
+    # Use the provider assigned to this specific data service record directly.
+    provider_config = getattr(plan.service, 'provider', None)
+    if provider_config:
+        res = ProviderRouter.execute_with_provider(provider_config, "buy_data", **call_kwargs)
+    else:
+        # Fallback: use the routing table if no provider is attached.
+        res = ProviderRouter.execute_with_fallback("data", "buy_data", **call_kwargs)
     
     status = "success" if res['status'] == 'SUCCESS' else "failed"
     provider_obj = VTUProviderConfig.objects.filter(name=res.get('provider_used')).first() if res.get('provider_used') else None
     
     return _build_finalize_purchase("data", status, res, user, final_amount, phone, reference, initiator, initiated_by, provider_obj, discount, promo_obj, f"{plan.service.service_name} Data Bundle", {"data_variation": plan}, cost_price=cost_price, profit=profit)
+
 
 def purchase_tv(user, tv_variation, customer_id, reference, promo_code_str=None, initiator="self", initiated_by=None):
     if not _service_enabled("tv"):
