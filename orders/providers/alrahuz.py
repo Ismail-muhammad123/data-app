@@ -49,7 +49,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
             raise Exception(f"Alrahuz API error: {str(e)}")
 
     def buy_airtime(self, phone: str, network: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'glo': 2, '9mobile': 3, 'airtel': 4}
+        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
         
         payload = {
             "network": network_map.get(network.lower(), 1),
@@ -74,7 +74,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
         }
 
     def buy_data(self, phone: str, network: str, plan_id: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'glo': 2, '9mobile': 3, 'airtel': 4}
+        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
         
         payload = {
             "network": network_map.get(network.lower(), 1),
@@ -299,19 +299,152 @@ class AlrahuzDataProvider(BaseVTUProvider):
     def get_airtime_networks(self) -> List[Dict[str, Any]]:
         return [
             {"id": 1, "name": "MTN"},
-            {"id": 2, "name": "GLO"},
-            {"id": 3, "name": "9MOBILE"},
-            {"id": 4, "name": "AIRTEL"}
+            {"id": 2, "name": "AIRTEL"},
+            {"id": 3, "name": "GLO"},
+            {"id": 4, "name": "9MOBILE"}
         ]
 
     def get_data_plans(self, network_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        # Hardcoded from HTML table provided
+        # Updated from documentation provided by user
         all_plans = [
-            {"id": "7", "network": "MTN", "name": "SME 1.0GB", "amount": 780},
-            {"id": "8", "network": "MTN", "name": "SME 2.0GB", "amount": 1450},
-            {"id": "285", "network": "GLO", "name": "CG 1.0GB", "amount": 400},
-            {"id": "516", "network": "AIRTEL", "name": "CG 1.0GB", "amount": 784},
-            {"id": "248", "network": "9MOBILE", "name": "SME 1.0GB", "amount": 220},
+            # AIRTEL
+            {"id": "162", "network": "AIRTEL", "name": "CORPORATE 500 MB", "amount": 485},
+            {"id": "164", "network": "AIRTEL", "name": "CORPORATE 1 GB", "amount": 780},
+            {"id": "165", "network": "AIRTEL", "name": "CORPORATE 2 GB", "amount": 1480},
+            {"id": "166", "network": "AIRTEL", "name": "CORPORATE 3 GB", "amount": 1950},
+            {"id": "167", "network": "AIRTEL", "name": "CORPORATE 4 GB", "amount": 2500},
+            {"id": "168", "network": "AIRTEL", "name": "CORPORATE 5 GB", "amount": 3500},
+            {"id": "169", "network": "AIRTEL", "name": "CORPORATE 6 GB", "amount": 4000},
+            {"id": "170", "network": "AIRTEL", "name": "CORPORATE 8 GB", "amount": 4500},
+            {"id": "171", "network": "AIRTEL", "name": "CORPORATE 10 GB", "amount": 5000},
+            {"id": "175", "network": "AIRTEL", "name": "CORPORATE 12 GB", "amount": 5500},
+            {"id": "176", "network": "AIRTEL", "name": "CORPORATE 13 GB", "amount": 6000},
+            {"id": "177", "network": "AIRTEL", "name": "CORPORATE 18 GB", "amount": 7500},
+            {"id": "178", "network": "AIRTEL", "name": "CORPORATE 25 GB", "amount": 9500},
+            {"id": "179", "network": "AIRTEL", "name": "CORPORATE 35 GB", "amount": 11000},
+            {"id": "180", "network": "AIRTEL", "name": "CORPORATE 60 GB", "amount": 15000},
+            {"id": "181", "network": "AIRTEL", "name": "CORPORATE 100 GB", "amount": 20000},
+            {"id": "182", "network": "AIRTEL", "name": "CORPORATE 160 GB", "amount": 30000},
+            {"id": "183", "network": "AIRTEL", "name": "CORPORATE 210 GB", "amount": 40000},
+            {"id": "184", "network": "AIRTEL", "name": "CORPORATE 300 GB", "amount": 50000},
+            {"id": "185", "network": "AIRTEL", "name": "CORPORATE 350 GB", "amount": 60000},
+            {"id": "188", "network": "AIRTEL", "name": "CORPORATE 650 GB", "amount": 100000},
+            {"id": "237", "network": "AIRTEL", "name": "CORPORATE 1 500 MB", "amount": 485},
+            {"id": "238", "network": "AIRTEL", "name": "CORPORATE 1 1 GB", "amount": 780},
+            {"id": "239", "network": "AIRTEL", "name": "CORPORATE 1 1.5 GB", "amount": 1000},
+            {"id": "240", "network": "AIRTEL", "name": "CORPORATE 1 2 GB", "amount": 1479},
+            {"id": "241", "network": "AIRTEL", "name": "CORPORATE 1 3 GB", "amount": 2000},
+            {"id": "242", "network": "AIRTEL", "name": "CORPORATE 1 5 GB", "amount": 2500},
+            {"id": "243", "network": "AIRTEL", "name": "CORPORATE 1 6 GB", "amount": 3000},
+            {"id": "244", "network": "AIRTEL", "name": "CORPORATE 1 7 GB", "amount": 3400},
+            {"id": "245", "network": "AIRTEL", "name": "CORPORATE 1 10 GB", "amount": 4000},
+            {"id": "190", "network": "AIRTEL", "name": "GIFTING 300 MB", "amount": 100},
+            {"id": "191", "network": "AIRTEL", "name": "GIFTING 600 MB", "amount": 230},
+            {"id": "194", "network": "AIRTEL", "name": "GIFTING 1.5 GB", "amount": 500},
+            {"id": "195", "network": "AIRTEL", "name": "GIFTING 2 GB", "amount": 600},
+            {"id": "196", "network": "AIRTEL", "name": "GIFTING 3 GB", "amount": 750},
+            {"id": "197", "network": "AIRTEL", "name": "GIFTING 3.2 GB", "amount": 850},
+            {"id": "198", "network": "AIRTEL", "name": "GIFTING 4 GB", "amount": 2450},
+            {"id": "199", "network": "AIRTEL", "name": "GIFTING 5 GB", "amount": 3400},
+            {"id": "200", "network": "AIRTEL", "name": "GIFTING 6 GB", "amount": 3950},
+            {"id": "201", "network": "AIRTEL", "name": "GIFTING 8 GB", "amount": 4400},
+            {"id": "202", "network": "AIRTEL", "name": "GIFTING 10 GB", "amount": 4900},
+            {"id": "203", "network": "AIRTEL", "name": "GIFTING 12 GB", "amount": 5300},
+            {"id": "204", "network": "AIRTEL", "name": "GIFTING 13 GB", "amount": 5500},
+            {"id": "205", "network": "AIRTEL", "name": "GIFTING 18 GB", "amount": 7500},
+            {"id": "206", "network": "AIRTEL", "name": "GIFTING 25 GB", "amount": 9500},
+            {"id": "207", "network": "AIRTEL", "name": "GIFTING 35 GB", "amount": 11000},
+            {"id": "208", "network": "AIRTEL", "name": "GIFTING 60 GB", "amount": 15000},
+            {"id": "209", "network": "AIRTEL", "name": "GIFTING 100 GB", "amount": 20000},
+            {"id": "210", "network": "AIRTEL", "name": "GIFTING 160 GB", "amount": 30000},
+            {"id": "211", "network": "AIRTEL", "name": "GIFTING 210 GB", "amount": 40000},
+            {"id": "212", "network": "AIRTEL", "name": "GIFTING 300 GB", "amount": 50000},
+            {"id": "213", "network": "AIRTEL", "name": "GIFTING 350 GB", "amount": 60000},
+            {"id": "214", "network": "AIRTEL", "name": "GIFTING 650 GB", "amount": 100000},
+
+            # MTN
+            {"id": "82", "network": "MTN", "name": "SME 500 MB", "amount": 350},
+            {"id": "83", "network": "MTN", "name": "SME 1 GB", "amount": 450},
+            {"id": "84", "network": "MTN", "name": "SME 2 GB", "amount": 900},
+            {"id": "86", "network": "MTN", "name": "SME 3 GB", "amount": 1350},
+            {"id": "87", "network": "MTN", "name": "SME 5 GB", "amount": 1700},
+            {"id": "88", "network": "MTN", "name": "SME 10 GB", "amount": 4500},
+            {"id": "89", "network": "MTN", "name": "SME 20 GB", "amount": 9000},
+            {"id": "215", "network": "MTN", "name": "SME 25 GB", "amount": 12000},
+            {"id": "91", "network": "MTN", "name": "GIFTING 500 MB", "amount": 300},
+            {"id": "92", "network": "MTN", "name": "GIFTING 1 GB", "amount": 450},
+            {"id": "93", "network": "MTN", "name": "GIFTING 2 GB", "amount": 750},
+            {"id": "94", "network": "MTN", "name": "GIFTING 2.5 GB", "amount": 900},
+            {"id": "95", "network": "MTN", "name": "GIFTING 3.2 GB", "amount": 1000},
+            {"id": "96", "network": "MTN", "name": "GIFTING 5 GB", "amount": 1750},
+            {"id": "97", "network": "MTN", "name": "GIFTING 6 GB", "amount": 2500},
+            {"id": "98", "network": "MTN", "name": "GIFTING 11 GB", "amount": 3500},
+            {"id": "99", "network": "MTN", "name": "GIFTING 20 GB", "amount": 5000},
+            {"id": "100", "network": "MTN", "name": "GIFTING 25 GB", "amount": 9000},
+            {"id": "101", "network": "MTN", "name": "GIFTING 30 GB", "amount": 9500},
+            {"id": "102", "network": "MTN", "name": "GIFTING 35 GB", "amount": 7500},
+            {"id": "103", "network": "MTN", "name": "GIFTING 40 GB", "amount": 10000},
+            {"id": "104", "network": "MTN", "name": "GIFTING 60 GB", "amount": 14500},
+            {"id": "105", "network": "MTN", "name": "GIFTING 65 GB", "amount": 16000},
+            {"id": "106", "network": "MTN", "name": "GIFTING 75 GB", "amount": 18000},
+            {"id": "107", "network": "MTN", "name": "GIFTING 90 GB", "amount": 25000},
+            {"id": "108", "network": "MTN", "name": "GIFTING 150 GB", "amount": 40000},
+            {"id": "109", "network": "MTN", "name": "GIFTING 165 GB", "amount": 45000},
+            {"id": "110", "network": "MTN", "name": "GIFTING 200 GB", "amount": 50000},
+            {"id": "111", "network": "MTN", "name": "GIFTING 250 GB", "amount": 60000},
+            {"id": "112", "network": "MTN", "name": "GIFTING 450 GB", "amount": 75000},
+            {"id": "113", "network": "MTN", "name": "GIFTING 800 GB", "amount": 130000},
+            {"id": "231", "network": "MTN", "name": "DATA SHARE 2 GB", "amount": 800},
+            {"id": "232", "network": "MTN", "name": "DATA SHARE 3 GB", "amount": 1200},
+            {"id": "233", "network": "MTN", "name": "DATA SHARE 5 GB", "amount": 1600},
+            {"id": "234", "network": "MTN", "name": "DATA SHARE 1 GB", "amount": 400},
+            {"id": "235", "network": "MTN", "name": "DATA SHARE 10 GB", "amount": 4490},
+            {"id": "236", "network": "MTN", "name": "DATA SHARE 20 GB", "amount": 5500},
+            {"id": "246", "network": "MTN", "name": "DATA SHARE 500 MB", "amount": 350},
+            {"id": "122", "network": "MTN", "name": "OFFERS 3.2 GB", "amount": 980},
+            {"id": "123", "network": "MTN", "name": "OFFERS 3.5 GB", "amount": 1000},
+            {"id": "125", "network": "MTN", "name": "OFFERS 4 GB", "amount": 1200},
+            {"id": "126", "network": "MTN", "name": "OFFERS 5.5 GB", "amount": 1500},
+            {"id": "230", "network": "MTN", "name": "OFFERS 7 GB", "amount": 1800},
+
+            # 9MOBILE
+            {"id": "144", "network": "9MOBILE", "name": "CORPORATE 300 MB", "amount": 100},
+            {"id": "145", "network": "9MOBILE", "name": "CORPORATE 500 MB", "amount": 200},
+            {"id": "146", "network": "9MOBILE", "name": "CORPORATE 1 GB", "amount": 400},
+            {"id": "147", "network": "9MOBILE", "name": "CORPORATE 2 GB", "amount": 800},
+            {"id": "148", "network": "9MOBILE", "name": "CORPORATE 3 GB", "amount": 1200},
+            {"id": "149", "network": "9MOBILE", "name": "CORPORATE 5 GB", "amount": 2000},
+            {"id": "150", "network": "9MOBILE", "name": "CORPORATE 10 GB", "amount": 4000},
+            {"id": "151", "network": "9MOBILE", "name": "CORPORATE 15 GB", "amount": 6000},
+            {"id": "152", "network": "9MOBILE", "name": "CORPORATE 20 GB", "amount": 8000},
+            {"id": "153", "network": "9MOBILE", "name": "GIFTING 300 MB", "amount": 100},
+            {"id": "154", "network": "9MOBILE", "name": "GIFTING 500 MB", "amount": 200},
+            {"id": "155", "network": "9MOBILE", "name": "GIFTING 1 GB", "amount": 400},
+            {"id": "156", "network": "9MOBILE", "name": "GIFTING 2 GB", "amount": 800},
+            {"id": "157", "network": "9MOBILE", "name": "GIFTING 3 GB", "amount": 1200},
+            {"id": "158", "network": "9MOBILE", "name": "GIFTING 5 GB", "amount": 2000},
+            {"id": "159", "network": "9MOBILE", "name": "GIFTING 10 GB", "amount": 4000},
+            {"id": "160", "network": "9MOBILE", "name": "GIFTING 15 GB", "amount": 6000},
+            {"id": "161", "network": "9MOBILE", "name": "GIFTING 20 GB", "amount": 8000},
+
+            # GLO
+            {"id": "127", "network": "GLO", "name": "CORPORATE 200 MB", "amount": 100},
+            {"id": "128", "network": "GLO", "name": "CORPORATE 500 MB", "amount": 200},
+            {"id": "129", "network": "GLO", "name": "CORPORATE 1 GB", "amount": 400},
+            {"id": "130", "network": "GLO", "name": "CORPORATE 2 GB", "amount": 850},
+            {"id": "131", "network": "GLO", "name": "CORPORATE 3 GB", "amount": 1200},
+            {"id": "132", "network": "GLO", "name": "CORPORATE 5 GB", "amount": 2000},
+            {"id": "133", "network": "GLO", "name": "CORPORATE 10 GB", "amount": 4000},
+            {"id": "134", "network": "GLO", "name": "GIFTING 200 MB", "amount": 95},
+            {"id": "135", "network": "GLO", "name": "GIFTING 750 MB", "amount": 200},
+            {"id": "136", "network": "GLO", "name": "GIFTING 1 GB", "amount": 350},
+            {"id": "137", "network": "GLO", "name": "GIFTING 1.5 GB", "amount": 380},
+            {"id": "138", "network": "GLO", "name": "GIFTING 2 GB", "amount": 500},
+            {"id": "139", "network": "GLO", "name": "GIFTING 2.5 GB", "amount": 550},
+            {"id": "140", "network": "GLO", "name": "GIFTING 5.1 GB", "amount": 1000},
+            {"id": "141", "network": "GLO", "name": "GIFTING 7.7 GB", "amount": 2500},
+            {"id": "142", "network": "GLO", "name": "GIFTING 10 GB", "amount": 1950},
+            {"id": "143", "network": "GLO", "name": "GIFTING 14 GB", "amount": 3900},
         ]
         if network_id:
             return [p for p in all_plans if p['network'] == network_id]
