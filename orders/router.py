@@ -11,6 +11,13 @@ from .providers.clubkonnect import ClubKonnectProvider
 from .providers.generic import GenericLocalProvider
 from .providers.arewa_global import ArewaGlobalProvider
 from .providers.flowpay import FlowPayProvider
+from .providers.alrahuz import AlrahuzDataProvider
+from .providers.mobile_ng import MobileNigProvider
+from .providers.mobile_vtu import MobileVTUProvider
+from .providers.nata import NataVTUProvider
+from .providers.sme_data import SMEDataProvider
+from .providers.amigo import AmigoVTUProvider
+from .providers.VTU_org import VTUOrgProvider
 
 
 logger = logging.getLogger(__name__)
@@ -26,17 +33,13 @@ class ProviderRouter:
         'clubkonnect': ClubKonnectProvider,
         'arewa_global': ArewaGlobalProvider,
         'flowpay': FlowPayProvider,
-        'alrahuz': GenericLocalProvider,
-        'mobilenig': GenericLocalProvider,
-        'otapay': GenericLocalProvider,
-        'mightydata': GenericLocalProvider,
-        'smedata': GenericLocalProvider,
-        'mobilevtu': GenericLocalProvider,
-        'aimtoget': GenericLocalProvider,
-        'nata_api': GenericLocalProvider,
-        'amigo': GenericLocalProvider,
-        'vtu_org': GenericLocalProvider,
-        'payflex': GenericLocalProvider,
+        'alrahuz': AlrahuzDataProvider,
+        'mobilenig': MobileNigProvider,
+        'mobilevtu': MobileVTUProvider,
+        'nata_api': NataVTUProvider,
+        'smedata': SMEDataProvider,
+        'amigo': AmigoVTUProvider,
+        'vtu_org': VTUOrgProvider,
     }
 
     @classmethod
