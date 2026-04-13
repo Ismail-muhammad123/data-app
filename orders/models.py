@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from .providers.registry import AVAILABLE_PROVIDERS
+
 
 SERVICES = (
     ('mtn', 'MTN'),
@@ -192,7 +194,7 @@ class DataVariation(models.Model):
 
 
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.service.provider}"
 
 class EducationService(models.Model):
     service_name = models.CharField(max_length=100)
@@ -273,8 +275,6 @@ class Purchase(models.Model):
     def __str__(self):
         return f"{self.purchase_type} purchase to {self.beneficiary}"
 
-
-from .providers.registry import AVAILABLE_PROVIDERS
 
 class VTUProviderConfig(models.Model):
     """Configuration for each VTU API provider."""

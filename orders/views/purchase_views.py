@@ -95,12 +95,12 @@ class PurchaseAirtimeView(APIView):
 
         amount = serializer.validated_data["amount"]
         phone_number = serializer.validated_data["phone_number"]
-        network_id = serializer.validated_data["network_id"]   # DB PK of AirtimeNetwork
+        service_id = serializer.validated_data["service_id"]   # DB PK of AirtimeNetwork
         promo_code = serializer.validated_data.get("promo_code")
 
         try:
             # Look up by unique DB PK — no ambiguity across providers.
-            network = AirtimeNetwork.objects.get(id=network_id, is_active=True)
+            network = AirtimeNetwork.objects.get(id=service_id, is_active=True)
 
             reference = generate_request_id()
             result = purchase_airtime(
