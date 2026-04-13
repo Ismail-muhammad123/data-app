@@ -14,7 +14,11 @@ class AmigoVTUProvider(BaseVTUProvider):
 
     def __init__(self, config: Dict[str, Any]):
         self.api_token = config.get('api_key')
-        self.base_url = config.get('base_url', 'https://amigo.ng/api').rstrip('/')
+        url = config.get('base_url')
+        if url:
+            self.base_url = url.rstrip('/')
+        else:
+            self.base_url = 'https://amigo.ng/api'
         
         self.headers = {
             "X-API-Key": self.api_token,
@@ -185,17 +189,18 @@ class AmigoVTUProvider(BaseVTUProvider):
         margin = config.airtime_margin if config else Decimal('0.00')
         base_100 = Decimal('100.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created = []
         for net_data in networks:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=str(net_data["id"]),
+                provider=provider_config,
                 defaults={
                     "service_name": net_data["name"],
                     "cost_price": base_100,
                     "selling_price": base_100 + margin,
                     "agent_price": base_100,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -208,6 +213,7 @@ class AmigoVTUProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.data_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         plans = self.get_data_plans()
         created_variations = []
         for plan in plans:
@@ -215,9 +221,9 @@ class AmigoVTUProvider(BaseVTUProvider):
             network_name = network_map.get(plan["network"], plan["network"])
             service, _ = DataService.objects.get_or_create(
                 service_id=plan["network"],
+                provider=provider_config,
                 defaults={
                     "service_name": network_name,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             p_amount = Decimal(str(plan["price"]))

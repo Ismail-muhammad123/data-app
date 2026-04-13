@@ -360,6 +360,8 @@ class ClubKonnectProvider(BaseVTUProvider):
     def _deserialize_airtime(self, network_name: str, product_list: List[Dict]) -> List[Any]:
         from orders.models import AirtimeNetwork
         created = []
+        provider_config = getattr(self, "provider_config", None)
+        created = []
         for product in product_list:
             discount = product.get("PRODUCT_DISCOUNT", "0")
             if isinstance(discount, str):
@@ -376,6 +378,7 @@ class ClubKonnectProvider(BaseVTUProvider):
             
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=product.get("ID"),
+                provider=provider_config,
                 defaults={
                     "service_name": product.get("PRODUCT_NAME", network_name).capitalize(),
                     "min_amount": product.get("MINAMOUNT", "50"),
@@ -384,7 +387,6 @@ class ClubKonnectProvider(BaseVTUProvider):
                     "cost_price": base_100 - (base_100 * p_discount / 100),
                     "selling_price": base_100 + margin,
                     "agent_price": base_100, # Agents get it at face value
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -402,13 +404,15 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def _deserialize_data(self, network_name: str, network_list: List[Dict]) -> List[Any]:
         from orders.models import DataService, DataVariation
+        provider_config = getattr(self, "provider_config", None)
         created = []
         net_info = network_list[0]
         service_id = net_info.get("ID")
         products = net_info.get("PRODUCT", [])
         service, _ = DataService.objects.get_or_create(
             service_id=service_id,
-            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+            provider=provider_config,
+            defaults={"service_name": network_name}
         )
         from summary.models import SiteConfig
         from decimal import Decimal
@@ -445,13 +449,15 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def _deserialize_tv(self, network_name: str, network_list: List[Dict]) -> List[Any]:
         from orders.models import TVService, TVVariation
+        provider_config = getattr(self, "provider_config", None)
         created = []
         net_info = network_list[0]
         s_id = net_info.get("ID") or network_name.lower().replace(" ", "-")
         products = net_info.get("PRODUCT") or net_info.get("PACKAGE") or []
         service, _ = TVService.objects.get_or_create(
             service_id=s_id,
-            defaults={"service_name": network_name, "provider": getattr(self, "provider_config", None)}
+            provider=provider_config,
+            defaults={"service_name": network_name}
         )
         from summary.models import SiteConfig
         from decimal import Decimal
@@ -488,11 +494,13 @@ class ClubKonnectProvider(BaseVTUProvider):
 
     def _deserialize_electricity(self, name: str, company_infos: List[Dict]) -> List[Any]:
         from orders.models import ElectricityService, ElectricityVariation
+        provider_config = getattr(self, "provider_config", None)
         created = []
         for company_info in company_infos:
             service, _ = ElectricityService.objects.get_or_create(
                 service_id=company_info.get('ID') or name.lower().replace("_", "-").replace(" ", "-"),
-                defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title(), "provider": getattr(self, "provider_config", None)}
+                provider=provider_config,
+                defaults={"service_name": company_info.get("NAME") or name.replace("_", " ").title()}
             )
             for product in company_info.get("PRODUCT", []):
                 from summary.models import SiteConfig
@@ -556,9 +564,11 @@ class ClubKonnectProvider(BaseVTUProvider):
                         variations_list = val
                         break
                         
+        provider_config = getattr(self, "provider_config", None)
         service, _ = InternetService.objects.get_or_create(
             service_id=service_id,
-            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
+            provider=provider_config,
+            defaults={"service_name": service_name}
         )
         
         synced_count = 0
@@ -645,9 +655,11 @@ class ClubKonnectProvider(BaseVTUProvider):
                      variations_list = v
                      break
 
+        provider_config = getattr(self, "provider_config", None)
         service, _ = EducationService.objects.get_or_create(
             service_id=service_id,
-            defaults={"service_name": service_name, "provider": getattr(self, "provider_config", None)}
+            provider=provider_config,
+            defaults={"service_name": service_name}
         )
         
         synced_count = 0

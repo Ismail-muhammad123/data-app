@@ -14,7 +14,11 @@ class MobileNigProvider(BaseVTUProvider):
     def __init__(self, config: Dict[str, Any]):
         self.public_key = config.get('public_key')
         self.secret_key = config.get('secret_key') # Required for Recharge/Renew
-        self.base_url = config.get('base_url', 'https://enterprise.mobilenig.com/api/v2').rstrip('/')
+        url = config.get('base_url')
+        if url:
+            self.base_url = url.rstrip('/')
+        else:
+            self.base_url = 'https://enterprise.mobilenig.com/api/v2'
         
         # Default headers for generic requests
         self.auth_headers = {
@@ -223,17 +227,18 @@ class MobileNigProvider(BaseVTUProvider):
         margin = config.airtime_margin if config else Decimal('0.00')
         base_100 = Decimal('100.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created = []
         for net_data in networks:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=str(net_data.get("id")),
+                provider=provider_config,
                 defaults={
                     "service_name": net_data.get("name"),
                     "cost_price": base_100,
                     "selling_price": base_100 + margin,
                     "agent_price": base_100,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -246,14 +251,15 @@ class MobileNigProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.data_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created_variations = []
         for net in networks:
             service, _ = DataService.objects.get_or_create(
                 service_id=str(net["id"]),
+                provider=provider_config,
                 defaults={
                     "service_name": net["name"],
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             plans = self.get_data_plans(net["id"])
@@ -280,15 +286,16 @@ class MobileNigProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.tv_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         # Popular TV service IDs for MobileNig
         tv_services = [('AKA', 'GOtv'), ('AKB', 'DStv'), ('AKC', 'StarTimes')]
         created_variations = []
         for sid, name in tv_services:
             service, _ = TVService.objects.get_or_create(
                 service_id=sid,
+                provider=provider_config,
                 defaults={
                     "service_name": name,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             packages = self.get_cable_tv_packages(sid)
@@ -321,15 +328,16 @@ class MobileNigProvider(BaseVTUProvider):
         from decimal import Decimal
         config = SiteConfig.objects.first()
         margin = config.education_margin if config else Decimal('0.00')
+        provider_config = getattr(self, "provider_config", None)
 
         services = self.get_education_services()
         created_variations = []
         for svc in services:
             service, _ = EducationService.objects.get_or_create(
                 service_id=svc["id"],
+                provider=provider_config,
                 defaults={
                     "service_name": svc["name"],
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             variation, _ = EducationVariation.objects.update_or_create(

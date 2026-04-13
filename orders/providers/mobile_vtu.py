@@ -15,7 +15,11 @@ class MobileVTUProvider(BaseVTUProvider):
     def __init__(self, config: Dict[str, Any]):
         self.api_key = config.get('api_key')
         self.api_token = config.get('api_token')
-        self.base_url = config.get('base_url', 'https://api.mobilevtu.com/v1').rstrip('/')
+        url = config.get('base_url')
+        if url:
+            self.base_url = url.rstrip('/')
+        else:
+            self.base_url = 'https://api.mobilevtu.com/v1'
 
     @property
     def provider_name(self) -> str:
@@ -182,17 +186,18 @@ class MobileVTUProvider(BaseVTUProvider):
         margin = config.airtime_margin if config else Decimal('0.00')
         base_100 = Decimal('100.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created = []
         for net_data in networks:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=str(net_data.get("id")),
+                provider=provider_config,
                 defaults={
                     "service_name": net_data.get("name"),
                     "cost_price": base_100,
                     "selling_price": base_100 + margin,
                     "agent_price": base_100,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -205,14 +210,15 @@ class MobileVTUProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.data_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created_variations = []
         for net in networks:
             service, _ = DataService.objects.get_or_create(
                 service_id=str(net["id"]),
+                provider=provider_config,
                 defaults={
                     "service_name": net["name"],
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             plans = self.get_data_plans(net["id"])

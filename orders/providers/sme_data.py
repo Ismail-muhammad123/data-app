@@ -13,7 +13,11 @@ class SMEDataProvider(BaseVTUProvider):
 
     def __init__(self, config: Dict[str, Any]):
         self.token = config.get('api_key')  # SMEData calls it 'token'
-        self.base_url = config.get('base_url', 'https://smedata.ng/wp-json/api/v1').rstrip('/')
+        url = config.get('base_url')
+        if url:
+            self.base_url = url.rstrip('/')
+        else:
+            self.base_url = 'https://smedata.ng/wp-json/api/v1'
 
     @property
     def provider_name(self) -> str:
@@ -167,17 +171,18 @@ class SMEDataProvider(BaseVTUProvider):
         margin = config.airtime_margin if config else Decimal('0.00')
         base_100 = Decimal('100.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created = []
         for net_data in networks:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=str(net_data.get("id")),
+                provider=provider_config,
                 defaults={
                     "service_name": net_data.get("name"),
                     "cost_price": base_100,
                     "selling_price": base_100 + margin,
                     "agent_price": base_100,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -190,14 +195,15 @@ class SMEDataProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.data_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         plans = self.get_data_plans()
         created_variations = []
         for plan in plans:
             service, _ = DataService.objects.get_or_create(
                 service_id=plan.get("network", "MTN"),
+                provider=provider_config,
                 defaults={
                     "service_name": plan.get("network", "MTN"),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             p_amount = Decimal(str(plan.get("amount") or 0))
@@ -222,14 +228,15 @@ class SMEDataProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.tv_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         packages = self.get_cable_tv_packages()
         created_variations = []
         for pkg in packages:
             service, _ = TVService.objects.get_or_create(
                 service_id=pkg.get("cable", "GOTV"),
+                provider=provider_config,
                 defaults={
                     "service_name": pkg.get("cable", "GOTV"),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             p_amount = Decimal(str(pkg.get("amount") or 0))
@@ -254,14 +261,15 @@ class SMEDataProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.electricity_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         discos = self.get_electricity_services()
         created_variations = []
         for disco in discos:
             service, _ = ElectricityService.objects.get_or_create(
                 service_id=str(disco.get("id")),
+                provider=provider_config,
                 defaults={
                     "service_name": disco.get("name"),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             variation, _ = ElectricityVariation.objects.update_or_create(

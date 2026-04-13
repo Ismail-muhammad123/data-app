@@ -13,7 +13,11 @@ class VTUOrgProvider(BaseVTUProvider):
 
     def __init__(self, config: Dict[str, Any]):
         self.api_key = config.get('api_key')
-        self.base_url = config.get('base_url', 'https://vtu.ng/wp-json/api/v2').rstrip('/')
+        url = config.get('base_url')
+        if url:
+            self.base_url = url.rstrip('/')
+        else:
+            self.base_url = 'https://vtu.ng/wp-json/api/v2'
         
         self.headers = {
             "Authorization": f"Token {self.api_key}", # Alternative auth method supported
@@ -185,17 +189,18 @@ class VTUOrgProvider(BaseVTUProvider):
         margin = config.airtime_margin if config else Decimal('0.00')
         base_100 = Decimal('100.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created = []
         for net_data in networks:
             net, _ = AirtimeNetwork.objects.update_or_create(
                 service_id=str(net_data.get("id")),
+                provider=provider_config,
                 defaults={
                     "service_name": net_data.get("name"),
                     "cost_price": base_100,
                     "selling_price": base_100 + margin,
                     "agent_price": base_100,
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             created.append(net)
@@ -208,14 +213,15 @@ class VTUOrgProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.data_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         networks = self.get_airtime_networks()
         created_variations = []
         for net in networks:
             service, _ = DataService.objects.get_or_create(
                 service_id=str(net["id"]),
+                provider=provider_config,
                 defaults={
                     "service_name": net["name"],
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             plans = self.get_data_plans(net["id"])
@@ -242,14 +248,15 @@ class VTUOrgProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.tv_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         services = ['dstv', 'gotv', 'startimes']
         created_variations = []
         for sid in services:
             service, _ = TVService.objects.get_or_create(
                 service_id=sid,
+                provider=provider_config,
                 defaults={
                     "service_name": sid.upper(),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             packages = self.get_cable_tv_packages(sid)
@@ -276,15 +283,16 @@ class VTUOrgProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.electricity_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         discos = self.get_electricity_services()
         created_variations = []
         for disco in discos:
             service_id = disco.get("service_id") or disco.get("variation_id")
             service, _ = ElectricityService.objects.get_or_create(
                 service_id=service_id,
+                provider=provider_config,
                 defaults={
                     "service_name": disco.get("name"),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             variation, _ = ElectricityVariation.objects.update_or_create(
@@ -311,15 +319,16 @@ class VTUOrgProvider(BaseVTUProvider):
         config = SiteConfig.objects.first()
         margin = config.education_margin if config else Decimal('0.00')
 
+        provider_config = getattr(self, "provider_config", None)
         exams = self.get_education_services()
         created_variations = []
         for exam in exams:
             service_id = exam.get("service_id") or exam.get("variation_id")
             service, _ = EducationService.objects.get_or_create(
                 service_id=service_id,
+                provider=provider_config,
                 defaults={
                     "service_name": exam.get("name"),
-                    "provider": getattr(self, "provider_config", None),
                 }
             )
             p_amount = Decimal(str(exam.get("variation_amount") or 0))

@@ -186,7 +186,7 @@ class FlowPayProvider(BaseVTUProvider):
 
     @classmethod
     def get_supported_services(cls) -> List[str]:
-        return ['airtime', 'data']
+        return ['data']
 
     @classmethod
     def get_config_requirements(cls) -> List[Dict[str, Any]]:
