@@ -168,7 +168,11 @@ class FlowPayProvider(BaseVTUProvider):
 
     def __init__(self, config: Dict[str, Any]):
         self.api_token = config.get('api_key')
-        self.base_url = 'https://app.flowpay.ng/'.rstrip('/')
+        url = config.get('base_url')
+        if url and len(url.strip()) > 0:
+            self.base_url = url.strip().rstrip('/')
+        else:
+            self.base_url = 'https://app.flowpay.ng'
         
         self.headers = {
             "Authorization": f"Bearer {self.api_token}",
