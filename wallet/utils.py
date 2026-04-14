@@ -3,7 +3,14 @@ from django.db import transaction
 from payments.models import Deposit
 from wallet.models import Wallet, WalletTransaction
 from notifications.utils import NotificationService
+from decimal import Decimal
 import uuid
+
+def to_decimal(value):
+    """Convert a value to Decimal type."""
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
 
 def fund_wallet(user_id, amount, description="Wallet funded", reference=None, initiator='self', initiated_by=None):
     if amount <= 0:
@@ -85,8 +92,6 @@ def process_referral_reward(user, trigger_event, transaction_amount=0):
         return
 
     referrer = referral_rel.referrer
-    
-    from decimal import Decimal
     
     # Identify which rules to use (Agent vs User)
     is_agent = getattr(referrer, 'role', 'customer') == 'agent'
