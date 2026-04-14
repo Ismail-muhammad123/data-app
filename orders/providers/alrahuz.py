@@ -60,7 +60,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
             "airtime_type": "VTU"
         }
         
-        res = self._request("POST", "/api/airtime/", payload)
+        res = self._request("POST", "/api/topup/", payload)
         
         status = "FAILED"
         if res.get('Status') == 'success':
