@@ -155,7 +155,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
 
     def get_wallet_balance(self) -> float:
         res = self._request("GET", "/api/user/")
-        return float(res.get('user', {}).get('balance', 0))
+        return float(res.get('user', {}).get('Account_Balance', 0))
 
     def get_available_services(self) -> List[Dict[str, Any]]:
         return [
