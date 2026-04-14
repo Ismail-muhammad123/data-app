@@ -254,7 +254,7 @@ class FlowPayProvider(BaseVTUProvider):
         
         res = self._post("/api/data", payload)
         
-        status = "SUCCESS" if res.get('status') == 'successful' else "FAILED"
+        status = "SUCCESS" if res.get('Status') == 'successful' or res.get('status') == 'successful' or (res.get("Status") and "success" in res.get("Status").lower()) or (res.get("status") and "success" in res.get("status").lower()) else "FAILED"
         return {
             "status": status,
             "provider_reference": res.get('reference', reference),
