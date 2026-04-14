@@ -62,12 +62,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
         
         res = self._request("POST", "/api/topup/", payload)
         
-        status = "FAILED"
-        if res.get('Status') == 'success':
-            status = "SUCCESS"
-        elif res.get('Status') == 'processing':
-            status = "PENDING"
-            
+        status = "SUCCESS" if res.get('Status') == 'successful' or res.get('status') == 'successful' or (res.get("Status") and "success" in res.get("Status").lower()) or (res.get("status") and "success" in res.get("status").lower()) else "FAILED"
         return {
             "status": status,
             "provider_reference": res.get('id', reference),
