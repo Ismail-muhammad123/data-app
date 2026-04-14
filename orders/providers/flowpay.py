@@ -212,6 +212,10 @@ class FlowPayProvider(BaseVTUProvider):
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=30)
             # print(f"FlowPay POST {url} - Payload: {data} - Status: {response.status_code} - Response: {response.json()}")
+            print("===========================================")
+            print(f"FlowPay POST {url} - Payload: {data} - Status: {response.status_code} - Response: {response.text}")
+            print("===========================================")
+            # response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"FlowPay request error: {str(e)}")
