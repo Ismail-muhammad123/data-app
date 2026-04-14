@@ -65,7 +65,7 @@ class AlrahuzDataProvider(BaseVTUProvider):
         status = "SUCCESS" if res.get('Status') == 'successful' or res.get('status') == 'successful' or (res.get("Status") and "success" in res.get("Status").lower()) or (res.get("status") and "success" in res.get("status").lower()) else "FAILED"
         error_message = res.get('error') or res.get('message') or None
         if error_message is not None:
-            error_message = error_message.join(", " if isinstance(error_message, list) else "")
+            error_message = ",".join([str(msg) for msg in error_message]) if isinstance(error_message, list) else str(error_message)
         return {
             "status": status,
             "provider_reference": res.get('id', reference),
