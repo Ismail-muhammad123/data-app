@@ -63,10 +63,14 @@ class AlrahuzDataProvider(BaseVTUProvider):
         res = self._request("POST", "/api/topup/", payload)
         
         status = "SUCCESS" if res.get('Status') == 'successful' or res.get('status') == 'successful' or (res.get("Status") and "success" in res.get("Status").lower()) or (res.get("status") and "success" in res.get("status").lower()) else "FAILED"
+        error_message = res.get('error') or res.get('message') or None
+        if error_message is not None:
+            error_message = error_message.join(", " if isinstance(error_message, list) else "")
         return {
             "status": status,
             "provider_reference": res.get('id', reference),
-            "raw_response": res
+            "raw_response": res,
+            "error": error_message
         }
 
     def buy_data(self, phone: str, network: str, plan_id: str, amount: float, reference: str) -> Dict[str, Any]:
