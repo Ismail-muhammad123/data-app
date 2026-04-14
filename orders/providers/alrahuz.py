@@ -43,7 +43,6 @@ class AlrahuzDataProvider(BaseVTUProvider):
         url = f"{self.base_url}{endpoint}"
         try:
             response = requests.request(method, url, json=data, headers=self.headers, timeout=30)
-            print(f"Alrahuz {method} {url} - Payload: {data} - Status: {response.status_code} - Response: {response.text}")
             return response.json()
         except Exception as e:
             logger.error(f"Alrahuz request error: {str(e)}")
