@@ -331,6 +331,7 @@ class ArewaGlobalProvider(BaseVTUProvider):
         url = f"{self.base_url}{endpoint}"
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=30)
+            response.raise_for_status() 
             return response.json()
         except Exception as e:
             logger.error(f"ArewaGlobal request error: {str(e)}")
@@ -409,7 +410,7 @@ class ArewaGlobalProvider(BaseVTUProvider):
             payload = {
                 "PhoneNumber": phone,
                 "BundleTypeCode": plan_id,
-                "actype": "AccountNumber"
+                "actype": "PhoneNumber" if phone.startswith('234') else "AccountNumber"
             }
         elif service_key == 'alpha':
             endpoint = "/api/alpha/"

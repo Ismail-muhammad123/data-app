@@ -50,10 +50,9 @@ class AlrahuzDataProvider(BaseVTUProvider):
             raise Exception(f"Alrahuz API error: {str(e)}")
 
     def buy_airtime(self, phone: str, network: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
         
         payload = {
-            "network": network_map.get(network.lower(), 1),
+            "network": network,
             "amount": int(amount),
             "mobile_number": phone,
             "Ported_number": True,
@@ -74,10 +73,9 @@ class AlrahuzDataProvider(BaseVTUProvider):
         }
 
     def buy_data(self, phone: str, network: str, plan_id: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
         
         payload = {
-            "network": network_map.get(network.lower(), 1),
+            "network": network,
             "mobile_number": phone,
             "plan": plan_id,
             "Ported_number": True

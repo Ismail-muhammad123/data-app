@@ -410,7 +410,7 @@ def purchase_airtime(user, network, phone, amount, reference, promo_code_str=Non
     if not network.is_active:
         return {"status": "failed", "error": "Airtime service is inactive."}
 
-    discount_val = network.agent_discount if user.role == 'agent' else network.discount
+    discount_val = network.discount
     
     from summary.models import SiteConfig
     config = SiteConfig.objects.first()

@@ -221,13 +221,13 @@ class FlowPayProvider(BaseVTUProvider):
             raise Exception(f"FlowPay API error: {str(e)}")
 
     def buy_airtime(self, phone: str, network: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
-        network_id = network_map.get(network.lower(), 1)
+        # network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
+        # network_id = network_map.get(network.lower(), 1)
 
         payload = {
             "mobile_number": phone,
             "amount": str(int(amount)),
-            "network": network_id,
+            "network": network,
         }
         
         res = self._post("/api/airtime", payload)
@@ -242,13 +242,13 @@ class FlowPayProvider(BaseVTUProvider):
         }
 
     def buy_data(self, phone: str, network: str, plan_id: str, amount: float, reference: str) -> Dict[str, Any]:
-        network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
-        network_id = network_map.get(network.lower(), 1)
+        # network_map = {'mtn': 1, 'airtel': 2, 'glo': 3, '9mobile': 4}
+        # network_id = network_map.get(network.lower(), 1)
 
         payload = {
             "mobile_number": phone,
             "plan": plan_id,
-            "network": network_id,
+            "network": network,
         }
         
         res = self._post("/api/data", payload)
