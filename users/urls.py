@@ -64,6 +64,8 @@ urlpatterns = [
     # ═══════════════════════════════════════════
     path("referrals/", ReferralListView.as_view(), name="referral-list"),
     path("referrals/stats/", ReferralStatsView.as_view(), name="referral-stats"),
+    path("referral/", ReferralStatsView.as_view(), name="customer-referral-info"),
+
 
     # ═══════════════════════════════════════════
     # DEVICE / FCM  (authenticated)
