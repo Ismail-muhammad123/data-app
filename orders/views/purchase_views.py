@@ -48,8 +48,6 @@ class PurchaseDataVariationView(APIView):
         if len(serializer.validated_data["phone_number"]) != 11 or not serializer.validated_data["phone_number"].isdigit() or not serializer.validated_data["phone_number"].startswith("0"):
             return Response({"error": "Invalid phone number format."}, status=status.HTTP_400_BAD_REQUEST)
         
-        
-
         plan_id = serializer.validated_data["plan_id"]
         phone_number = serializer.validated_data["phone_number"]
         promo_code = serializer.validated_data.get("promo_code")
@@ -104,6 +102,12 @@ class PurchaseAirtimeView(APIView):
         if not user.check_transaction_pin(pin):
             logger.warning("Airtime purchase: invalid PIN attempt by user=%s", user.id)
             return Response({"error": "Invalid transaction PIN."}, status=status.HTTP_403_FORBIDDEN)
+
+        
+        # check phone number length and format here if needed before proceeding
+        if len(serializer.validated_data["phone_number"]) != 11 or not serializer.validated_data["phone_number"].isdigit() or not serializer.validated_data["phone_number"].startswith("0"):
+            return Response({"error": "Invalid phone number format."}, status=status.HTTP_400_BAD_REQUEST)
+        
 
         amount = serializer.validated_data["amount"]
         phone_number = serializer.validated_data["phone_number"]
