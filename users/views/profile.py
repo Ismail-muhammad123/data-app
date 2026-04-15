@@ -128,9 +128,14 @@ def generate_virtual_account(request):
         return Response({"success": False, "error": "First name, last name, and email are required."}, status=400)
     try:
         res = PaystackGateway(settings.PAYSTACK_SECRET_KEY).create_virtual_account(user.email, user.first_name, user.last_name, user.phone_country_code + user.phone_number)
-        if res: return Response({"success": res['status'], "message": res['message']})
+        if settings.DEBUG:
+            print("Virtual account creation response:", res)
+        if res: 
+            return Response({"success": res['status'], "message": res['message']})
         return Response({"success": False, "error": "Fail"}, status=500)
     except Exception as e:
+        if settings.DEBUG:
+            print("Error creating virtual account:", str(e))
         return Response({"success": False, "error": str(e)}, status=500)
 
 
