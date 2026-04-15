@@ -15,6 +15,7 @@ from users.serializers import (
 )
 from users.models import User, OTP, KYC
 from wallet.models import VirtualAccount
+from wallet.serializers.wallet import VirtualAccountSerializer
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -147,15 +148,7 @@ def generate_virtual_account(request):
                 status='ACTIVE'
             )
 
-            return Response({
-                "status": "SUCCESS", 
-                "message": "Virtual account provisioned successfully",
-                "data": {
-                    "account_number": va.account_number,
-                    "bank_name": va.bank_name,
-                    "account_name": va.account_name
-                }
-            }, status=200)
+            return Response( VirtualAccountSerializer(va).data, status=200)
         else:
             msg = res.get('message') if res else "Unexpected error during virtual account creation"
             return Response({"status": "ERROR", "message": msg}, status=500)
