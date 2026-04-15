@@ -14,6 +14,7 @@ from users.serializers import (
     VerifyTransactionPinSerializer, KYCSubmissionSerializer, KYCStatusSerializer
 )
 from users.models import User, OTP, KYC
+from wallet.models import VirtualAccount
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -128,11 +129,36 @@ def generate_virtual_account(request):
         return Response({"success": False, "error": "First name, last name, and email are required."}, status=400)
     try:
         res = PaystackGateway(settings.PAYSTACK_SECRET_KEY).create_virtual_account(user.email, user.first_name, user.last_name, user.phone_country_code + user.phone_number)
-        if settings.DEBUG:
-            print("Virtual account creation response:", res)
-        if res: 
-            return Response({"success": res['status'], "message": res['message']})
-        return Response({"success": False, "error": "Fail"}, status=500)
+        # Handle response and create VirtualAccount record if successful
+        if res and res.get('status'):
+            # Extract data from Paystack response
+            data = res['data']
+            bank = data.get('bank', {})
+            
+            # Save to database
+            va = VirtualAccount.objects.create(
+                user=user,
+                account_number=data['account_number'],
+                bank_name=bank.get('name', 'Wema Bank'),
+                account_name=data['account_name'],
+                account_reference=data.get('assignment', {}).get('integration', 'PAYSTACK'),
+                customer_email=user.email,
+                customer_name=f"{user.first_name} {user.last_name}",
+                status='ACTIVE'
+            )
+
+            return Response({
+                "status": "SUCCESS", 
+                "message": "Virtual account provisioned successfully",
+                "data": {
+                    "account_number": va.account_number,
+                    "bank_name": va.bank_name,
+                    "account_name": va.account_name
+                }
+            }, status=200)
+        else:
+            msg = res.get('message') if res else "Unexpected error during virtual account creation"
+            return Response({"status": "ERROR", "message": msg}, status=500)
     except Exception as e:
         if settings.DEBUG:
             print("Error creating virtual account:", str(e))
