@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from drf_spectacular.utils import extend_schema, OpenApiExample, inline_serializer
 from django.conf import settings
+from notifications.utils import NotificationService
 from users.models import User, OTP
 from users.utils import send_otp_code
 from users.serializers import (
@@ -126,7 +127,7 @@ def generate_virtual_account(request):
     if not user.first_name or not user.last_name or not user.email:
         return Response({"success": False, "error": "First name, last name, and email are required."}, status=400)
     try:
-        res = PaystackGateway(settings.PAYSTACK_SECRET_KEY).create_virtual_account(user.email, user.first_name, user.middle_name or "", user.last_name, user.phone_country_code + user.phone_number)
+        res = PaystackGateway(settings.PAYSTACK_SECRET_KEY).create_virtual_account(user.email, user.first_name, user.last_name, user.phone_country_code + user.phone_number)
         if res: return Response({"success": res['status'], "message": res['message']})
         return Response({"success": False, "error": "Fail"}, status=500)
     except Exception as e:
