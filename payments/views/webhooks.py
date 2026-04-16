@@ -23,8 +23,14 @@ class PaymentWebhookView(APIView):
         if event_type == "charge.success":
             ref, amount = data['reference'], float(data['amount']) / 100
             config = SiteConfig.objects.first()
-            charge = config.crediting_charge if config else 0
-            amount_to_fund = max(0, amount - float(charge))
+            charge = 0
+            if config:
+                # Prefer new granular charge fields if set, otherwise fallback to legacy crediting_charge
+                fixed_charge = float(config.deposit_charge_fixed) if config.deposit_charge_fixed != 0 else float(config.crediting_charge)
+                percent_charge = (amount * float(config.deposit_charge_percentage)) / 100
+                charge = fixed_charge + percent_charge
+            
+            amount_to_fund = max(0, amount - charge)
             if data['authorization']['channel'] == 'dedicated_nuban':
                 acc_num = data['authorization']['receiver_bank_account_number']
                 va = VirtualAccount.objects.get(account_number=acc_num)

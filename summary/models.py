@@ -408,6 +408,10 @@ class SummaryDashboard(Wallet):
         config_data = {
             "withdrawal_charge": float(config.withdrawal_charge) if config else 0,
             "crediting_charge": float(config.crediting_charge) if config else 0,
+            "deposit_charge_fixed": float(config.deposit_charge_fixed) if config else 0,
+            "deposit_charge_percentage": float(config.deposit_charge_percentage) if config else 0,
+            "withdrawal_charge_fixed": float(config.withdrawal_charge_fixed) if config else 0,
+            "withdrawal_charge_percentage": float(config.withdrawal_charge_percentage) if config else 0,
             "automatic_withdrawal": config.automatic_withdrawal if config else False,
             "withdrawals_enabled": config.withdrawals_enabled if config else True,
             "maintenance_mode": config.maintenance_mode if config else False,
@@ -562,6 +566,19 @@ class SiteConfig(models.Model):
         return "Site Configuration"
 
     def save(self, *args, **kwargs):
+        # Synchronize old and new charge fields for backward compatibility
+        # Case 1: If new fields are set, they should update the old fields
+        if self.deposit_charge_fixed and self.deposit_charge_fixed != 0:
+            self.crediting_charge = self.deposit_charge_fixed
+        if self.withdrawal_charge_fixed and self.withdrawal_charge_fixed != 0:
+            self.withdrawal_charge = self.withdrawal_charge_fixed
+            
+        # Case 2: If old fields are set but new ones are zero, populate new ones
+        if self.crediting_charge and self.crediting_charge != 0 and (self.deposit_charge_fixed == 0 and self.deposit_charge_percentage == 0):
+            self.deposit_charge_fixed = self.crediting_charge
+        if self.withdrawal_charge and self.withdrawal_charge != 0 and (self.withdrawal_charge_fixed == 0 and self.withdrawal_charge_percentage == 0):
+            self.withdrawal_charge_fixed = self.withdrawal_charge
+
         if not self.pk and SiteConfig.objects.exists():
             # Return either existing instance or None, don't allow double creation.
             return 

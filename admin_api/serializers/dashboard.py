@@ -19,6 +19,18 @@ class AdminSiteConfigSerializer(serializers.ModelSerializer):
     def get_cashbacks(self, obj):
         return ServiceCashbackSerializer(ServiceCashback.objects.all(), many=True).data
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        
+        # Ensure new fields reflect old values if they are zero/unset
+        if float(ret.get('deposit_charge_fixed', 0)) == 0 and float(ret.get('deposit_charge_percentage', 0)) == 0:
+            ret['deposit_charge_fixed'] = str(instance.crediting_charge)
+            
+        if float(ret.get('withdrawal_charge_fixed', 0)) == 0 and float(ret.get('withdrawal_charge_percentage', 0)) == 0:
+            ret['withdrawal_charge_fixed'] = str(instance.withdrawal_charge)
+            
+        return ret
+
 class AdminReferralConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferralConfig

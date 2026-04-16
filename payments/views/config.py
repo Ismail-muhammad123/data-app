@@ -10,4 +10,8 @@ class ChargesConfigView(APIView):
         return Response({
             "withdrawal_charge": float(config.withdrawal_charge) if config else 0.0,
             "deposit_charge": float(config.crediting_charge) if config else 0.0,
+            "deposit_charge_fixed": float(config.deposit_charge_fixed) if config else 0.0,
+            "deposit_charge_percentage": float(config.deposit_charge_percentage) if config else 0.0,
+            "withdrawal_charge_fixed": float(config.withdrawal_charge_fixed) if config else 0.0,
+            "withdrawal_charge_percentage": float(config.withdrawal_charge_percentage) if config else 0.0,
         }, status=status.HTTP_200_OK)
