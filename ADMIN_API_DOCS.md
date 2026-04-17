@@ -203,7 +203,7 @@ List all users with pagination, filters, and search.
 | `is_closed` | boolean | Filter by blocked/closed status |
 | `ordering` | string | Order by: `created_at`, `first_name`, `last_name`, `role` |
 | `page` | integer | Page number (default: 1) |
-| `page_size` | integer | Items per page (default: 20, max: 100) |
+| `page_size` | integer | Items per page (default: 100, max: 100) |
 
 **Response `200`:** Paginated list of:
 ```json
