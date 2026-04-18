@@ -10,6 +10,7 @@ from orders.models import (
     DataService, DataVariation, AirtimeNetwork, Purchase, VTUProviderConfig,
     TVVariation, ElectricityVariation, InternetVariation, EducationVariation,
 )
+from support.models import SupportTicket
 
 User = get_user_model()
 
@@ -268,7 +269,16 @@ class SummaryDashboard(Wallet):
         admin_users = User.objects.filter(
             Q(is_superuser=True) | Q(is_staff=True)
         ).count()
-        active_users_today = User.objects.filter(last_login__date=today).count()
+        
+        # Enhanced active today logic: Users who logged in OR performed any major action today
+        active_users_today = User.objects.filter(
+            Q(last_login__date=today) |
+            Q(purchases__time__date=today) |
+            Q(wallet_transactions__timestamp__date=today) |
+            Q(deposits__timestamp__date=today) |
+            Q(withdrawals__created_at__date=today) |
+            Q(tickets__created_at__date=today)
+        ).distinct().count()
 
         users = {
             "total": total_users,
