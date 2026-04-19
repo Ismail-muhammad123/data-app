@@ -123,10 +123,6 @@ class AdminPurchaseViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def refund(self, request, pk=None):
-        pin = request.data.get('pin')
-        if not request.user.check_password(pin):
-            return Response({"error": "Invalid authorization PIN"}, status=403)
-
         purchase = self.get_object()
         if purchase.status == 'refunded':
              return Response({"error": "Already refunded"}, status=400)
