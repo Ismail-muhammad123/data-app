@@ -18,6 +18,7 @@ from .providers.nata import NataVTUProvider
 from .providers.sme_data import SMEDataProvider
 from .providers.amigo import AmigoVTUProvider
 from .providers.VTU_org import VTUOrgProvider
+from .providers.ketamency import KetamencyProvider
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class ProviderRouter:
         'smedata': SMEDataProvider,
         'amigo': AmigoVTUProvider,
         'vtu_org': VTUOrgProvider,
+        'ketamency': KetamencyProvider,
     }
 
     @classmethod

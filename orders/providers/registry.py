@@ -15,6 +15,7 @@ AVAILABLE_PROVIDERS = [
     ('amigo', 'Amigo'),
     ('vtuorg', 'vtu.org'),
     ('flowpay', 'FlowPay'),
+    ('ketamency', 'Ketamency (Smile)'),
 ]
 
 def get_provider_display_name(provider_id: str) -> str:
