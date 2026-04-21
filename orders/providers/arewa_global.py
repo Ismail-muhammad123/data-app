@@ -395,15 +395,32 @@ class ArewaGlobalProvider(BaseVTUProvider):
         """ArewaGlobal does not support Education pins."""
         return {"status": "FAILED", "message": "Education payments not supported on ArewaGlobal"}
 
+    def verify_internet(self, accountID: str, **kwargs) -> Dict[str, Any]:
+        """
+        ArewaGlobal does not have a dedicated internet verification endpoint.
+        Return a stub response so the router does not crash.
+        """
+        return {"status": "SUCCESS", "account_name": accountID, "message": "Verification not required for this provider"}
+
     def buy_internet(self, plan_id: str, phone: str, amount: float, reference: str, **kwargs) -> Dict[str, Any]:
         """
         Internet subscription payment routed by service type to the correct Arewa endpoint.
         """
-        service_type = kwargs.get('internet_variation', plan_id) # Typically we pass the actual variation id / plan name
-        # We need to extract the service key like smile, alpha from the variation_id since we prepended it in sync: f"{service_key}_{plan_id}"
-        service_key = plan_id.split('_')[0].lower() if '_' in plan_id else service_type.lower()
+        # internet_variation kwarg may be an InternetVariation model object — extract its variation_id string safely.
+        internet_variation = kwargs.get('internet_variation')
+        if internet_variation is not None and not isinstance(internet_variation, str):
+            # It's a model instance; use its variation_id attribute (e.g. "smile_25")
+            internet_variation = getattr(internet_variation, 'variation_id', None) or plan_id
+
+        # We need to extract the service key like smile, alpha from the variation_id
+        # since we prepend it in sync: f"{service_key}_{plan_id}"
         if '_' in plan_id:
-            plan_id = plan_id.split('_')[-1]
+            service_key = plan_id.split('_')[0].lower()
+            plan_id = plan_id.split('_', 1)[-1]
+        elif internet_variation and '_' in internet_variation:
+            service_key = internet_variation.split('_')[0].lower()
+        else:
+            service_key = (internet_variation or plan_id).lower()
         
         if service_key == 'smile':
             endpoint = "/api/smile-data/"
