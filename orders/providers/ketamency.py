@@ -116,7 +116,7 @@ class KetamencyProvider(BaseVTUProvider):
             res["number_type"] = "account"
         
         if "status" not in res:
-            res["status"] = "SUCCESS" if res.get("account_name") else "FAILED"
+            res["status"] = "SUCCESS" if res.get("account_name", None) is not None else "FAILED"
         
         return res
 
@@ -129,6 +129,8 @@ class KetamencyProvider(BaseVTUProvider):
         res = self._post(endpoint, {
             "accountNumber": account_number
         })
+
+        print(f"Validate account response: {res}")
         if res.get("status") == "success":
             first_name = res.get("data", {}).get("customer", {}).get("firstName", "")
             middle_name = res.get("data", {}).get("customer", {}).get("middleName", "")
@@ -136,7 +138,7 @@ class KetamencyProvider(BaseVTUProvider):
             return {
                 "status": "SUCCESS",
                 "account_name": f"{first_name} {middle_name} {last_name}".strip(),
-                "raw_response": res
+                # "raw_response": res
             }
         
         return {"status": "FAILED", "account_name": None, "raw_response": res}
@@ -151,7 +153,9 @@ class KetamencyProvider(BaseVTUProvider):
             "phoneNumber": phone
         })
 
-        if res.get("status") == "success":
+        print(f"Validate phone response: {res}")
+
+        if res.get("status") == "success" and res.get("data", {}).get("isValid", False) is True:
 
             first_name = res.get("data", {}).get("customer", {}).get("firstName", "")
             middle_name = res.get("data", {}).get("customer", {}).get("middleName", "")
@@ -159,7 +163,7 @@ class KetamencyProvider(BaseVTUProvider):
             return {
                 "status": "SUCCESS",
                 "account_name": f"{first_name} {middle_name} {last_name}".strip(),
-                "raw_response": res
+                # "raw_response": res
             }
         
         return {"status": "FAILED", "account_name": None, "raw_response": res}

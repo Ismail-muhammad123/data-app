@@ -59,7 +59,9 @@ class VerifyCustomerView(APIView):
             
             res = ProviderRouter.execute_with_fallback(purchase_type, action, **kwargs)
             print(f"Beneficiary Verification result: {res}")
+
             response_status = status.HTTP_200_OK if res.get("status") in ["SUCCESS", "ORDER_RECEIVED"] else status.HTTP_400_BAD_REQUEST
+
             return Response(res, status=response_status)
 
         except Exception as e:
