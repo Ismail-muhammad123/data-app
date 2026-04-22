@@ -79,7 +79,7 @@ class KetamencyProvider(BaseVTUProvider):
         
         number_type = kwargs.get("number_type")
         if number_type is None:
-             number_type = "phone" if (str(phone).startswith("0702") or str(phone).startswith("234")) else "account"
+             number_type = "phone" if str(phone).startswith("234") else "account"
 
         payload = {
             "planId": plan_id,
