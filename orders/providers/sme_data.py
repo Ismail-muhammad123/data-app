@@ -148,10 +148,10 @@ class SMEDataProvider(BaseVTUProvider):
         return self.handle_webhook(data)
 
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
-        return {"account_name": "N/A", "raw_response": {}}
+        return {"status": "FAILED", "account_name": "N/A", "raw_response": {}}
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
-        return {"account_name": "N/A", "raw_response": {}}
+        return {"status": "FAILED", "account_name": "N/A", "raw_response": {}}
 
     def get_wallet_balance(self) -> float:
         """

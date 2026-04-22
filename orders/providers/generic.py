@@ -157,18 +157,20 @@ class GenericLocalProvider(BaseVTUProvider):
         try:
             response = requests.get(url, headers=self._get_headers(), timeout=15)
             data = response.json()
-            return {"account_name": data.get('name'), "raw_response": data}
+            account_name = data.get('name')
+            return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": data}
         except:
-            return {"error": "Verification failed"}
+            return {"status": "FAILED", "error": "Verification failed"}
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
         url = f"{self.base_url}/validate_iuc/?smart_card_number={card_number}&cablename={service}"
         try:
             response = requests.get(url, headers=self._get_headers(), timeout=15)
             data = response.json()
-            return {"account_name": data.get('name'), "raw_response": data}
+            account_name = data.get('name')
+            return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": data}
         except:
-            return {"error": "Verification failed"}
+            return {"status": "FAILED", "error": "Verification failed"}
 
     def get_wallet_balance(self) -> float:
         try:

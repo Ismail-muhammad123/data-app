@@ -197,8 +197,10 @@ class MobileNigProvider(BaseVTUProvider):
         payload = {"service_id": service, "customerAccountId": meter_number}
         res = self._request("POST", "/services/proxy", payload)
         details = res.get('details', {})
+        account_name = details.get('name') or details.get('customerName')
         return {
-            "account_name": details.get('name') or details.get('customerName'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 
@@ -206,8 +208,10 @@ class MobileNigProvider(BaseVTUProvider):
         payload = {"service_id": service, "customerAccountId": card_number}
         res = self._request("POST", "/services/proxy", payload)
         details = res.get('details', {})
+        account_name = f"{details.get('firstName', '')} {details.get('lastName', '')}".strip() or details.get('customerName')
         return {
-            "account_name": f"{details.get('firstName', '')} {details.get('lastName', '')}".strip() or details.get('customerName'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 

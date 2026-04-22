@@ -44,16 +44,23 @@ class VerifyCustomerView(APIView):
         purchase_type = serializer.validated_data.get("purchase_type", "tv")
 
         try:
-            if purchase_type == 'tv': action = 'verify_tv'
-            elif purchase_type == 'electricity': action = 'verify_electricity'
-            elif purchase_type == 'internet': action = 'verify_internet'
-            else: action = 'verify_tv'
-
-            kwargs = {'tv_id': service_id, 'smart_card_number': customer_id, 'disco_id': service_id, 'meter_number': customer_id, 'accountID': customer_id}
+            if purchase_type == 'tv':
+                action = 'validate_cable_id'
+                kwargs = {'card_number': customer_id, 'service': service_id}
+            elif purchase_type == 'electricity':
+                action = 'validate_meter'
+                kwargs = {'meter_number': customer_id, 'service': service_id}
+            elif purchase_type == 'internet':
+                action = 'verify_internet'
+                kwargs = {'accountID': customer_id}
+            else:
+                action = 'validate_cable_id'
+                kwargs = {'card_number': customer_id, 'service': service_id}
             
             res = ProviderRouter.execute_with_fallback(purchase_type, action, **kwargs)
             print(f"Beneficiary Verification result: {res}")
-            return Response(res, status=status.HTTP_200_OK)
+            response_status = status.HTTP_200_OK if res.get("status") in ["SUCCESS", "ORDER_RECEIVED"] else status.HTTP_400_BAD_REQUEST
+            return Response(res, status=response_status)
 
         except Exception as e:
             logger.error(f"Customer verification failed: {str(e)}")

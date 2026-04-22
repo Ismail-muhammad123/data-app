@@ -224,16 +224,20 @@ class DynamicProvider(BaseVTUProvider):
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         res = self._make_request('verify_customer', {'meter_number': meter_number, 'service_id': service})
         extracted = res.get('extracted', {})
+        account_name = extracted.get('account_name')
         return {
-            "account_name": extracted.get('account_name'),
+            "status": "SUCCESS" if (res.get('success') and account_name) else "FAILED",
+            "account_name": account_name,
             "raw_response": res.get('response', {})
         }
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
         res = self._make_request('verify_customer', {'card_number': card_number, 'service_id': service})
         extracted = res.get('extracted', {})
+        account_name = extracted.get('account_name')
         return {
-            "account_name": extracted.get('account_name'),
+            "status": "SUCCESS" if (res.get('success') and account_name) else "FAILED",
+            "account_name": account_name,
             "raw_response": res.get('response', {})
         }
 

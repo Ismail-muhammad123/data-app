@@ -318,16 +318,20 @@ class ClubKonnectProvider(BaseVTUProvider):
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         params = {"ElectricCompany": service, "MeterNo": meter_number}
         res = self._get("/ElectricityVerify.asp", params)
+        account_name = res.get('customername')
         return {
-            "account_name": res.get('customername'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
         params = {"CableTV": service, "SmartCardNo": card_number}
         res = self._get("/CableTVVerify.asp", params)
+        account_name = res.get('customername')
         return {
-            "account_name": res.get('customername'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 

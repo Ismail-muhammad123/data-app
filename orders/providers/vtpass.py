@@ -274,8 +274,10 @@ class VTPassProvider(BaseVTUProvider):
             "type": "POSTPAID" if "postpaid" in service.lower() else "PREPAID"
         }
         res = self._post("/merchant-verify", payload)
+        account_name = res.get('content', {}).get('Customer_Name')
         return {
-            "account_name": res.get('content', {}).get('Customer_Name'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 
@@ -285,8 +287,10 @@ class VTPassProvider(BaseVTUProvider):
             "serviceID": service
         }
         res = self._post("/merchant-verify", payload)
+        account_name = res.get('content', {}).get('Customer_Name')
         return {
-            "account_name": res.get('content', {}).get('Customer_Name'),
+            "status": "SUCCESS" if account_name else "FAILED",
+            "account_name": account_name,
             "raw_response": res
         }
 

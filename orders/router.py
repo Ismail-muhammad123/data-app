@@ -158,6 +158,7 @@ class ProviderRouter:
                         k: v for k, v in kwargs.items() if k in sig.parameters
                     }
                     res = method(**call_kwargs)
+                    res = cls._normalize_verification_result(action, res)
                     if isinstance(res, dict):
                         res['provider_used'] = impl.provider_name
                     return res
@@ -195,6 +196,7 @@ class ProviderRouter:
                     }
 
                     res = method(**call_kwargs)
+                    res = ProviderRouter._normalize_verification_result(action, res)
                     
                     if res.get('status') == 'SUCCESS' or res.get('status') == 'ORDER_RECEIVED':
                         res['provider_used'] = provider.provider_name
@@ -212,3 +214,27 @@ class ProviderRouter:
                     break # Skip to next provider if implementation error
 
         return {"status": "FAILED", "error": f"All providers and retries failed. Last error: {last_error}"}
+    @staticmethod
+    def _normalize_verification_result(action: str, res: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure verification-like actions return a normalized status.
+        """
+        verification_actions = {"verify_tv", "verify_electricity", "verify_internet", "validate_meter", "validate_cable_id"}
+        if action not in verification_actions or not isinstance(res, dict):
+            return res
+
+        status_value = res.get("status")
+        if status_value:
+            res["status"] = str(status_value).upper()
+            return res
+
+        account_name = str(res.get("account_name") or "").strip()
+        has_error = bool(res.get("error") or res.get("message"))
+        if account_name and account_name.upper() != "N/A":
+            res["status"] = "SUCCESS"
+        elif has_error:
+            res["status"] = "FAILED"
+        else:
+            res["status"] = "FAILED"
+
+        return res

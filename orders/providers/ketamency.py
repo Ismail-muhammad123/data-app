@@ -115,6 +115,9 @@ class KetamencyProvider(BaseVTUProvider):
             res = self.validate_account(accountID)
             res["number_type"] = "account"
         
+        if "status" not in res:
+            res["status"] = "SUCCESS" if res.get("account_name") else "FAILED"
+        
         return res
 
     def validate_account(self, account_number: str) -> Dict[str, Any]:
@@ -126,11 +129,17 @@ class KetamencyProvider(BaseVTUProvider):
         res = self._post(endpoint, {
             "accountNumber": account_number
         })
-
-        return {
-            "account_name": res.get("data", {}).get("customerName"),
-            "raw_response": res
-        }
+        if res.get("status") == "success":
+            first_name = res.get("data", {}).get("customer", {}).get("firstName", "")
+            middle_name = res.get("data", {}).get("customer", {}).get("middleName", "")
+            last_name = res.get("data", {}).get("customer", {}).get("lastName", "")
+            return {
+                "status": "SUCCESS",
+                "account_name": f"{first_name} {middle_name} {last_name}".strip(),
+                "raw_response": res
+            }
+        
+        return {"status": "FAILED", "account_name": None, "raw_response": res}
 
     def validate_phone(self, phone: str) -> Dict[str, Any]:
         """
@@ -148,11 +157,12 @@ class KetamencyProvider(BaseVTUProvider):
             middle_name = res.get("data", {}).get("customer", {}).get("middleName", "")
             last_name = res.get("data", {}).get("customer", {}).get("lastName", "")
             return {
+                "status": "SUCCESS",
                 "account_name": f"{first_name} {middle_name} {last_name}".strip(),
                 "raw_response": res
             }
         
-        return {"account_name": None, "raw_response": res}
+        return {"status": "FAILED", "account_name": None, "raw_response": res}
 
     # =========================
     # WALLET
@@ -256,8 +266,8 @@ class KetamencyProvider(BaseVTUProvider):
     def buy_tv(self, *args, **kwargs): return {"status": "FAILED", "message": "TV not supported"}
     def buy_electricity(self, *args, **kwargs): return {"status": "FAILED", "message": "Electricity not supported"}
     def buy_education(self, *args, **kwargs): return {"status": "FAILED", "message": "Education not supported"}
-    def validate_meter(self, *args, **kwargs): return {"account_name": "N/A", "raw_response": {}}
-    def validate_cable_id(self, *args, **kwargs): return {"account_name": "N/A", "raw_response": {}}
+    def validate_meter(self, *args, **kwargs): return {"status": "FAILED", "account_name": "N/A", "raw_response": {}}
+    def validate_cable_id(self, *args, **kwargs): return {"status": "FAILED", "account_name": "N/A", "raw_response": {}}
     def sync_airtime(self): return 0
     def sync_data(self): return 0
     def sync_cable(self): return 0

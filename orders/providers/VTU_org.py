@@ -168,11 +168,13 @@ class VTUOrgProvider(BaseVTUProvider):
 
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         res = self._request("GET", f"verify-customer?service_id={service}&customer_id={meter_number}")
-        return {"account_name": res.get('customer_name'), "raw_response": res}
+        account_name = res.get('customer_name')
+        return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": res}
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
         res = self._request("GET", f"verify-customer?service_id={service}&customer_id={card_number}")
-        return {"account_name": res.get('customer_name'), "raw_response": res}
+        account_name = res.get('customer_name')
+        return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": res}
 
     def get_wallet_balance(self) -> float:
         res = self._request("GET", "balance")

@@ -6,7 +6,8 @@ class VerifyCustomerRequestSerializer(serializers.Serializer):
     purchase_type = serializers.ChoiceField(choices=['tv', 'electricity', 'internet'], default='tv')
 
 class VerifyCustomerResponseSerializer(serializers.Serializer):
-    account_name = serializers.CharField()
+    status = serializers.CharField()
+    account_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     raw_response = serializers.DictField(required=False)
 
 class RepeatPurchaseRequestSerializer(serializers.Serializer):

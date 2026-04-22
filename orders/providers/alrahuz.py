@@ -146,11 +146,13 @@ class AlrahuzDataProvider(BaseVTUProvider):
 
     def validate_meter(self, meter_number: str, service: str) -> Dict[str, Any]:
         res = self._request("GET", f"/api/validator/meter/?meter_number={meter_number}&disco={service}")
-        return {"account_name": res.get('name'), "raw_response": res}
+        account_name = res.get('name')
+        return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": res}
 
     def validate_cable_id(self, card_number: str, service: str) -> Dict[str, Any]:
         res = self._request("GET", f"/api/validator/cable/?smart_card_number={card_number}&cablename={service}")
-        return {"account_name": res.get('name'), "raw_response": res}
+        account_name = res.get('name')
+        return {"status": "SUCCESS" if account_name else "FAILED", "account_name": account_name, "raw_response": res}
 
     def get_wallet_balance(self) -> float:
         res = self._request("GET", "/api/user/")
