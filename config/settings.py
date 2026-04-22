@@ -227,6 +227,10 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 WHITENOISE_MANIFEST_STRICT = False
 
+# Backward compatibility for packages that still read legacy static settings
+# (e.g. cloudinary_storage's collectstatic hook).
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage' if PRODUCTION else 'django.core.files.storage.FileSystemStorage'
 
@@ -239,7 +243,7 @@ STORAGES = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage" if PRODUCTION else "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
 
