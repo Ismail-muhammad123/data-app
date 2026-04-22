@@ -108,7 +108,7 @@ class KetamencyProvider(BaseVTUProvider):
         """
         Entry point for VerifyCustomerView (purchase_type='internet')
         """
-        if str(accountID).startswith("0702"):
+        if str(accountID).startswith("0702") or str(accountID).startswith("234"):
             res = self.validate_phone(accountID)
             res["number_type"] = "phone"
         else:
@@ -142,10 +142,17 @@ class KetamencyProvider(BaseVTUProvider):
             "phoneNumber": phone
         })
 
-        return {
-            "account_name": res.get("data", {}).get("customerName"),
-            "raw_response": res
-        }
+        if res.get("status") == "success":
+
+            first_name = res.get("data", {}).get("customer", {}).get("firstName", "")
+            middle_name = res.get("data", {}).get("customer", {}).get("middleName", "")
+            last_name = res.get("data", {}).get("customer", {}).get("lastName", "")
+            return {
+                "account_name": f"{first_name} {middle_name} {last_name}".strip(),
+                "raw_response": res
+            }
+        
+        return {"account_name": None, "raw_response": res}
 
     # =========================
     # WALLET
