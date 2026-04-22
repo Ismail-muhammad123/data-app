@@ -28,7 +28,7 @@ class VerifyCustomerView(APIView):
     @extend_schema(
         tags=["Orders - Verification"],
         summary="Verify a customer (TV, Electricity, Internet)",
-        description="Validate a customer's smartcard number, meter number, or Internet sub account before purchase.",
+        description="Validate a customer's smart card number, meter number, or Internet sub account before purchase.",
         request=VerifyCustomerRequestSerializer,
         responses={
             200: VerifyCustomerResponseSerializer,
@@ -52,6 +52,7 @@ class VerifyCustomerView(APIView):
             kwargs = {'tv_id': service_id, 'smart_card_number': customer_id, 'disco_id': service_id, 'meter_number': customer_id, 'accountID': customer_id}
             
             res = ProviderRouter.execute_with_fallback(purchase_type, action, **kwargs)
+            print(f"Beneficiary Verification result: {res}")
             return Response(res, status=status.HTTP_200_OK)
 
         except Exception as e:
