@@ -74,6 +74,9 @@ class KetamencyProvider(BaseVTUProvider):
         Purchase Smile data bundle
         """
         # Automatically infer numberType from phone prefix if not provided
+        if phone.startswith("070"):
+            phone = "234" + phone[1:]
+        
         number_type = kwargs.get("number_type")
         if number_type is None:
              number_type = "phone" if (str(phone).startswith("0702") or str(phone).startswith("234")) else "account"
