@@ -52,6 +52,9 @@ if csrf_origins_env:
 # Application definition
 
 INSTALLED_APPS = [
+    # Force runserver to use WhiteNoise instead of Django static handler
+    'whitenoise.runserver_nostatic',
+
     # >custom template for admin
     'jazzmin',
 
@@ -226,6 +229,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 WHITENOISE_MANIFEST_STRICT = False
+# Allow WhiteNoise to discover static files via finders in all environments.
+# This keeps static serving consistent even when DEBUG/PRODUCTION flags differ.
+WHITENOISE_USE_FINDERS = True
 
 # Backward compatibility for packages that still read legacy static settings
 # (e.g. cloudinary_storage's collectstatic hook).

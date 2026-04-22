@@ -170,7 +170,7 @@ class AdminWithdrawalViewSet(viewsets.ModelViewSet):
         if withdrawal.status != 'PENDING':
             return Response({"error": f"Cannot approve withdrawal in {withdrawal.status} state"}, status=400)
             
-        pin = request.data.get('pin')
+        pin = request.data.get('otp') or request.data.get('pin')
         if not request.user.check_password(pin):
             return Response({"error": "Invalid authorization PIN"}, status=403)
 
