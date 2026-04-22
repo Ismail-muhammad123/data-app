@@ -108,6 +108,9 @@ class KetamencyProvider(BaseVTUProvider):
         """
         Entry point for VerifyCustomerView (purchase_type='internet')
         """
+        if accountID.startswith("070"):
+            accountID = "234" + accountID[1:]
+
         if str(accountID).startswith("0702") or str(accountID).startswith("234"):
             res = self.validate_phone(accountID)
             res["number_type"] = "phone"
