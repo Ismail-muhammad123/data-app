@@ -36,6 +36,7 @@ class VerifyCustomerView(APIView):
         }
     )
     def post(self, request):
+        print("Received verification request:", request.data)
         serializer = VerifyCustomerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
