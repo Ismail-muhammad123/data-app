@@ -13,6 +13,8 @@ from wallet.serializers import (
 from wallet.utils import fund_wallet, debit_wallet
 from notifications.utils import NotificationService
 from payments.models import Withdrawal
+from payments.utils import PaystackGateway
+from summary.models import SiteConfig
 
 class InitiateBankTransferView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -21,10 +23,68 @@ class InitiateBankTransferView(APIView):
         serializer = BankTransferRequestSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         user, amount, pin = request.user, serializer.validated_data['amount'], serializer.validated_data['transaction_pin']
         if not user.check_transaction_pin(pin): return Response({"error": "Invalid PIN"}, status=403)
+        config = SiteConfig.objects.first()
+        if config and not config.withdrawals_enabled:
+            return Response({"error": "Withdrawals are currently disabled"}, status=403)
+
         ref = f"WTH-{uuid.uuid4().hex[:12].upper()}"
-        with db_transaction.atomic():
-            debit_wallet(user.id, amount, description=f"Withdrawal to {serializer.validated_data['bank_name']}", initiator="self")
-            Withdrawal.objects.create(user=user, amount=amount, bank_name=serializer.validated_data['bank_name'], bank_code=serializer.validated_data['bank_code'], account_number=serializer.validated_data['account_number'], account_name=serializer.validated_data['account_name'], reference=ref, status="PENDING")
+        try:
+            with db_transaction.atomic():
+                debit_wallet(user.id, amount, description=f"Withdrawal to {serializer.validated_data['bank_name']}", initiator="self")
+                withdrawal = Withdrawal.objects.create(
+                    user=user,
+                    amount=amount,
+                    bank_name=serializer.validated_data['bank_name'],
+                    bank_code=serializer.validated_data['bank_code'],
+                    account_number=serializer.validated_data['account_number'],
+                    account_name=serializer.validated_data['account_name'],
+                    reference=ref,
+                    status="PENDING",
+                )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=400)
+
+        if config and config.automatic_withdrawal:
+            try:
+                gateway = PaystackGateway()
+                transfer = gateway.initiate_transfer(
+                    amount=float(amount),
+                    bank_code=withdrawal.bank_code,
+                    account_number=withdrawal.account_number,
+                    account_name=withdrawal.account_name,
+                    reference=withdrawal.reference,
+                    reason=f"Withdrawal {withdrawal.reference}",
+                )
+                transfer_status = transfer.get("status", "PENDING")
+                withdrawal.transfer_code = transfer.get("transfer_code")
+                withdrawal.transaction_status = transfer_status
+                withdrawal.status = "APPROVED" if transfer_status != "FAILED" else "REJECTED"
+                withdrawal.reason = None if transfer_status != "FAILED" else "Transfer initiation failed"
+                withdrawal.save(update_fields=["transfer_code", "transaction_status", "status", "reason", "updated_at"])
+
+                if transfer_status == "FAILED":
+                    fund_wallet(
+                        withdrawal.user.id,
+                        withdrawal.amount,
+                        description=f"Refund: Withdrawal failed ({withdrawal.reference})",
+                        initiator='system',
+                    )
+                    return Response(
+                        {"message": "Withdrawal failed and amount refunded", "reference": ref},
+                        status=400
+                    )
+
+                NotificationService.send_from_template(
+                    user,
+                    "withdrawal-initiated",
+                    {"amount": amount, "bank_name": serializer.validated_data['bank_name'], "reference": ref}
+                )
+                return Response({"message": "Withdrawal approved and transfer initiated", "reference": ref}, status=201)
+            except Exception:
+                # Keep request pending when automatic initiation fails so admin can retry/approve manually.
+                withdrawal.remarks = "Automatic transfer initiation failed; awaiting manual approval."
+                withdrawal.save(update_fields=["remarks", "updated_at"])
+
         NotificationService.send_from_template(user, "withdrawal-initiated", {"amount": amount, "bank_name": serializer.validated_data['bank_name'], "reference": ref})
         return Response({"message": "Withdrawal initiated", "reference": ref}, status=201)
 

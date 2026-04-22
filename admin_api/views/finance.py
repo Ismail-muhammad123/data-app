@@ -23,6 +23,7 @@ import requests
 from django.conf import settings
 from wallet.utils import fund_wallet, debit_wallet
 from users.models import User
+from payments.utils import PaystackGateway
 
 from rest_framework.pagination import PageNumberPagination
 from admin_api.views.user_management import UserPagination
@@ -173,12 +174,43 @@ class AdminWithdrawalViewSet(viewsets.ModelViewSet):
         if not request.user.check_password(pin):
             return Response({"error": "Invalid authorization PIN"}, status=403)
 
-        withdrawal.status = 'APPROVED'
-        withdrawal.transaction_status = 'SUCCESS'
+        try:
+            gateway = PaystackGateway()
+            transfer = gateway.initiate_transfer(
+                amount=float(withdrawal.amount),
+                bank_code=withdrawal.bank_code,
+                account_number=withdrawal.account_number,
+                account_name=withdrawal.account_name,
+                reference=withdrawal.reference,
+                reason=request.data.get('reason', f"Withdrawal {withdrawal.reference}"),
+            )
+        except Exception as exc:
+            return Response({"error": f"Transfer initiation failed: {str(exc)}"}, status=400)
+
+        transfer_status = transfer.get("status", "PENDING")
+        withdrawal.transfer_code = transfer.get("transfer_code")
+        withdrawal.transaction_status = transfer_status
         withdrawal.processed_by = request.user
         withdrawal.remarks = request.data.get('reason', 'Approved by Admin')
+
+        if transfer_status == "FAILED":
+            withdrawal.status = "REJECTED"
+            withdrawal.reason = "Transfer initiation failed"
+            withdrawal.save()
+            fund_wallet(
+                withdrawal.user.id,
+                withdrawal.amount,
+                description=f"Refund: Withdrawal failed ({withdrawal.reference})",
+                initiator='admin',
+                initiated_by=request.user
+            )
+            return Response(
+                {"status": "FAILED", "message": "Transfer initiation failed. Withdrawal rejected and funds refunded."},
+                status=400
+            )
+
+        withdrawal.status = 'APPROVED'
         withdrawal.save()
-        
         return Response({"status": "SUCCESS", "message": "Withdrawal approved and transfer initiated."})
 
     @extend_schema(
