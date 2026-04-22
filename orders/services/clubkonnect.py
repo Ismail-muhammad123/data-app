@@ -6,7 +6,7 @@ import pprint
 
 logger = logging.getLogger(__name__)
 
-from orders.models import VTUProviderConfig, Purchase
+from orders.models import InternetService, VTUProviderConfig, Purchase
 from wallet.utils import fund_wallet
 from orders.services.base import VTUInterface
 
